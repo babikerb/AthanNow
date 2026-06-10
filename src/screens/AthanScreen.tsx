@@ -26,11 +26,8 @@ import { prayerStatusBarLight } from '../theme/colors';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SKY_STRIP_HEIGHT = SCREEN_HEIGHT * 0.1;
-
-// Order used by the debug switcher to preview every gradient/sky scene.
-const DEBUG_PERIODS = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
 
 export default function AthanScreen() {
   const { location, cityName, status, refreshLocation, setLocationByQuery } = useLocation();
@@ -41,7 +38,6 @@ export default function AthanScreen() {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
-  const [debugIdx, setDebugIdx] = useState<number | null>(null);
 
   useNotificationScheduler(location, settings);
 
@@ -60,11 +56,6 @@ export default function AthanScreen() {
   const openLocation = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLocationSheetOpen(true);
-  };
-
-  const cycleDebug = () => {
-    Haptics.selectionAsync();
-    setDebugIdx((prev) => (prev == null ? 0 : prev < DEBUG_PERIODS.length - 1 ? prev + 1 : null));
   };
 
   const locationSheet = (
@@ -94,8 +85,7 @@ export default function AthanScreen() {
   }
 
   const { currentPrayer, nextPrayer, nextPrayerTime, listRows } = prayerData;
-  // Debug override changes only the visuals (gradient + sky + hero label), not the times.
-  const displayPrayer = debugIdx != null ? DEBUG_PERIODS[debugIdx] : currentPrayer;
+  const displayPrayer = currentPrayer;
   const celestial = getCelestialConfig(displayPrayer);
 
   return (
@@ -160,9 +150,6 @@ export default function AthanScreen() {
             })}
           </Text>
           <Text style={styles.hijriText}>{getHijriDate(currentTime)}</Text>
-          <TouchableOpacity onPress={cycleDebug} style={styles.debugPill} activeOpacity={0.6}>
-            <Text style={styles.debugText}>{debugIdx != null ? `● ${DEBUG_PERIODS[debugIdx]}` : '○ preview'}</Text>
-          </TouchableOpacity>
         </View>
       </SafeAreaView>
 

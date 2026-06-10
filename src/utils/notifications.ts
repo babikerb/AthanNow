@@ -65,14 +65,19 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
 
       // Athan notification per enabled prayer (sunrise excluded from athan).
       if (key !== 'sunrise' && notifications.athanEnabled[key]) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `${PRAYER_LABELS[key]}`,
-            body: `It's time for ${PRAYER_LABELS[key]} prayer.`,
-            sound: notifications.athanSound ? 'default' : undefined,
-          },
-          trigger: dateTrigger(time),
-        });
+        const mins = notifications.reminderMinutesBefore || 0;
+        const fireAt = new Date(time.getTime() - mins * 60_000);
+        if (fireAt > now) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: `${PRAYER_LABELS[key]}`,
+              body: mins > 0 ? `${PRAYER_LABELS[key]} is in ${mins} minutes.` : `It's time for ${PRAYER_LABELS[key]} prayer.`,
+              sound: notifications.athanSound ? 'default' : undefined,
+              interruptionLevel: 'timeSensitive',
+            },
+            trigger: dateTrigger(fireAt),
+          });
+        }
       }
 
       // Morning Quran reminder around sunrise.

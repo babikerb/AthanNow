@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
-import { Surah, SURAHS } from '../data/surahs';
+import { getSurah, Surah, SURAHS } from '../data/surahs';
 import { ACCENT, ACCENT_SOFT } from '../theme/colors';
 import { Sheet } from './Sheet';
 
@@ -12,11 +12,24 @@ interface SurahPickerSheetProps {
   onClose: () => void;
   currentSurahId: number;
   onSelect: (surahId: number) => void;
+  /** Jump to a specific "surah:ayah" reference (e.g. "2:286"). */
+  onSelectVerse?: (verseKey: string) => void;
 }
 
-export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect }: SurahPickerSheetProps) {
+export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, onSelectVerse }: SurahPickerSheetProps) {
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
+
+  // Detect a verse reference like "2:286" or "2.286".
+  const verseRef = useMemo(() => {
+    const m = query.trim().match(/^(\d{1,3})\s*[:.]\s*(\d{1,3})$/);
+    if (!m) return null;
+    const surahId = Number(m[1]);
+    const ayah = Number(m[2]);
+    const s = getSurah(surahId);
+    if (!s || ayah < 1 || ayah > s.totalVerses) return null;
+    return { surahId, ayah, key: `${surahId}:${ayah}`, name: s.transliteration };
+  }, [query]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -67,6 +80,20 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect }:
           autoCorrect={false}
         />
       </View>
+      {verseRef && onSelectVerse && (
+        <Pressable
+          onPress={() => {
+            onSelectVerse(verseRef.key);
+            onClose();
+          }}
+          style={({ pressed }) => [styles.gotoRow, { backgroundColor: ACCENT_SOFT, opacity: pressed ? 0.6 : 1 }]}
+        >
+          <SymbolView name="arrow.right.circle.fill" size={22} tintColor={ACCENT} />
+          <Text style={[styles.gotoText, { color: colors.textPrimary }]}>
+            Go to {verseRef.name} {verseRef.surahId}:{verseRef.ayah}
+          </Text>
+        </Pressable>
+      )}
       <FlatList
         data={filtered}
         keyExtractor={(s) => String(s.id)}
@@ -91,6 +118,8 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
   input: { flex: 1, fontSize: 16 },
+  gotoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 10, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 12 },
+  gotoText: { fontSize: 16, fontWeight: '600' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   numberBadge: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   numberText: { fontSize: 14, fontWeight: '700' },

@@ -17,7 +17,7 @@ import { pageForSurah, surahForPage } from '../data/surahPages';
 import { Bookmark, useBookmarks } from '../hooks/useBookmarks';
 import { ACCENT } from '../theme/colors';
 import { fetchChapterVerses } from '../utils/quran';
-import { fetchMushafPage } from '../utils/mushaf';
+import { fetchMushafPage, pageForVerse } from '../utils/mushaf';
 
 const LAST_SURAH = 114;
 
@@ -100,6 +100,26 @@ export default function QuranScreen() {
     setPageTarget(p);
   }, []);
 
+  // Jump to a "surah:ayah" reference from search.
+  const goToVerse = useCallback(async (verseKey: string) => {
+    const surahId = Number(verseKey.split(':')[0]);
+    const page = await pageForVerse(verseKey).catch(() => undefined);
+    if (page) {
+      setPageTarget(page);
+      setCurrentPage(page);
+      setVisibleSurahId(surahForPage(page));
+    }
+    setSelectedSurahId(surahId);
+  }, []);
+
+  // Bookmark a specific ayah (used by mushaf long-press); stores the current page.
+  const bookmarkVerse = useCallback(
+    (surahId: number, ayah: number) => {
+      toggleBookmark(surahId, ayah, getSurah(surahId)?.transliteration ?? '', currentPage);
+    },
+    [toggleBookmark, currentPage],
+  );
+
   const selectBookmark = useCallback((b: Bookmark) => {
     if (b.page) {
       setPageTarget(b.page);
@@ -144,10 +164,12 @@ export default function QuranScreen() {
         <MushafReader
           initialPage={pageTarget}
           topInset={topPad}
-          bottomInset={insets.bottom}
+          bottomInset={insets.bottom + 50}
           colors={colors}
           dark={scheme === 'dark'}
           onPageChange={onMushafPageChange}
+          isBookmarked={isBookmarked}
+          onBookmarkVerse={bookmarkVerse}
         />
       );
     }
@@ -203,7 +225,7 @@ export default function QuranScreen() {
           </Pressable>
         </GlassCircle>
 
-        {/* Center title (tap to pick a surah) */}
+        {/* Center title pill (tap to pick a surah) */}
         <Pressable
           style={styles.titleButton}
           onPress={() => {
@@ -211,15 +233,14 @@ export default function QuranScreen() {
             setPickerOpen(true);
           }}
         >
-          <View style={styles.titleTextWrap}>
+          <TitlePill scheme={scheme} colors={colors}>
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
               {headerSurah.transliteration}
             </Text>
-            <SymbolView name="chevron.down" size={12} tintColor={colors.textTertiary} style={{ marginLeft: 5 }} />
-          </View>
-          <Text style={[styles.headerSub, { color: colors.textTertiary }]}>
-            {isMushaf ? `Page ${currentPage}` : `${headerSurah.totalVerses} ayat`}
-          </Text>
+            <Text style={[styles.headerSub, { color: colors.textTertiary }]}>
+              {isMushaf ? `Page ${currentPage}` : `${headerSurah.totalVerses} ayat`}
+            </Text>
+          </TitlePill>
         </Pressable>
 
         {/* Right element: search */}
@@ -239,7 +260,13 @@ export default function QuranScreen() {
 
       {renderBody()}
 
-      <SurahPickerSheet visible={pickerOpen} onClose={() => setPickerOpen(false)} currentSurahId={visibleSurahId} onSelect={selectSurah} />
+      <SurahPickerSheet
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        currentSurahId={visibleSurahId}
+        onSelect={selectSurah}
+        onSelectVerse={goToVerse}
+      />
       <BookmarkSheet
         visible={bookmarkOpen}
         onClose={() => setBookmarkOpen(false)}
@@ -249,6 +276,17 @@ export default function QuranScreen() {
       />
     </View>
   );
+}
+
+function TitlePill({ scheme, colors, children }: { scheme: 'light' | 'dark'; colors: any; children: React.ReactNode }) {
+  if (isLiquidGlassSupported) {
+    return (
+      <LiquidGlassView interactive colorScheme={scheme} style={styles.pill}>
+        {children}
+      </LiquidGlassView>
+    );
+  }
+  return <View style={[styles.pill, styles.pillFallback, { borderColor: colors.separator }]}>{children}</View>;
 }
 
 function GlassCircle({ scheme, colors, children }: { scheme: 'light' | 'dark'; colors: any; children: React.ReactNode }) {
@@ -300,8 +338,9 @@ const styles = StyleSheet.create({
   circleFallback: { backgroundColor: 'rgba(127,127,127,0.12)', borderWidth: StyleSheet.hairlineWidth },
   circleHit: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   titleButton: { flex: 1, alignItems: 'center' },
-  titleTextWrap: { flexDirection: 'row', alignItems: 'center' },
-  headerTitle: { fontSize: 19, fontWeight: '700', letterSpacing: -0.3 },
+  pill: { borderRadius: 22, paddingHorizontal: 22, paddingVertical: 7, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', minWidth: 140 },
+  pillFallback: { backgroundColor: 'rgba(127,127,127,0.12)', borderWidth: StyleSheet.hairlineWidth },
+  headerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
   headerSub: { fontSize: 11, marginTop: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 40 },
   errorText: { fontSize: 15, textAlign: 'center', lineHeight: 21 },

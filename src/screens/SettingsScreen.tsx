@@ -37,6 +37,12 @@ const CALC_METHODS: { key: CalcMethod; label: string }[] = [
   { key: 'MoonsightingCommittee', label: 'Moonsighting Committee' },
 ];
 
+const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 30];
+
+function minutesLabel(m: number): string {
+  return m === 0 ? 'At athan' : `${m} min before`;
+}
+
 const PRAYER_LABELS: { key: PrayerKey; label: string }[] = [
   { key: 'fajr', label: 'Fajr' },
   { key: 'dhuhr', label: 'Dhuhr' },
@@ -49,6 +55,7 @@ export default function SettingsScreen() {
   const { colors } = useTheme();
   const settings = useSettings();
   const [methodSheetOpen, setMethodSheetOpen] = useState(false);
+  const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
 
   const tap = () => Haptics.selectionAsync();
 
@@ -115,7 +122,7 @@ export default function SettingsScreen() {
         </Section>
 
         {/* NOTIFICATIONS */}
-        <Section title="Notifications" footer="Athan alerts fire at each prayer time. Jamaa reminders nudge you a few minutes later." colors={colors}>
+        <Section title="Notifications" footer="Reminders are time sensitive, so they come through even on Focus or silent." colors={colors}>
           {PRAYER_LABELS.map((p, i) => (
             <ToggleRow
               key={p.key}
@@ -134,6 +141,16 @@ export default function SettingsScreen() {
         </Section>
 
         <Section title="" colors={colors}>
+          <NavRow
+            icon="timer"
+            label="Reminder time"
+            value={minutesLabel(settings.notifications.reminderMinutesBefore)}
+            onPress={() => {
+              tap();
+              setReminderSheetOpen(true);
+            }}
+            colors={colors}
+          />
           <ToggleRow
             icon="speaker.wave.2"
             label="Play adhan sound"
@@ -197,6 +214,29 @@ export default function SettingsScreen() {
                 ]}
               >
                 <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>{m.label}</Text>
+                {selected && <SymbolView name="checkmark" size={18} tintColor={ACCENT} />}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </Sheet>
+
+      {/* Reminder-time picker sheet */}
+      <Sheet visible={reminderSheetOpen} onClose={() => setReminderSheetOpen(false)} title="Reminder time">
+        <ScrollView>
+          {MINUTE_OPTIONS.map((m) => {
+            const selected = m === settings.notifications.reminderMinutesBefore;
+            return (
+              <Pressable
+                key={m}
+                onPress={() => {
+                  tap();
+                  settings.updateNotifications({ reminderMinutesBefore: m });
+                  setReminderSheetOpen(false);
+                }}
+                style={({ pressed }) => [styles.optionRow, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
+              >
+                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>{minutesLabel(m)}</Text>
                 {selected && <SymbolView name="checkmark" size={18} tintColor={ACCENT} />}
               </Pressable>
             );

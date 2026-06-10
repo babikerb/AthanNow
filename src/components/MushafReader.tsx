@@ -15,6 +15,8 @@ interface MushafReaderProps {
   colors: Palette;
   dark: boolean;
   onPageChange: (page: number) => void;
+  isBookmarked: (surahId: number, ayah: number) => boolean;
+  onBookmarkVerse: (surahId: number, ayah: number) => void;
 }
 
 const PAGES = Array.from({ length: TOTAL_PAGES }, (_, i) => i + 1);
@@ -29,6 +31,8 @@ function PageHost({
   bottomInset,
   colors,
   dark,
+  isBookmarked,
+  onBookmarkVerse,
 }: {
   page: number;
   width: number;
@@ -37,6 +41,8 @@ function PageHost({
   bottomInset: number;
   colors: Palette;
   dark: boolean;
+  isBookmarked: (surahId: number, ayah: number) => boolean;
+  onBookmarkVerse: (surahId: number, ayah: number) => void;
 }) {
   const [data, setData] = useState<MushafPageData | null>(null);
   const [error, setError] = useState(false);
@@ -65,16 +71,21 @@ function PageHost({
           <ActivityIndicator color={colors.textTertiary} />
         </View>
       ) : (
-        <>
-          <MushafPage data={data} width={width} height={pageHeight} colors={colors} dark={dark} />
-          <Text style={[styles.pageNumber, { color: colors.textTertiary }]}>{page}</Text>
-        </>
+        <MushafPage
+          data={data}
+          width={width}
+          height={pageHeight}
+          colors={colors}
+          dark={dark}
+          isBookmarked={isBookmarked}
+          onBookmarkVerse={onBookmarkVerse}
+        />
       )}
     </View>
   );
 }
 
-export function MushafReader({ initialPage, topInset, bottomInset, colors, dark, onPageChange }: MushafReaderProps) {
+export function MushafReader({ initialPage, topInset, bottomInset, colors, dark, onPageChange, isBookmarked, onBookmarkVerse }: MushafReaderProps) {
   const { width, height } = useWindowDimensions();
   const pageHeight = height - topInset - bottomInset - 28; // 28 ~ page-number footer
   const listRef = useRef<FlatList<number>>(null);
@@ -93,9 +104,19 @@ export function MushafReader({ initialPage, topInset, bottomInset, colors, dark,
 
   const renderItem = useCallback(
     ({ item }: { item: number }) => (
-      <PageHost page={item} width={width} pageHeight={pageHeight} topInset={topInset} bottomInset={bottomInset} colors={colors} dark={dark} />
+      <PageHost
+        page={item}
+        width={width}
+        pageHeight={pageHeight}
+        topInset={topInset}
+        bottomInset={bottomInset}
+        colors={colors}
+        dark={dark}
+        isBookmarked={isBookmarked}
+        onBookmarkVerse={onBookmarkVerse}
+      />
     ),
-    [width, pageHeight, topInset, bottomInset, colors, dark],
+    [width, pageHeight, topInset, bottomInset, colors, dark, isBookmarked, onBookmarkVerse],
   );
 
   const getItemLayout = useCallback((_: unknown, index: number) => ({ length: width, offset: width * index, index }), [width]);

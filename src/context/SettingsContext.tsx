@@ -28,6 +28,8 @@ export interface NotificationSettings {
   athanEnabled: Record<PrayerKey, boolean>;
   /** Plays the full adhan sound instead of the default tone. */
   athanSound: boolean;
+  /** Minutes before each prayer to fire the reminder (0 = exactly at athan). */
+  reminderMinutesBefore: number;
   /** "Good morning, start your day with Quran" notification around sunrise. */
   quranMorningEnabled: boolean;
 }
@@ -50,6 +52,7 @@ export const DEFAULT_SETTINGS: Settings = {
   notifications: {
     athanEnabled: { fajr: true, sunrise: false, dhuhr: true, asr: true, maghrib: true, isha: true },
     athanSound: true,
+    reminderMinutesBefore: 10,
     quranMorningEnabled: false,
   },
   quranLineMode: '15',

@@ -16,6 +16,7 @@ configureNotificationHandler();
 // Screens
 import AthanScreen from './src/screens/AthanScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import QiblaScreen from './src/screens/QiblaScreen';
 import QuranScreen from './src/screens/QuranScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
@@ -25,6 +26,8 @@ function MainTabs() {
   return (
     <NavigationContainer>
       <Tab.Navigator
+        // minimizeBehavior shrinks the native tab bar on scroll (iOS 26+).
+        {...({ minimizeBehavior: 'onScrollDown' } as any)}
         screenOptions={{
           // Explicitly use the native background bar color property
           barTintColor: '#0D1017',
@@ -44,6 +47,14 @@ function MainTabs() {
           options={{
             title: 'Quran',
             tabBarIcon: () => ({ sfSymbol: 'book.fill' })
+          } as any}
+        />
+        <Tab.Screen
+          name="Qibla"
+          component={QiblaScreen}
+          options={{
+            title: 'Qibla',
+            tabBarIcon: () => ({ sfSymbol: 'safari.fill' })
           } as any}
         />
         <Tab.Screen
