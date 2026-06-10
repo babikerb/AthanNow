@@ -1,14 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
 import { ACCENT, ACCENT_SOFT } from '../theme/colors';
@@ -24,15 +17,7 @@ interface LocationSheetProps {
   onSearch: (query: string) => Promise<boolean>;
 }
 
-export function LocationSheet({
-  visible,
-  onClose,
-  cityName,
-  isManual,
-  loading,
-  onRefresh,
-  onSearch,
-}: LocationSheetProps) {
+export function LocationSheet({ visible, onClose, cityName, isManual, loading, onRefresh, onSearch }: LocationSheetProps) {
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -58,23 +43,21 @@ export function LocationSheet({
   return (
     <Sheet visible={visible} onClose={onClose} title="Location">
       <View style={styles.body}>
-        {/* Current location row */}
-        <View style={[styles.currentCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.separator }]}>
-          <View style={styles.currentRow}>
-            <View style={[styles.iconBadge, { backgroundColor: ACCENT_SOFT }]}>
-              <SymbolView name="location.fill" size={18} tintColor={ACCENT} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.currentCity, { color: colors.textPrimary }]} numberOfLines={1}>
-                {cityName}
-              </Text>
-              <Text style={[styles.currentSub, { color: colors.textTertiary }]}>
-                {isManual ? 'Manually selected' : 'From your device'}
-              </Text>
-            </View>
-            {loading && <ActivityIndicator color={ACCENT} />}
+        {/* Current location hero card */}
+        <View style={[styles.card, { backgroundColor: colors.surfaceElevated, borderColor: colors.separator }]}>
+          <View style={[styles.iconBadge, { backgroundColor: ACCENT_SOFT }]}>
+            <SymbolView name="location.fill" size={22} tintColor={ACCENT} />
           </View>
+          <Text style={[styles.city, { color: colors.textPrimary }]} numberOfLines={1}>
+            {cityName}
+          </Text>
+          <Text style={[styles.citySub, { color: colors.textTertiary }]}>
+            {isManual ? 'Manually selected' : 'Using your device location'}
+          </Text>
+          {loading && <ActivityIndicator color={ACCENT} style={{ marginTop: 10 }} />}
         </View>
+
+        <Text style={[styles.label, { color: colors.textSecondary }]}>CHANGE LOCATION</Text>
 
         {/* Search field */}
         <View style={[styles.searchRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.separator }]}>
@@ -92,13 +75,25 @@ export function LocationSheet({
             onSubmitEditing={submit}
             autoCorrect={false}
           />
+          {query.length > 0 && (
+            <Pressable onPress={submit} hitSlop={8}>
+              <SymbolView name="arrow.up.circle.fill" size={24} tintColor={ACCENT} />
+            </Pressable>
+          )}
         </View>
         {error && <Text style={styles.error}>{error}</Text>}
 
         {/* Use current location */}
-        <Pressable onPress={refresh} style={({ pressed }) => [styles.action, { opacity: pressed ? 0.6 : 1 }]}>
+        <Pressable
+          onPress={refresh}
+          style={({ pressed }) => [
+            styles.useCurrent,
+            { backgroundColor: colors.surfaceElevated, borderColor: colors.separator, opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
           <SymbolView name="location.circle.fill" size={22} tintColor={ACCENT} />
-          <Text style={[styles.actionText, { color: ACCENT }]}>Use current location</Text>
+          <Text style={[styles.useCurrentText, { color: colors.textPrimary }]}>Use current location</Text>
+          <SymbolView name="chevron.right" size={14} tintColor={colors.textTertiary} />
         </Pressable>
       </View>
     </Sheet>
@@ -107,11 +102,17 @@ export function LocationSheet({
 
 const styles = StyleSheet.create({
   body: { padding: 20, gap: 16 },
-  currentCard: { borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 16 },
-  currentRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBadge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  currentCity: { fontSize: 17, fontWeight: '600' },
-  currentSub: { fontSize: 13, marginTop: 2 },
+  card: {
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  iconBadge: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  city: { fontSize: 22, fontWeight: '700' },
+  citySub: { fontSize: 13, marginTop: 4 },
+  label: { fontSize: 11, fontWeight: '600', letterSpacing: 1, marginLeft: 4, marginBottom: -6 },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -119,10 +120,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
-    height: 48,
+    height: 50,
   },
   input: { flex: 1, fontSize: 16 },
-  error: { color: '#E5484D', fontSize: 13, marginTop: -8 },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  actionText: { fontSize: 16, fontWeight: '600' },
+  error: { color: '#E5484D', fontSize: 13, marginTop: -8, marginLeft: 4 },
+  useCurrent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+  } as any,
+  useCurrentText: { flex: 1, fontSize: 16, fontWeight: '600' },
 });

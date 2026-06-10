@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { Palette } from '../theme/colors';
-import { ensurePageFonts, fetchMushafPage, MushafPageData } from '../utils/mushaf';
+import { fetchMushafPage, MushafPageData } from '../utils/mushaf';
 import { TOTAL_PAGES } from '../data/surahPages';
 import { MushafPage } from './MushafPage';
 
@@ -48,25 +48,15 @@ function PageHost({
   onToggleFocus: () => void;
 }) {
   const [data, setData] = useState<MushafPageData | null>(null);
-  const [fontsReady, setFontsReady] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
-    setFontsReady(false);
     setError(false);
-    (async () => {
-      try {
-        const d = await fetchMushafPage(page);
-        if (cancelled) return;
-        setData(d);
-        await ensurePageFonts(d);
-        if (!cancelled) setFontsReady(true);
-      } catch {
-        if (!cancelled) setError(true);
-      }
-    })();
+    fetchMushafPage(page)
+      .then((d) => !cancelled && setData(d))
+      .catch(() => !cancelled && setError(true));
     return () => {
       cancelled = true;
     };
@@ -85,7 +75,7 @@ function PageHost({
         </View>
       ) : (
         <>
-          <MushafPage data={data} width={width} height={pageHeight} colors={colors} fontsReady={fontsReady} />
+          <MushafPage data={data} width={width} height={pageHeight} colors={colors} />
           <Text style={[styles.pageNumber, { color: colors.textTertiary }]}>{page}</Text>
         </>
       )}

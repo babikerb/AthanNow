@@ -13,7 +13,10 @@ import {
   View,
 } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import AmbientGradient from '../components/AmbientGradient';
+import SkyScene from '../components/SkyScene';
 import { LocationSheet } from '../components/LocationSheet';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
@@ -34,6 +37,7 @@ export default function AthanScreen() {
   const settings = useSettings();
   const { calcMethod, asrMadhab, use24Hour } = settings;
   const { prayerGradients } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
@@ -80,7 +84,7 @@ export default function AthanScreen() {
       <View style={[styles.container, styles.centered]}>
         <AmbientGradient colors={prayerGradients.isha} />
         <StatusBar style="light" />
-        <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Syncing prayer times…</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Syncing prayer times</Text>
         <TouchableOpacity style={styles.retryPill} onPress={openLocation} activeOpacity={0.8}>
           <Text style={styles.retryText}>Set location</Text>
         </TouchableOpacity>
@@ -90,22 +94,14 @@ export default function AthanScreen() {
   }
 
   const { currentPrayer, nextPrayer, nextPrayerTime, listRows } = prayerData;
-  // Debug override changes only the visuals (gradient + celestial + hero label), not the times.
+  // Debug override changes only the visuals (gradient + sky + hero label), not the times.
   const displayPrayer = debugIdx != null ? DEBUG_PERIODS[debugIdx] : currentPrayer;
   const celestial = getCelestialConfig(displayPrayer);
-
-  // Ellipse path mapping for the celestial body across the sky strip.
-  const cx = SCREEN_WIDTH / 2;
-  const cy = SKY_STRIP_HEIGHT;
-  const a = SCREEN_WIDTH * 0.44;
-  const b = SKY_STRIP_HEIGHT * 0.65;
-  const rad = (celestial.angle * Math.PI) / 180;
-  const celestialX = cx + a * Math.cos(rad) - 16;
-  const celestialY = cy - b * Math.sin(rad) - 16;
 
   return (
     <View style={styles.container}>
       <AmbientGradient colors={prayerGradients[displayPrayer] || prayerGradients.isha} />
+      <SkyScene prayer={displayPrayer as any} skyAreaY={insets.top + 44} />
       <StatusBar style={prayerStatusBarLight[displayPrayer] ? 'light' : 'dark'} />
 
       <SafeAreaView style={styles.safeArea}>
@@ -118,18 +114,14 @@ export default function AthanScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* --- SKY STRIP (10%) --- */}
-        <View style={[styles.skyStrip, { height: SKY_STRIP_HEIGHT }]}>
-          <View style={[styles.celestialBody, { left: celestialX, top: celestialY }]}>
-            <SymbolView name={celestial.symbol as any} size={28} tintColor="#FFFFFF" />
-          </View>
-        </View>
+        {/* --- SKY STRIP (reserves space; celestial drawn by SkyScene) --- */}
+        <View style={{ height: SKY_STRIP_HEIGHT }} />
 
         {/* --- HERO SECTION --- */}
         <View style={styles.heroContainer}>
           <View style={styles.heroRow}>
             <Text style={styles.heroPrayerName}>{displayPrayer.toUpperCase()}</Text>
-            <Text style={styles.heroArabicAccent}> · {celestial.arabicName}</Text>
+            <Text style={styles.heroArabicAccent}>{celestial.arabicName}</Text>
           </View>
           <Text style={styles.countdownText}>{formatCountdown(currentTime, nextPrayerTime)}</Text>
           <Text style={styles.sublineText}>
@@ -206,7 +198,7 @@ const styles = StyleSheet.create({
   skyStrip: { width: '100%', position: 'relative', overflow: 'hidden' },
   celestialBody: { position: 'absolute', width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
   heroContainer: { alignItems: 'center', marginTop: -10 },
-  heroRow: { flexDirection: 'row', alignItems: 'center' },
+  heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
   heroPrayerName: { color: '#FFF', fontSize: 20, fontWeight: '500', letterSpacing: 0.5 },
   heroArabicAccent: { fontSize: 16, color: 'rgba(255, 255, 255, 0.7)', fontWeight: '400' },
   countdownText: { color: '#FFF', fontSize: 44, fontWeight: '700', letterSpacing: -0.5, marginVertical: 4 },

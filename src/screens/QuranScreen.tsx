@@ -14,9 +14,10 @@ import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { getSurah } from '../data/surahs';
 import { pageForSurah, surahForPage } from '../data/surahPages';
-import { useBookmarks } from '../hooks/useBookmarks';
+import { Bookmark, useBookmarks } from '../hooks/useBookmarks';
 import { ACCENT } from '../theme/colors';
 import { fetchChapterVerses } from '../utils/quran';
+import { fetchMushafPage } from '../utils/mushaf';
 
 const LAST_SURAH = 114;
 
@@ -26,14 +27,13 @@ export default function QuranScreen() {
   const { quranScrollDirection, quranLineMode } = useSettings();
   const { bookmarks, isBookmarked, toggleBookmark, removeBookmark } = useBookmarks();
 
-  // Horizontal = real 604-page Madani mushaf; vertical = continuous verse flow.
   const isMushaf = quranScrollDirection === 'horizontal';
 
   const [selectedSurahId, setSelectedSurahId] = useState(1);
   const [visibleSurahId, setVisibleSurahId] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageTarget, setPageTarget] = useState(1);
 
-  // Vertical verse-flow state.
   const [sections, setSections] = useState<ReaderSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -45,8 +45,6 @@ export default function QuranScreen() {
   const sectionsRef = useRef<ReaderSection[]>([]);
   sectionsRef.current = sections;
   const loadingMoreRef = useRef(false);
-
-  const initialPage = useMemo(() => pageForSurah(selectedSurahId), [selectedSurahId]);
 
   const loadSelected = useCallback((id: number) => {
     setLoading(true);
@@ -66,7 +64,6 @@ export default function QuranScreen() {
     };
   }, []);
 
-  // Only the vertical flow needs verse JSON; the mushaf loads pages itself.
   useEffect(() => {
     if (isMushaf) return;
     return loadSelected(selectedSurahId);
@@ -97,19 +94,57 @@ export default function QuranScreen() {
   }, []);
 
   const selectSurah = useCallback((id: number) => {
+    const p = pageForSurah(id);
     setSelectedSurahId(id);
     setVisibleSurahId(id);
-    setCurrentPage(pageForSurah(id));
+    setCurrentPage(p);
+    setPageTarget(p);
+  }, []);
+
+  const selectBookmark = useCallback((b: Bookmark) => {
+    if (b.page) {
+      setPageTarget(b.page);
+      setCurrentPage(b.page);
+      setVisibleSurahId(surahForPage(b.page));
+    } else {
+      const p = pageForSurah(b.surahId);
+      setSelectedSurahId(b.surahId);
+      setVisibleSurahId(b.surahId);
+      setPageTarget(p);
+      setCurrentPage(p);
+    }
+    setFocusMode(false);
   }, []);
 
   const headerSurah = useMemo(() => getSurah(visibleSurahId) ?? getSurah(selectedSurahId)!, [visibleSurahId, selectedSurahId]);
+
+  const currentlyBookmarked = isMushaf
+    ? bookmarks.some((b) => b.page === currentPage)
+    : isBookmarked(visibleSurahId, 1);
+
+  // One tap sets/removes a bookmark at the current spot.
+  const quickBookmark = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (isMushaf) {
+      try {
+        const data = await fetchMushafPage(currentPage);
+        const fw = data.lines.flatMap((l) => l.words).find((w) => w.verse_key);
+        const [s, a] = fw?.verse_key ? fw.verse_key.split(':').map(Number) : [visibleSurahId, 1];
+        toggleBookmark(s, a, getSurah(s)?.transliteration ?? '', currentPage);
+      } catch {
+        toggleBookmark(visibleSurahId, 1, headerSurah.transliteration, currentPage);
+      }
+    } else {
+      toggleBookmark(visibleSurahId, 1, headerSurah.transliteration);
+    }
+  }, [isMushaf, currentPage, visibleSurahId, headerSurah, toggleBookmark]);
 
   const renderBody = (immersive: boolean) => {
     const topPad = immersive ? insets.top : insets.top + 64;
     if (isMushaf) {
       return (
         <MushafReader
-          initialPage={immersive ? currentPage : initialPage}
+          initialPage={immersive ? currentPage : pageTarget}
           topInset={topPad}
           bottomInset={insets.bottom}
           colors={colors}
@@ -159,6 +194,19 @@ export default function QuranScreen() {
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
 
       <GlassHeader insetTop={insets.top}>
+        {/* Left element: bookmark (tap sets, long-press opens manager) */}
+        <GlassCircle scheme={scheme} colors={colors}>
+          <Pressable
+            onPress={quickBookmark}
+            onLongPress={() => setBookmarkOpen(true)}
+            hitSlop={10}
+            style={styles.circleHit}
+          >
+            <SymbolView name={currentlyBookmarked ? 'bookmark.fill' : 'bookmark'} size={19} tintColor={colors.textPrimary} />
+          </Pressable>
+        </GlassCircle>
+
+        {/* Center title (tap to pick a surah) */}
         <Pressable
           style={styles.titleButton}
           onPress={() => {
@@ -170,25 +218,31 @@ export default function QuranScreen() {
             <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
               {headerSurah.transliteration}
             </Text>
-            <SymbolView name="chevron.down" size={13} tintColor={colors.textTertiary} style={{ marginLeft: 6 }} />
+            <SymbolView name="chevron.down" size={12} tintColor={colors.textTertiary} style={{ marginLeft: 5 }} />
           </View>
           <Text style={[styles.headerSub, { color: colors.textTertiary }]}>
-            {isMushaf ? `Page ${currentPage} · Surah ${headerSurah.id}` : `Surah ${headerSurah.id} · ${headerSurah.totalVerses} ayat`}
+            {isMushaf ? `Page ${currentPage}` : `${headerSurah.totalVerses} ayat`}
           </Text>
         </Pressable>
-        <View style={styles.headerActions}>
-          <Pressable onPress={() => setPickerOpen(true)} hitSlop={10}>
-            <SymbolView name="magnifyingglass" size={20} tintColor={colors.textPrimary} />
+
+        {/* Right element: search */}
+        <GlassCircle scheme={scheme} colors={colors}>
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setPickerOpen(true);
+            }}
+            hitSlop={10}
+            style={styles.circleHit}
+          >
+            <SymbolView name="magnifyingglass" size={19} tintColor={colors.textPrimary} />
           </Pressable>
-          <Pressable onPress={() => setBookmarkOpen(true)} hitSlop={10}>
-            <SymbolView name="bookmark" size={20} tintColor={colors.textPrimary} />
-          </Pressable>
-        </View>
+        </GlassCircle>
       </GlassHeader>
 
       {renderBody(false)}
 
-      {/* Immersive focus mode: full-screen modal hides the native tab bar + header. */}
+      {/* Immersive focus mode hides the native tab bar + header. */}
       <Modal visible={focusMode} animationType="fade" presentationStyle="fullScreen" onRequestClose={() => setFocusMode(false)}>
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <StatusBar hidden animated />
@@ -202,14 +256,22 @@ export default function QuranScreen() {
         visible={bookmarkOpen}
         onClose={() => setBookmarkOpen(false)}
         bookmarks={bookmarks}
-        onSelect={(s) => {
-          selectSurah(s);
-          setFocusMode(false);
-        }}
+        onSelect={selectBookmark}
         onRemove={removeBookmark}
       />
     </View>
   );
+}
+
+function GlassCircle({ scheme, colors, children }: { scheme: 'light' | 'dark'; colors: any; children: React.ReactNode }) {
+  if (isLiquidGlassSupported) {
+    return (
+      <LiquidGlassView interactive colorScheme={scheme} style={styles.circle}>
+        {children}
+      </LiquidGlassView>
+    );
+  }
+  return <View style={[styles.circle, styles.circleFallback, { borderColor: colors.separator }]}>{children}</View>;
 }
 
 function GlassHeader({ insetTop, children }: { insetTop: number; children: React.ReactNode }) {
@@ -240,27 +302,22 @@ const styles = StyleSheet.create({
   header: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   headerInner: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  titleButton: { flex: 1 },
+  circle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  circleFallback: { backgroundColor: 'rgba(127,127,127,0.12)', borderWidth: StyleSheet.hairlineWidth },
+  circleHit: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  titleButton: { flex: 1, alignItems: 'center' },
   titleTextWrap: { flexDirection: 'row', alignItems: 'center' },
-  headerTitle: { fontSize: 28, fontWeight: '700', letterSpacing: -0.3 },
-  headerSub: { fontSize: 12, marginTop: 2 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 18, paddingBottom: 6 },
+  headerTitle: { fontSize: 19, fontWeight: '700', letterSpacing: -0.3 },
+  headerSub: { fontSize: 11, marginTop: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 40 },
   errorText: { fontSize: 15, textAlign: 'center', lineHeight: 21 },
   retry: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
   retryText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
-  vignette: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderWidth: 60,
-    borderColor: 'rgba(0,0,0,0.18)',
-  },
+  vignette: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 60, borderColor: 'rgba(0,0,0,0.18)' },
 });

@@ -117,7 +117,7 @@ export function useLocation() {
 
   const cityName =
     location?.city ??
-    (status === 'denied' ? 'Location off' : status === 'loading' ? 'Locating…' : 'Loading…');
+    (status === 'denied' ? 'Location off' : status === 'loading' ? 'Locating' : 'Loading');
 
   return { location, cityName, status, refreshLocation, setLocationByQuery };
 }

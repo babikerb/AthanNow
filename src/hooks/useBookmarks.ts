@@ -8,6 +8,8 @@ export interface Bookmark {
   ayah: number;
   /** Snapshot of context shown in the bookmark manager. */
   surahName: string;
+  /** Mushaf page, when bookmarked from the page reader (enables jump-to-page). */
+  page?: number;
   createdAt: number;
 }
 
@@ -41,12 +43,12 @@ export function useBookmarks() {
   );
 
   const toggleBookmark = useCallback(
-    (surahId: number, ayah: number, surahName: string) => {
+    (surahId: number, ayah: number, surahName: string, page?: number) => {
       setBookmarks((prev) => {
         const exists = prev.some((b) => keyOf(b.surahId, b.ayah) === keyOf(surahId, ayah));
         const next = exists
           ? prev.filter((b) => keyOf(b.surahId, b.ayah) !== keyOf(surahId, ayah))
-          : [{ surahId, ayah, surahName, createdAt: Date.now() }, ...prev];
+          : [{ surahId, ayah, surahName, page, createdAt: Date.now() }, ...prev];
         AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
         return next;
       });

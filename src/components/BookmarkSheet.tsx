@@ -11,7 +11,7 @@ interface BookmarkSheetProps {
   visible: boolean;
   onClose: () => void;
   bookmarks: Bookmark[];
-  onSelect: (surahId: number, ayah: number) => void;
+  onSelect: (bookmark: Bookmark) => void;
   onRemove: (surahId: number, ayah: number) => void;
 }
 
@@ -35,7 +35,7 @@ export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove 
           renderItem={({ item }) => (
             <Pressable
               onPress={() => {
-                onSelect(item.surahId, item.ayah);
+                onSelect(item);
                 onClose();
               }}
               style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
@@ -45,7 +45,9 @@ export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove 
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: colors.textPrimary }]}>{item.surahName}</Text>
-                <Text style={[styles.sub, { color: colors.textTertiary }]}>Ayah {item.ayah}</Text>
+                <Text style={[styles.sub, { color: colors.textTertiary }]}>
+                  {item.page ? `Page ${item.page} · Ayah ${item.ayah}` : `Ayah ${item.ayah}`}
+                </Text>
               </View>
               <Pressable onPress={() => onRemove(item.surahId, item.ayah)} hitSlop={12}>
                 <SymbolView name="xmark.circle.fill" size={22} tintColor={colors.textTertiary} />
