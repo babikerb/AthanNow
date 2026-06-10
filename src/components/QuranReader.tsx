@@ -5,7 +5,10 @@ import { Dimensions, FlatList, Pressable, StyleSheet, Text, View, ViewToken } fr
 import { QuranLineMode, ScrollDirection } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { Surah } from '../data/surahs';
-import { ACCENT_SOFT, QURAN_FONT } from '../theme/colors';
+import { QURAN_FONT } from '../theme/colors';
+
+// Neutral (non-accent) highlight for a bookmarked ayah inside the reading area.
+const MUSHAF_HIGHLIGHT = 'rgba(128,128,128,0.18)';
 import { toArabicNumber, Verse } from '../utils/quran';
 import { getLineMetrics, paginate } from '../utils/quranPagination';
 import { SurahHeader } from './SurahHeader';
@@ -104,7 +107,7 @@ export function QuranReader({
         <Pressable
           onPress={onToggleFocus}
           onLongPress={() => longPress(item.surahId, item.verse.id, item.surahName)}
-          style={[styles.verseRow, marked && { backgroundColor: ACCENT_SOFT, borderRadius: 12 }]}
+          style={[styles.verseRow, marked && { backgroundColor: MUSHAF_HIGHLIGHT, borderRadius: 12 }]}
         >
           <Text style={[styles.verseText, { color: colors.textPrimary }]}>
             {item.verse.text}{'  '}
@@ -127,7 +130,7 @@ export function QuranReader({
               <Text
                 key={v.id}
                 onLongPress={() => longPress(page.surah.id, v.id, page.surah.transliteration)}
-                style={marked ? { backgroundColor: ACCENT_SOFT } : undefined}
+                style={marked ? { backgroundColor: MUSHAF_HIGHLIGHT } : undefined}
               >
                 {v.text}{' '}
                 <Text style={[styles.marker, { color: colors.textSecondary, fontSize: metrics.fontSize - 4 }]}>

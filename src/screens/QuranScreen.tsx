@@ -7,11 +7,13 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookmarkSheet } from '../components/BookmarkSheet';
+import { MushafReader } from '../components/MushafReader';
 import { QuranReader, ReaderSection } from '../components/QuranReader';
 import { SurahPickerSheet } from '../components/SurahPickerSheet';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { getSurah } from '../data/surahs';
+import { pageForSurah, surahForPage } from '../data/surahPages';
 import { useBookmarks } from '../hooks/useBookmarks';
 import { ACCENT } from '../theme/colors';
 import { fetchChapterVerses } from '../utils/quran';
@@ -24,9 +26,15 @@ export default function QuranScreen() {
   const { quranScrollDirection, quranLineMode } = useSettings();
   const { bookmarks, isBookmarked, toggleBookmark, removeBookmark } = useBookmarks();
 
+  // Horizontal = real 604-page Madani mushaf; vertical = continuous verse flow.
+  const isMushaf = quranScrollDirection === 'horizontal';
+
   const [selectedSurahId, setSelectedSurahId] = useState(1);
-  const [sections, setSections] = useState<ReaderSection[]>([]);
   const [visibleSurahId, setVisibleSurahId] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Vertical verse-flow state.
+  const [sections, setSections] = useState<ReaderSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -38,11 +46,12 @@ export default function QuranScreen() {
   sectionsRef.current = sections;
   const loadingMoreRef = useRef(false);
 
+  const initialPage = useMemo(() => pageForSurah(selectedSurahId), [selectedSurahId]);
+
   const loadSelected = useCallback((id: number) => {
     setLoading(true);
     setError(false);
     setSections([]);
-    setVisibleSurahId(id);
     let cancelled = false;
     fetchChapterVerses(id)
       .then((v) => {
@@ -57,9 +66,12 @@ export default function QuranScreen() {
     };
   }, []);
 
-  useEffect(() => loadSelected(selectedSurahId), [selectedSurahId, loadSelected]);
+  // Only the vertical flow needs verse JSON; the mushaf loads pages itself.
+  useEffect(() => {
+    if (isMushaf) return;
+    return loadSelected(selectedSurahId);
+  }, [selectedSurahId, isMushaf, loadSelected]);
 
-  // Continuous reading: append the next surah when the reader nears its end.
   const onRequestMore = useCallback(() => {
     if (loadingMoreRef.current) return;
     const cur = sectionsRef.current;
@@ -79,22 +91,68 @@ export default function QuranScreen() {
       });
   }, []);
 
+  const onMushafPageChange = useCallback((p: number) => {
+    setCurrentPage(p);
+    setVisibleSurahId(surahForPage(p));
+  }, []);
+
+  const selectSurah = useCallback((id: number) => {
+    setSelectedSurahId(id);
+    setVisibleSurahId(id);
+    setCurrentPage(pageForSurah(id));
+  }, []);
+
   const headerSurah = useMemo(() => getSurah(visibleSurahId) ?? getSurah(selectedSurahId)!, [visibleSurahId, selectedSurahId]);
 
-  const reader = (immersive: boolean) => (
-    <QuranReader
-      sections={sections}
-      scrollDirection={quranScrollDirection}
-      lineMode={quranLineMode}
-      topInset={immersive ? insets.top : insets.top + 64}
-      bottomInset={insets.bottom}
-      isBookmarked={isBookmarked}
-      onToggleBookmark={toggleBookmark}
-      onToggleFocus={() => setFocusMode((f) => !f)}
-      onVisibleSurahChange={setVisibleSurahId}
-      onRequestMore={onRequestMore}
-    />
-  );
+  const renderBody = (immersive: boolean) => {
+    const topPad = immersive ? insets.top : insets.top + 64;
+    if (isMushaf) {
+      return (
+        <MushafReader
+          initialPage={immersive ? currentPage : initialPage}
+          topInset={topPad}
+          bottomInset={insets.bottom}
+          colors={colors}
+          onPageChange={onMushafPageChange}
+          onToggleFocus={() => setFocusMode((f) => !f)}
+        />
+      );
+    }
+    if (loading) {
+      return (
+        <View style={styles.center}>
+          <ActivityIndicator color={ACCENT} />
+        </View>
+      );
+    }
+    if (error) {
+      return (
+        <View style={styles.center}>
+          <SymbolView name="wifi.slash" size={36} tintColor={colors.textTertiary} />
+          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+            Couldn't load this surah. Check your connection and try again.
+          </Text>
+          <Pressable onPress={() => loadSelected(selectedSurahId)} style={[styles.retry, { backgroundColor: ACCENT }]}>
+            <Text style={styles.retryText}>Retry</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    return (
+      <QuranReader
+        sections={sections}
+        scrollDirection="vertical"
+        lineMode={quranLineMode}
+        topInset={topPad}
+        bottomInset={insets.bottom}
+        isBookmarked={isBookmarked}
+        onToggleBookmark={toggleBookmark}
+        onToggleFocus={() => setFocusMode((f) => !f)}
+        onVisibleSurahChange={setVisibleSurahId}
+        onRequestMore={onRequestMore}
+      />
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -115,7 +173,7 @@ export default function QuranScreen() {
             <SymbolView name="chevron.down" size={13} tintColor={colors.textTertiary} style={{ marginLeft: 6 }} />
           </View>
           <Text style={[styles.headerSub, { color: colors.textTertiary }]}>
-            Surah {headerSurah.id} · {headerSurah.totalVerses} ayat
+            {isMushaf ? `Page ${currentPage} · Surah ${headerSurah.id}` : `Surah ${headerSurah.id} · ${headerSurah.totalVerses} ayat`}
           </Text>
         </Pressable>
         <View style={styles.headerActions}>
@@ -128,45 +186,24 @@ export default function QuranScreen() {
         </View>
       </GlassHeader>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={ACCENT} />
-        </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <SymbolView name="wifi.slash" size={36} tintColor={colors.textTertiary} />
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            Couldn't load this surah. Check your connection and try again.
-          </Text>
-          <Pressable onPress={() => loadSelected(selectedSurahId)} style={[styles.retry, { backgroundColor: ACCENT }]}>
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : (
-        reader(false)
-      )}
+      {renderBody(false)}
 
       {/* Immersive focus mode: full-screen modal hides the native tab bar + header. */}
       <Modal visible={focusMode} animationType="fade" presentationStyle="fullScreen" onRequestClose={() => setFocusMode(false)}>
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <StatusBar hidden animated />
-          {reader(true)}
+          {renderBody(true)}
           <View pointerEvents="none" style={styles.vignette} />
         </View>
       </Modal>
 
-      <SurahPickerSheet
-        visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        currentSurahId={visibleSurahId}
-        onSelect={setSelectedSurahId}
-      />
+      <SurahPickerSheet visible={pickerOpen} onClose={() => setPickerOpen(false)} currentSurahId={visibleSurahId} onSelect={selectSurah} />
       <BookmarkSheet
         visible={bookmarkOpen}
         onClose={() => setBookmarkOpen(false)}
         bookmarks={bookmarks}
         onSelect={(s) => {
-          setSelectedSurahId(s);
+          selectSurah(s);
           setFocusMode(false);
         }}
         onRemove={removeBookmark}
