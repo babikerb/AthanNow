@@ -28,7 +28,6 @@ interface QuranReaderProps {
   bottomInset: number;
   isBookmarked: (surahId: number, ayah: number) => boolean;
   onToggleBookmark: (surahId: number, ayah: number, surahName: string) => void;
-  onToggleFocus: () => void;
   onVisibleSurahChange: (surahId: number) => void;
   onRequestMore: () => void;
 }
@@ -54,7 +53,6 @@ export function QuranReader({
   bottomInset,
   isBookmarked,
   onToggleBookmark,
-  onToggleFocus,
   onVisibleSurahChange,
   onRequestMore,
 }: QuranReaderProps) {
@@ -105,7 +103,6 @@ export function QuranReader({
       const marked = isBookmarked(item.surahId, item.verse.id);
       return (
         <Pressable
-          onPress={onToggleFocus}
           onLongPress={() => longPress(item.surahId, item.verse.id, item.surahName)}
           style={[styles.verseRow, marked && { backgroundColor: MUSHAF_HIGHLIGHT, borderRadius: 12 }]}
         >
@@ -116,12 +113,12 @@ export function QuranReader({
         </Pressable>
       );
     },
-    [colors, isBookmarked, onToggleFocus, longPress],
+    [colors, isBookmarked, longPress],
   );
 
   const renderPage = useCallback(
     ({ item: page }: { item: PageItem }) => (
-      <Pressable onPress={onToggleFocus} style={[styles.page, { width: SCREEN_WIDTH, paddingTop: topInset + 8, paddingBottom: bottomInset + 8 }]}>
+      <Pressable style={[styles.page, { width: SCREEN_WIDTH, paddingTop: topInset + 8, paddingBottom: bottomInset + 8 }]}>
         {page.withHeader && <SurahHeader surah={page.surah} continued={page.continued} />}
         <Text style={[styles.flowText, { color: colors.textPrimary, fontSize: metrics.fontSize, lineHeight: metrics.lineHeight }]}>
           {page.verses.map((v) => {
@@ -142,7 +139,7 @@ export function QuranReader({
         </Text>
       </Pressable>
     ),
-    [colors, metrics, isBookmarked, onToggleFocus, longPress, topInset, bottomInset],
+    [colors, metrics, isBookmarked, longPress, topInset, bottomInset],
   );
 
   if (scrollDirection === 'horizontal') {
@@ -182,6 +179,6 @@ const styles = StyleSheet.create({
   page: { paddingHorizontal: 22 },
   flowText: { fontFamily: QURAN_FONT, textAlign: 'justify', writingDirection: 'rtl' },
   marker: { fontFamily: QURAN_FONT },
-  verseRow: { paddingVertical: 12, paddingHorizontal: 8 },
-  verseText: { fontFamily: QURAN_FONT, fontSize: 28, lineHeight: 58, textAlign: 'right', writingDirection: 'rtl' },
+  verseRow: { paddingVertical: 9, paddingHorizontal: 8 },
+  verseText: { fontFamily: QURAN_FONT, fontSize: 22, lineHeight: 46, textAlign: 'right', writingDirection: 'rtl' },
 });

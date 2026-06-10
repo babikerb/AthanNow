@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookmarkSheet } from '../components/BookmarkSheet';
@@ -40,7 +40,6 @@ export default function QuranScreen() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
-  const [focusMode, setFocusMode] = useState(false);
 
   const sectionsRef = useRef<ReaderSection[]>([]);
   sectionsRef.current = sections;
@@ -113,7 +112,6 @@ export default function QuranScreen() {
       setPageTarget(p);
       setCurrentPage(p);
     }
-    setFocusMode(false);
   }, []);
 
   const headerSurah = useMemo(() => getSurah(visibleSurahId) ?? getSurah(selectedSurahId)!, [visibleSurahId, selectedSurahId]);
@@ -139,17 +137,17 @@ export default function QuranScreen() {
     }
   }, [isMushaf, currentPage, visibleSurahId, headerSurah, toggleBookmark]);
 
-  const renderBody = (immersive: boolean) => {
-    const topPad = immersive ? insets.top : insets.top + 64;
+  const renderBody = () => {
+    const topPad = insets.top + 64;
     if (isMushaf) {
       return (
         <MushafReader
-          initialPage={immersive ? currentPage : pageTarget}
+          initialPage={pageTarget}
           topInset={topPad}
           bottomInset={insets.bottom}
           colors={colors}
+          dark={scheme === 'dark'}
           onPageChange={onMushafPageChange}
-          onToggleFocus={() => setFocusMode((f) => !f)}
         />
       );
     }
@@ -182,7 +180,6 @@ export default function QuranScreen() {
         bottomInset={insets.bottom}
         isBookmarked={isBookmarked}
         onToggleBookmark={toggleBookmark}
-        onToggleFocus={() => setFocusMode((f) => !f)}
         onVisibleSurahChange={setVisibleSurahId}
         onRequestMore={onRequestMore}
       />
@@ -240,16 +237,7 @@ export default function QuranScreen() {
         </GlassCircle>
       </GlassHeader>
 
-      {renderBody(false)}
-
-      {/* Immersive focus mode hides the native tab bar + header. */}
-      <Modal visible={focusMode} animationType="fade" presentationStyle="fullScreen" onRequestClose={() => setFocusMode(false)}>
-        <View style={[styles.container, { backgroundColor: colors.background }]}>
-          <StatusBar hidden animated />
-          {renderBody(true)}
-          <View pointerEvents="none" style={styles.vignette} />
-        </View>
-      </Modal>
+      {renderBody()}
 
       <SurahPickerSheet visible={pickerOpen} onClose={() => setPickerOpen(false)} currentSurahId={visibleSurahId} onSelect={selectSurah} />
       <BookmarkSheet
@@ -319,5 +307,4 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 15, textAlign: 'center', lineHeight: 21 },
   retry: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
   retryText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
-  vignette: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 60, borderColor: 'rgba(0,0,0,0.18)' },
 });
