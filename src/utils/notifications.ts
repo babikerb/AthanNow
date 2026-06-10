@@ -63,33 +63,52 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
       const time = row.time;
       if (time <= now) continue;
 
-      // Athan notification per enabled prayer (sunrise excluded from athan).
-      if (key !== 'sunrise' && notifications.athanEnabled[key]) {
-        const mins = notifications.reminderMinutesBefore || 0;
-        const fireAt = new Date(time.getTime() - mins * 60_000);
-        if (fireAt > now) {
+      const mins = notifications.reminderMinutesBefore || 0;
+
+      if (key !== 'sunrise') {
+        // Athan notification per enabled prayer.
+        if (notifications.athanEnabled[key]) {
+          const fireAt = new Date(time.getTime() - mins * 60_000);
+          if (fireAt > now) {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `${PRAYER_LABELS[key]}`,
+                body: mins > 0 ? `${PRAYER_LABELS[key]} is in ${mins} minutes.` : `It's time for ${PRAYER_LABELS[key]} prayer.`,
+                // Custom adhan sound (bundled via the expo-notifications plugin); needs a build.
+                sound: notifications.athanSound ? 'adhan.wav' : undefined,
+                interruptionLevel: 'timeSensitive',
+              },
+              trigger: dateTrigger(fireAt),
+            });
+          }
+        }
+      } else {
+        // Sunrise reminder (marks the end of Fajr time). Default tone, not the adhan.
+        if (notifications.athanEnabled.sunrise) {
+          const fireAt = new Date(time.getTime() - mins * 60_000);
+          if (fireAt > now) {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: 'Sunrise',
+                body: mins > 0 ? `Sunrise is in ${mins} minutes (Fajr ends).` : 'The sun has risen. Fajr time has ended.',
+                sound: 'default',
+                interruptionLevel: 'timeSensitive',
+              },
+              trigger: dateTrigger(fireAt),
+            });
+          }
+        }
+
+        // Morning Quran reminder around sunrise.
+        if (notifications.quranMorningEnabled) {
           await Notifications.scheduleNotificationAsync({
             content: {
-              title: `${PRAYER_LABELS[key]}`,
-              body: mins > 0 ? `${PRAYER_LABELS[key]} is in ${mins} minutes.` : `It's time for ${PRAYER_LABELS[key]} prayer.`,
-              // Custom adhan sound (bundled via the expo-notifications plugin); needs a build.
-              sound: notifications.athanSound ? 'adhan.wav' : undefined,
-              interruptionLevel: 'timeSensitive',
+              title: 'Good morning',
+              body: 'Start your day with the Quran.',
             },
-            trigger: dateTrigger(fireAt),
+            trigger: dateTrigger(time),
           });
         }
-      }
-
-      // Morning Quran reminder around sunrise.
-      if (key === 'sunrise' && notifications.quranMorningEnabled) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: 'Good morning',
-            body: 'Start your day with the Quran.',
-          },
-          trigger: dateTrigger(time),
-        });
       }
     }
   }

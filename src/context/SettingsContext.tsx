@@ -50,7 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   calcMethod: 'NorthAmerica',
   asrMadhab: 'Standard',
   notifications: {
-    athanEnabled: { fajr: true, sunrise: false, dhuhr: true, asr: true, maghrib: true, isha: true },
+    athanEnabled: { fajr: true, sunrise: true, dhuhr: true, asr: true, maghrib: true, isha: true },
     athanSound: true,
     reminderMinutesBefore: 10,
     quranMorningEnabled: false,

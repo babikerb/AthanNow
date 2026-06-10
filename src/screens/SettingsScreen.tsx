@@ -45,6 +45,7 @@ function minutesLabel(m: number): string {
 
 const PRAYER_LABELS: { key: PrayerKey; label: string }[] = [
   { key: 'fajr', label: 'Fajr' },
+  { key: 'sunrise', label: 'Sunrise' },
   { key: 'dhuhr', label: 'Dhuhr' },
   { key: 'asr', label: 'Asr' },
   { key: 'maghrib', label: 'Maghrib' },
@@ -126,8 +127,8 @@ export default function SettingsScreen() {
           {PRAYER_LABELS.map((p, i) => (
             <ToggleRow
               key={p.key}
-              icon="bell"
-              label={`${p.label} athan`}
+              icon={p.key === 'sunrise' ? 'sunrise' : 'bell'}
+              label={p.key === 'sunrise' ? 'Sunrise' : `${p.label} athan`}
               value={settings.notifications.athanEnabled[p.key]}
               onValueChange={(v) =>
                 settings.updateNotifications({
