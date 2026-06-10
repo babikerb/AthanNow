@@ -5,21 +5,34 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "primaryColor": "#866099",
     "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bbabiker.AthanNow",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "AthanNow uses your location to calculate accurate prayer times for where you are."
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-location",
+      "expo-notifications",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0bdadb2f-1e94-4d6d-a8db-0ff6f5df3bf4"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/0bdadb2f-1e94-4d6d-a8db-0ff6f5df3bf4"
     }
   }
 }
