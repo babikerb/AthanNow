@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, StyleSheet, Text, useWindowDimensions, Vie
 
 import { Palette } from '../theme/colors';
 import { fetchMushafPage, MushafPageData } from '../utils/mushaf';
+import { fetchChapterWordMap } from '../utils/quran';
 import { TOTAL_PAGES } from '../data/surahPages';
 import { MushafPage } from './MushafPage';
 
@@ -45,14 +46,25 @@ function PageHost({
   onBookmarkVerse: (surahId: number, ayah: number) => void;
 }) {
   const [data, setData] = useState<MushafPageData | null>(null);
+  const [words, setWords] = useState<Record<string, string[]>>({});
   const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setData(null);
+    setWords({});
     setError(false);
     fetchMushafPage(page)
-      .then((d) => !cancelled && setData(d))
+      .then(async (d) => {
+        if (cancelled) return;
+        setData(d);
+        // Pull full Uthmani word text (with waqf marks) for every surah on the page.
+        const chapterIds = new Set<number>();
+        d.lines.forEach((l) => l.words.forEach((w) => w.verse_key && chapterIds.add(Number(w.verse_key.split(':')[0]))));
+        const maps = await Promise.all([...chapterIds].map((id) => fetchChapterWordMap(id).catch(() => ({}))));
+        if (cancelled) return;
+        setWords(Object.assign({}, ...maps));
+      })
       .catch(() => !cancelled && setError(true));
     return () => {
       cancelled = true;
@@ -73,6 +85,7 @@ function PageHost({
       ) : (
         <MushafPage
           data={data}
+          words={words}
           width={width}
           height={pageHeight}
           colors={colors}

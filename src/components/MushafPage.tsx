@@ -18,6 +18,8 @@ function juzForPage(page: number): number {
 
 interface MushafPageProps {
   data: MushafPageData;
+  /** verseKey -> full Uthmani words (with waqf marks); falls back to qcf4 text. */
+  words: Record<string, string[]>;
   width: number;
   height: number;
   colors: Palette;
@@ -37,7 +39,7 @@ function ayahMarker(w: MushafWord): string {
   return Number.isFinite(n) && n > 0 ? `﴿${toArabicNumber(n)}﴾` : '';
 }
 
-function MushafPageInner({ data, width, height, colors, dark, isBookmarked, onBookmarkVerse }: MushafPageProps) {
+function MushafPageInner({ data, words, width, height, colors, dark, isBookmarked, onBookmarkVerse }: MushafPageProps) {
   const frameColor = dark ? 'rgba(255,255,255,0.16)' : 'rgba(120,90,40,0.35)';
   const ruleColor = dark ? 'rgba(255,255,255,0.05)' : 'rgba(120,90,40,0.1)';
   const markerColor = colors.textTertiary;
@@ -103,9 +105,12 @@ function MushafPageInner({ data, width, height, colors, dark, isBookmarked, onBo
                       const [s, a] = vk.split(':').map(Number);
                       marked = isBookmarked(s, a);
                     }
+                    // Prefer the full Uthmani word (with waqf marks) when available.
+                    const rich = vk && w.position ? words[vk]?.[w.position - 1] : undefined;
+                    const display = rich ?? w.text;
                     return (
                       <Text key={i} onLongPress={() => longPress(w)} style={marked ? { backgroundColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(120,90,40,0.14)' } : undefined}>
-                        {`${w.text} `}
+                        {`${display} `}
                       </Text>
                     );
                   })}

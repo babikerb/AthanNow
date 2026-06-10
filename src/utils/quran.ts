@@ -43,6 +43,24 @@ export async function fetchChapterVerses(chapterId: number): Promise<Verse[]> {
   return verses;
 }
 
+/**
+ * Word lookup for the mushaf: `verseKey` -> array of words (split from the full
+ * Uthmani text, which includes waqf marks). Lets the qcf4 page layout render the
+ * richer quran-json orthography. Cached via fetchChapterVerses.
+ */
+const wordMapMemory = new Map<number, Record<string, string[]>>();
+
+export async function fetchChapterWordMap(chapterId: number): Promise<Record<string, string[]>> {
+  if (wordMapMemory.has(chapterId)) return wordMapMemory.get(chapterId)!;
+  const verses = await fetchChapterVerses(chapterId);
+  const map: Record<string, string[]> = {};
+  for (const v of verses) {
+    map[`${chapterId}:${v.id}`] = v.text.trim().split(/\s+/);
+  }
+  wordMapMemory.set(chapterId, map);
+  return map;
+}
+
 /** Eastern-Arabic numeral rendering for ayah-end markers. */
 export function toArabicNumber(n: number): string {
   const map = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
