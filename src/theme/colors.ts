@@ -1,14 +1,13 @@
 /**
  * Global design tokens for AthanNow.
  *
- * Accent is the single brand color used across the app (pills, active states,
- * icons, the focused selection in sheets, etc). Prayer gradients drive the
- * Athan sky scene and are intentionally desaturated for a premium, calm look.
+ * Accent is the single brand color, used sparingly for active/selected states.
+ * Prayer gradients are ported from the Jamaa app for a richer, premium sky scene.
  */
 
 export const ACCENT = '#866099';
-export const ACCENT_SOFT = 'rgba(134, 96, 153, 0.18)';
-export const ACCENT_BORDER = 'rgba(134, 96, 153, 0.40)';
+export const ACCENT_SOFT = 'rgba(134, 96, 153, 0.16)';
+export const ACCENT_BORDER = 'rgba(134, 96, 153, 0.35)';
 
 export type Palette = {
   background: string;
@@ -44,14 +43,33 @@ export const darkPalette: Palette = {
 };
 
 /**
- * Atmospheric gradients keyed to each prayer stage, used by the Athan sky scene.
- * Each array is consumed directly by react-native-linear-gradient.
+ * Atmospheric gradients keyed to each prayer stage (ported from Jamaa).
+ * Consumed by the AmbientGradient component on the Athan screen.
  */
 export const prayerGradients: Record<string, string[]> = {
-  fajr: ['#1e2530', '#2d384a', '#181e29'],
-  sunrise: ['#3a3330', '#54463d', '#2b2522'],
-  dhuhr: ['#283c4f', '#36526d', '#1f2e3d'],
-  asr: ['#3b362d', '#524b3e', '#29251f'],
-  maghrib: ['#362528', '#4f3338', '#241a1c'],
-  isha: ['#12161f', '#1b212e', '#0d1017'],
+  // Pre-dawn: muted indigo -> dusky mauve
+  fajr: ['#0c0b1c', '#18153a', '#2c2258', '#4e3348', '#7a5560'],
+  // Sunrise: deep navy -> blue-violet -> rose-mauve -> warm peach-gold
+  sunrise: ['#060b18', '#0e1532', '#2c1848', '#6e2c50', '#b46050', '#d49448'],
+  // Noon: hazy sky blue
+  dhuhr: ['#8eb2c4', '#6090a8', '#4a7090', '#366078'],
+  // Afternoon: muted teal -> dusty amber
+  asr: ['#1c3448', '#2a4e68', '#466880', '#706258', '#907040'],
+  // Dusk: deep violet -> muted brick -> warm amber
+  maghrib: ['#121024', '#201846', '#4a1e30', '#783030', '#9a5838', '#a87840'],
+  // Night: deep navy
+  isha: ['#070d18', '#0b1522', '#0f1828', '#091220'],
 };
+
+/** Whether to use a light (white) status bar over each prayer gradient. */
+export const prayerStatusBarLight: Record<string, boolean> = {
+  fajr: true,
+  sunrise: true,
+  dhuhr: false, // light sky -> dark status bar
+  asr: true,
+  maghrib: true,
+  isha: true,
+};
+
+/** The Quran mushaf typeface (Amiri Quran, loaded via expo-font). */
+export const QURAN_FONT = 'AmiriQuran';

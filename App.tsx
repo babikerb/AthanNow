@@ -1,5 +1,6 @@
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { NavigationContainer } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -60,9 +61,10 @@ function MainTabs() {
 
 function Root() {
   const { ready, onboardingComplete } = useSettings();
+  const [fontsLoaded] = useFonts({ AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf') });
 
-  // Hold on a neutral surface until persisted settings load to avoid a flash.
-  if (!ready) return <View style={{ flex: 1, backgroundColor: '#0D0A11' }} />;
+  // Hold on a neutral surface until persisted settings + the mushaf font load.
+  if (!ready || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#0D0A11' }} />;
   if (!onboardingComplete) return <OnboardingScreen />;
   return <MainTabs />;
 }

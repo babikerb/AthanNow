@@ -10,11 +10,7 @@ import {
 
 function anyNotificationEnabled(s: Settings): boolean {
   const n = s.notifications;
-  return (
-    Object.values(n.athanEnabled).some(Boolean) ||
-    n.jamaaRemindersEnabled ||
-    n.quranMorningEnabled
-  );
+  return Object.values(n.athanEnabled).some(Boolean) || n.quranMorningEnabled;
 }
 
 /**

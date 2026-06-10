@@ -28,10 +28,6 @@ export interface NotificationSettings {
   athanEnabled: Record<PrayerKey, boolean>;
   /** Plays the full adhan sound instead of the default tone. */
   athanSound: boolean;
-  /** Jamaa/iqama follow-up reminder after each athan (inspired by Jamaa desktop). */
-  jamaaRemindersEnabled: boolean;
-  /** Minutes after athan to fire the jamaa reminder. */
-  jamaaOffsetMinutes: number;
   /** "Good morning, start your day with Quran" notification around sunrise. */
   quranMorningEnabled: boolean;
 }
@@ -54,8 +50,6 @@ export const DEFAULT_SETTINGS: Settings = {
   notifications: {
     athanEnabled: { fajr: true, sunrise: false, dhuhr: true, asr: true, maghrib: true, isha: true },
     athanSound: true,
-    jamaaRemindersEnabled: false,
-    jamaaOffsetMinutes: 20,
     quranMorningEnabled: false,
   },
   quranLineMode: '15',

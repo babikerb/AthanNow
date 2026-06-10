@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -11,18 +12,22 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
 
+import AmbientGradient from '../components/AmbientGradient';
 import { LocationSheet } from '../components/LocationSheet';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLocation } from '../hooks/useLocation';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
+import { prayerStatusBarLight } from '../theme/colors';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SKY_STRIP_HEIGHT = SCREEN_HEIGHT * 0.1;
+
+// Order used by the debug switcher to preview every gradient/sky scene.
+const DEBUG_PERIODS = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
 
 export default function AthanScreen() {
   const { location, cityName, status, refreshLocation, setLocationByQuery } = useLocation();
@@ -32,6 +37,7 @@ export default function AthanScreen() {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+  const [debugIdx, setDebugIdx] = useState<number | null>(null);
 
   useNotificationScheduler(location, settings);
 
@@ -52,28 +58,41 @@ export default function AthanScreen() {
     setLocationSheetOpen(true);
   };
 
+  const cycleDebug = () => {
+    Haptics.selectionAsync();
+    setDebugIdx((prev) => (prev == null ? 0 : prev < DEBUG_PERIODS.length - 1 ? prev + 1 : null));
+  };
+
+  const locationSheet = (
+    <LocationSheet
+      visible={locationSheetOpen}
+      onClose={() => setLocationSheetOpen(false)}
+      cityName={cityName}
+      isManual={location?.isManual ?? false}
+      loading={status === 'loading'}
+      onRefresh={refreshLocation}
+      onSearch={setLocationByQuery}
+    />
+  );
+
   if (!prayerData) {
     return (
-      <LinearGradient colors={prayerGradients.isha} style={[styles.container, styles.centered]}>
+      <View style={[styles.container, styles.centered]}>
+        <AmbientGradient colors={prayerGradients.isha} />
+        <StatusBar style="light" />
         <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Syncing prayer times…</Text>
         <TouchableOpacity style={styles.retryPill} onPress={openLocation} activeOpacity={0.8}>
           <Text style={styles.retryText}>Set location</Text>
         </TouchableOpacity>
-        <LocationSheet
-          visible={locationSheetOpen}
-          onClose={() => setLocationSheetOpen(false)}
-          cityName={cityName}
-          isManual={location?.isManual ?? false}
-          loading={status === 'loading'}
-          onRefresh={refreshLocation}
-          onSearch={setLocationByQuery}
-        />
-      </LinearGradient>
+        {locationSheet}
+      </View>
     );
   }
 
   const { currentPrayer, nextPrayer, nextPrayerTime, listRows } = prayerData;
-  const celestial = getCelestialConfig(currentPrayer);
+  // Debug override changes only the visuals (gradient + celestial + hero label), not the times.
+  const displayPrayer = debugIdx != null ? DEBUG_PERIODS[debugIdx] : currentPrayer;
+  const celestial = getCelestialConfig(displayPrayer);
 
   // Ellipse path mapping for the celestial body across the sky strip.
   const cx = SCREEN_WIDTH / 2;
@@ -85,7 +104,10 @@ export default function AthanScreen() {
   const celestialY = cy - b * Math.sin(rad) - 16;
 
   return (
-    <LinearGradient colors={prayerGradients[currentPrayer] || prayerGradients.isha} style={styles.container}>
+    <View style={styles.container}>
+      <AmbientGradient colors={prayerGradients[displayPrayer] || prayerGradients.isha} />
+      <StatusBar style={prayerStatusBarLight[displayPrayer] ? 'light' : 'dark'} />
+
       <SafeAreaView style={styles.safeArea}>
         {/* --- LOCATION PILL --- */}
         <View style={styles.locationPillContainer}>
@@ -106,7 +128,7 @@ export default function AthanScreen() {
         {/* --- HERO SECTION --- */}
         <View style={styles.heroContainer}>
           <View style={styles.heroRow}>
-            <Text style={styles.heroPrayerName}>{currentPrayer.toUpperCase()}</Text>
+            <Text style={styles.heroPrayerName}>{displayPrayer.toUpperCase()}</Text>
             <Text style={styles.heroArabicAccent}> · {celestial.arabicName}</Text>
           </View>
           <Text style={styles.countdownText}>{formatCountdown(currentTime, nextPrayerTime)}</Text>
@@ -135,7 +157,7 @@ export default function AthanScreen() {
           })}
         </View>
 
-        {/* --- DATES --- */}
+        {/* --- DATES + DEBUG --- */}
         <View style={styles.dateContainer}>
           <Text style={styles.gregorianText}>
             {currentTime.toLocaleDateString('en-US', {
@@ -146,24 +168,19 @@ export default function AthanScreen() {
             })}
           </Text>
           <Text style={styles.hijriText}>{getHijriDate(currentTime)}</Text>
+          <TouchableOpacity onPress={cycleDebug} style={styles.debugPill} activeOpacity={0.6}>
+            <Text style={styles.debugText}>{debugIdx != null ? `● ${DEBUG_PERIODS[debugIdx]}` : '○ preview'}</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
 
-      <LocationSheet
-        visible={locationSheetOpen}
-        onClose={() => setLocationSheetOpen(false)}
-        cityName={cityName}
-        isManual={location?.isManual ?? false}
-        loading={status === 'loading'}
-        onRefresh={refreshLocation}
-        onSearch={setLocationByQuery}
-      />
-    </LinearGradient>
+      {locationSheet}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: '#070d18' },
   centered: { justifyContent: 'center', alignItems: 'center', gap: 16 },
   retryPill: {
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -202,7 +219,15 @@ const styles = StyleSheet.create({
   futureRowText: { color: '#FFF', fontWeight: '400' },
   pastRowText: { color: '#FFF', opacity: 0.32 },
   pastSunriseRowText: { color: '#FFF', opacity: 0.32, fontStyle: 'italic' },
-  dateContainer: { alignItems: 'center', marginBottom: 16 },
+  dateContainer: { alignItems: 'center', marginBottom: 16, gap: 3 },
   gregorianText: { color: 'rgba(255, 255, 255, 0.65)', fontSize: 13, marginBottom: 2 },
   hijriText: { color: 'rgba(255, 255, 255, 0.38)', fontSize: 12 },
+  debugPill: {
+    marginTop: 8,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  debugText: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '500' },
 });

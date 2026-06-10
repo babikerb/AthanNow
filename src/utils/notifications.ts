@@ -73,20 +73,6 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
           },
           trigger: dateTrigger(time),
         });
-
-        // Jamaa / iqama follow-up reminder a few minutes later.
-        if (notifications.jamaaRemindersEnabled) {
-          const jamaa = new Date(time.getTime() + notifications.jamaaOffsetMinutes * 60_000);
-          if (jamaa > now) {
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `${PRAYER_LABELS[key]} jamaa`,
-                body: `Jamaa for ${PRAYER_LABELS[key]} is starting.`,
-              },
-              trigger: dateTrigger(jamaa),
-            });
-          }
-        }
       }
 
       // Morning Quran reminder around sunrise.

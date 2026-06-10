@@ -142,13 +142,6 @@ export default function SettingsScreen() {
             colors={colors}
           />
           <ToggleRow
-            icon="person.3"
-            label="Jamaa reminders"
-            value={settings.notifications.jamaaRemindersEnabled}
-            onValueChange={(v) => settings.updateNotifications({ jamaaRemindersEnabled: v })}
-            colors={colors}
-          />
-          <ToggleRow
             icon="sunrise"
             label="Morning Quran reminder"
             value={settings.notifications.quranMorningEnabled}
@@ -274,7 +267,7 @@ function ToggleRow({
 }) {
   return (
     <RowFrame last={last} colors={colors}>
-      <SymbolView name={icon} size={20} tintColor={ACCENT} />
+      <SymbolView name={icon} size={20} tintColor={colors.textSecondary} />
       <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>{label}</Text>
       <Switch value={value} onValueChange={onValueChange} trackColor={{ true: ACCENT }} />
     </RowFrame>
@@ -299,7 +292,7 @@ function NavRow({
   return (
     <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
       <RowFrame last={last} colors={colors}>
-        <SymbolView name={icon} size={20} tintColor={ACCENT} />
+        <SymbolView name={icon} size={20} tintColor={colors.textSecondary} />
         <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>{label}</Text>
         <Text style={[styles.rowValue, { color: colors.textTertiary }]} numberOfLines={1}>
           {value}
@@ -329,7 +322,7 @@ function SegmentRow({
 }) {
   return (
     <RowFrame last={last} colors={colors}>
-      <SymbolView name={icon} size={20} tintColor={ACCENT} />
+      <SymbolView name={icon} size={20} tintColor={colors.textSecondary} />
       <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>{label}</Text>
       <View style={[styles.segment, { backgroundColor: colors.background }]}>
         {options.map((o) => {

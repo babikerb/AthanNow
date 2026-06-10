@@ -67,7 +67,7 @@ export default function OnboardingScreen() {
         <View style={styles.features}>
           {FEATURES.map((f) => (
             <View key={f.title} style={styles.featureRow}>
-              <SymbolView name={f.icon} size={28} tintColor={ACCENT} style={styles.featureIcon} />
+              <SymbolView name={f.icon} size={28} tintColor="rgba(255,255,255,0.9)" style={styles.featureIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.featureTitle}>{f.title}</Text>
                 <Text style={styles.featureBody}>{f.body}</Text>
