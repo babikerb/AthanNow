@@ -154,17 +154,6 @@ export default function SettingsScreen() {
         {/* QURAN */}
         <Section title="Quran" colors={colors}>
           <SegmentRow
-            icon="text.alignright"
-            label="Mushaf layout"
-            options={[
-              { key: '15', label: '15 lines' },
-              { key: '13', label: '13 lines' },
-            ]}
-            value={settings.quranLineMode}
-            onChange={(v) => settings.update({ quranLineMode: v as '15' | '13' })}
-            colors={colors}
-          />
-          <SegmentRow
             icon="arrow.left.arrow.right"
             label="Scroll direction"
             options={[
