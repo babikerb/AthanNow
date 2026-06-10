@@ -72,7 +72,8 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
             content: {
               title: `${PRAYER_LABELS[key]}`,
               body: mins > 0 ? `${PRAYER_LABELS[key]} is in ${mins} minutes.` : `It's time for ${PRAYER_LABELS[key]} prayer.`,
-              sound: notifications.athanSound ? 'default' : undefined,
+              // Custom adhan sound (bundled via the expo-notifications plugin); needs a build.
+              sound: notifications.athanSound ? 'adhan.wav' : undefined,
               interruptionLevel: 'timeSensitive',
             },
             trigger: dateTrigger(fireAt),

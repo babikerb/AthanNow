@@ -15,7 +15,8 @@
         "NSLocationWhenInUseUsageDescription": "AthanNow uses your location to calculate accurate prayer times for where you are."
       },
       "entitlements": {
-        "com.apple.developer.usernotifications.time-sensitive": true
+        "com.apple.developer.usernotifications.time-sensitive": true,
+        "com.apple.security.application-groups": ["group.com.bbabiker.AthanNow"]
       }
     },
     "web": {
@@ -23,8 +24,22 @@
     },
     "plugins": [
       "expo-location",
-      "expo-notifications",
-      "expo-font"
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/sounds/adhan.wav"]
+        }
+      ],
+      "expo-font",
+      [
+        "react-native-widget-extension",
+        {
+          "frequentUpdates": false,
+          "widgetsFolder": "widgets",
+          "deploymentTarget": "16.2",
+          "groupIdentifier": "group.com.bbabiker.AthanNow"
+        }
+      ]
     ],
     "extra": {
       "eas": {

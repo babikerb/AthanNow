@@ -25,6 +25,7 @@ import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { prayerStatusBarLight } from '../theme/colors';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
+import { updateWidgetData } from '../utils/widget';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SKY_STRIP_HEIGHT = SCREEN_HEIGHT * 0.1;
@@ -52,6 +53,19 @@ export default function AthanScreen() {
     // Anchor the calculation to the location's local day so far-away timezones are correct.
     return getPrayerTimes(location, localDayAnchor(currentTime, tz), calcMethod, asrMadhab);
   }, [location, currentTime, tz, calcMethod, asrMadhab]);
+
+  // Push the day's prayer times to the iOS widget (App Group). Keyed so it only
+  // writes when the city or the day's times actually change, not every second.
+  const widgetKey =
+    prayerData && location ? `${cityName}|${prayerData.listRows[0]?.time.toDateString()}` : '';
+  useEffect(() => {
+    if (!prayerData || !location) return;
+    const times = prayerData.listRows
+      .filter((r) => r.id !== 'sunrise')
+      .map((r) => ({ name: r.label, time: Math.floor(r.time.getTime() / 1000) }));
+    updateWidgetData(cityName, times);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetKey]);
 
   const openLocation = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
