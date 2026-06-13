@@ -1,18 +1,5 @@
 name: iOS Build (local on macOS runner)
 
-# Builds the iOS app — including the home-screen + lock-screen widget extension —
-# on GitHub's free macOS runner via `eas build --local`, and uploads the .ipa as a
-# downloadable artifact. Trigger it by hand from the Actions tab.
-#
-# Prerequisites (one-time):
-#   1. Repo secret EXPO_TOKEN  -> https://expo.dev/settings/access-tokens
-#   2. iOS signing credentials exist on EAS. The simplest way to create them:
-#        eas credentials            (run once locally, pick iOS > the profile)
-#      For the "preview"/"development" (internal) profiles you must also register
-#      the test device once:  eas device:create   then reinstall the build on it.
-#   3. (For free unlimited minutes) make the repository public. macOS minutes on
-#      private repos are billed at 10x and the free monthly allowance runs out fast.
-
 on:
   workflow_dispatch:
     inputs:
@@ -44,19 +31,6 @@ jobs:
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
-
-      - name: Update CocoaPods
-        run: |
-          sudo gem install cocoapods -v 1.15.2
-
-      - name: Clear CocoaPods cache and Xcode derived data
-        run: |
-          rm -rf ~/Library/Developer/Xcode/DerivedData/*
-          rm -rf ios/Pods ios/Podfile.lock
-
-      - name: Install CocoaPods dependencies
-        run: |
-          cd ios && pod install --repo-update && cd ..
 
       - name: Build iOS (.ipa) locally on the macOS runner
         env:
