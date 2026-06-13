@@ -45,6 +45,12 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Clear CocoaPods cache for fresh install
+        run: |
+          cd ios
+          rm -rf Pods Podfile.lock
+          cd ..
+
       - name: Build iOS (.ipa) locally on the macOS runner
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
