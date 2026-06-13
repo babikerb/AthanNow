@@ -45,10 +45,21 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Clear CocoaPods cache for fresh install
+      - name: Update CocoaPods
         run: |
+          sudo gem install cocoapods -v 1.15.2
+
+      - name: Clear CocoaPods cache and Xcode derived data
+        run: |
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*
           cd ios
           rm -rf Pods Podfile.lock
+          cd ..
+
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios
+          pod install --repo-update
           cd ..
 
       - name: Build iOS (.ipa) locally on the macOS runner
