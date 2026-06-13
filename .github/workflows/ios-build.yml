@@ -35,6 +35,7 @@ jobs:
       - name: Build iOS (.ipa) locally on the macOS runner
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          COCOAPODS_DISABLE_STATS: true
         run: |
           eas build \
             --platform ios \
