@@ -34,6 +34,51 @@ export interface AppLocation {
 
 export type LocationStatus = 'idle' | 'loading' | 'ready' | 'denied' | 'error';
 
+/** A geocoding autocomplete result (Open-Meteo). */
+export interface PlaceSuggestion {
+  id: number;
+  name: string;
+  admin1?: string; // state / region
+  country?: string;
+  countryCode?: string;
+  latitude: number;
+  longitude: number;
+  timezone?: string;
+}
+
+/** A short "City, State, Country" label for a suggestion. */
+export function placeLabel(p: PlaceSuggestion): string {
+  return [p.name, p.admin1, p.country].filter(Boolean).join(', ');
+}
+
+/**
+ * Free-text city autocomplete via the Open-Meteo geocoding API (no key needed).
+ * Returns named places with coordinates + timezone, so we can show suggestions
+ * as the user types and select one without a second round-trip.
+ */
+export async function searchPlaces(query: string, signal?: AbortSignal): Promise<PlaceSuggestion[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=8&language=en&format=json`;
+    const res = await fetch(url, { signal });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return (json.results ?? []).map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      admin1: r.admin1,
+      country: r.country,
+      countryCode: r.country_code,
+      latitude: r.latitude,
+      longitude: r.longitude,
+      timezone: r.timezone,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export function useLocation() {
   const [location, setLocation] = useState<AppLocation | null>(null);
   const [status, setStatus] = useState<LocationStatus>('idle');
@@ -115,9 +160,24 @@ export function useLocation() {
     [location, persist],
   );
 
+  /** Persist a chosen autocomplete suggestion directly (no extra geocoding). */
+  const setLocationByPlace = useCallback(
+    (p: PlaceSuggestion) => {
+      const city = [p.name, p.admin1].filter(Boolean).join(', ');
+      persist({
+        latitude: p.latitude,
+        longitude: p.longitude,
+        city,
+        timezone: p.timezone || timeZoneFor(p.latitude, p.longitude),
+        isManual: true,
+      });
+    },
+    [persist],
+  );
+
   const cityName =
     location?.city ??
     (status === 'denied' ? 'Location off' : status === 'loading' ? 'Locating' : 'Loading');
 
-  return { location, cityName, status, refreshLocation, setLocationByQuery };
+  return { location, cityName, status, refreshLocation, setLocationByQuery, setLocationByPlace };
 }

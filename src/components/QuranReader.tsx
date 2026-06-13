@@ -179,6 +179,6 @@ const styles = StyleSheet.create({
   page: { paddingHorizontal: 22 },
   flowText: { fontFamily: QURAN_FONT, textAlign: 'justify', writingDirection: 'rtl' },
   marker: { fontFamily: QURAN_FONT },
-  verseRow: { paddingVertical: 9, paddingHorizontal: 8 },
-  verseText: { fontFamily: QURAN_FONT, fontSize: 22, lineHeight: 46, textAlign: 'right', writingDirection: 'rtl' },
+  verseRow: { paddingVertical: 11, paddingHorizontal: 8 },
+  verseText: { fontFamily: QURAN_FONT, fontSize: 28, lineHeight: 56, textAlign: 'right', writingDirection: 'rtl' },
 });

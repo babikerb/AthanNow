@@ -145,7 +145,9 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   );
 
   const resetAllData = useCallback(async () => {
-    await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
+    // Full wipe: settings, the spotlight-tour flag, bookmarks, saved location, and
+    // cached Quran data — everything the app has stored — then back to defaults.
+    await AsyncStorage.clear().catch(() => {});
     persist(DEFAULT_SETTINGS);
   }, [persist]);
 

@@ -5,9 +5,11 @@
  * Prayer gradients are ported from the Jamaa app for a richer, premium sky scene.
  */
 
-export const ACCENT = '#866099';
-export const ACCENT_SOFT = 'rgba(134, 96, 153, 0.16)';
-export const ACCENT_BORDER = 'rgba(134, 96, 153, 0.35)';
+// Brand accent — sampled from the app icon background. Used sparingly for
+// active/selected states and highlights only; never as a full surface fill.
+export const ACCENT = '#9669b8';
+export const ACCENT_SOFT = 'rgba(150, 105, 184, 0.16)';
+export const ACCENT_BORDER = 'rgba(150, 105, 184, 0.35)';
 
 export type Palette = {
   background: string;
@@ -20,21 +22,23 @@ export type Palette = {
   accent: string;
 };
 
+// Neutral light theme — true greys, no purple tint. Accent supplies the only color.
 export const lightPalette: Palette = {
-  background: '#F5F3F7',
+  background: '#F2F2F4',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  textPrimary: '#1A151E',
-  textSecondary: 'rgba(26, 21, 30, 0.62)',
-  textTertiary: 'rgba(26, 21, 30, 0.38)',
-  separator: 'rgba(26, 21, 30, 0.10)',
+  textPrimary: '#111113',
+  textSecondary: 'rgba(17, 17, 19, 0.60)',
+  textTertiary: 'rgba(17, 17, 19, 0.38)',
+  separator: 'rgba(17, 17, 19, 0.10)',
   accent: ACCENT,
 };
 
+// Neutral dark theme — near-black greys, no purple tint.
 export const darkPalette: Palette = {
-  background: '#0D0A11',
-  surface: '#181320',
-  surfaceElevated: '#211A2B',
+  background: '#0B0B0D',
+  surface: '#161618',
+  surfaceElevated: '#202023',
   textPrimary: '#FFFFFF',
   textSecondary: 'rgba(255, 255, 255, 0.62)',
   textTertiary: 'rgba(255, 255, 255, 0.36)',

@@ -6,6 +6,9 @@ import { Animated } from 'react-native';
 const MAKKAH_LAT = 21.4225;
 const MAKKAH_LNG = 39.8262;
 
+// Low-pass factor: lower = smoother but laggier. 0.18 reads steady without feeling sluggish.
+const SMOOTHING = 0.18;
+
 function haversineKm(lat: number, lng: number): number {
   const R = 6371;
   const dLat = (MAKKAH_LAT - lat) * (Math.PI / 180);
@@ -47,6 +50,8 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
   const headingAnim = useRef(new Animated.Value(0)).current;
   const lastAnimAngle = useRef(0);
   const lastHeadingRef = useRef(0);
+  // Low-pass filtered heading (degrees, 0..360) to kill sensor jitter.
+  const smoothed = useRef<number | null>(null);
 
   useEffect(() => {
     let headingSub: Location.LocationSubscription | null = null;
@@ -64,12 +69,23 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
       if (data.accuracy < 0) return;
 
       const usingTrue = data.trueHeading >= 0;
-      const h = usingTrue ? data.trueHeading : data.magHeading;
+      const raw = usingTrue ? data.trueHeading : data.magHeading;
 
-      const animTarget = -h;
-      const diff = (((animTarget - (lastAnimAngle.current % 360)) % 360) + 540) % 360 - 180;
+      // Exponential low-pass smoothing along the shortest arc (handles 360->0 wrap).
+      if (smoothed.current === null) {
+        smoothed.current = raw;
+      } else {
+        const delta = (((raw - smoothed.current) % 360) + 540) % 360 - 180; // (-180,180]
+        // Ignore sub-degree noise; otherwise ease toward the new reading.
+        if (Math.abs(delta) > 0.3) smoothed.current = (smoothed.current + SMOOTHING * delta + 360) % 360;
+      }
+      const h = smoothed.current;
+
+      // Accumulate along the shortest path so the dial never spins the long way.
+      const diff = (((-h - (lastAnimAngle.current % 360)) % 360) + 540) % 360 - 180;
       lastAnimAngle.current += diff;
-      Animated.timing(headingAnim, { toValue: lastAnimAngle.current, duration: 16, useNativeDriver: true }).start();
+      // A short glide (not an instant jump) further smooths the motion.
+      Animated.timing(headingAnim, { toValue: lastAnimAngle.current, duration: 90, useNativeDriver: true }).start();
 
       if (angularDiff(h, lastHeadingRef.current) >= 1) {
         lastHeadingRef.current = h;

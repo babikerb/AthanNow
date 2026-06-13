@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "primaryColor": "#866099",
+    "primaryColor": "#9669b8",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.bbabiker.AthanNow",

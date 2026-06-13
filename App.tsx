@@ -6,8 +6,13 @@ import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Providers
+import { ImmersiveProvider, useImmersive } from './src/context/ImmersiveContext';
+import { OnboardingProvider } from './src/context/OnboardingContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { OnboardingTour } from './src/components/onboarding/OnboardingTour';
+import { navigationRef } from './src/navigation/navigationRef';
+import { ACCENT } from './src/theme/colors';
 import { configureNotificationHandler } from './src/utils/notifications';
 
 // Foreground notification presentation behavior (set once at startup).
@@ -15,6 +20,7 @@ configureNotificationHandler();
 
 // Screens
 import AthanScreen from './src/screens/AthanScreen';
+import CalendarScreen from './src/screens/CalendarScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import QiblaScreen from './src/screens/QiblaScreen';
 import QuranScreen from './src/screens/QuranScreen';
@@ -23,14 +29,17 @@ import SettingsScreen from './src/screens/SettingsScreen';
 const Tab = createNativeBottomTabNavigator();
 
 function MainTabs() {
+  // The Quran reader can request a full-bleed immersive mode that hides the bar.
+  const { tabBarHidden } = useImmersive();
   return (
-    <NavigationContainer>
-      <Tab.Navigator
-        // minimizeBehavior shrinks the native tab bar on scroll (iOS 26+).
-        {...({ minimizeBehavior: 'onScrollDown' } as any)}
+    <View style={{ flex: 1 }}>
+      <NavigationContainer ref={navigationRef}>
+        <Tab.Navigator
+        {...({ tabBarHidden } as any)}
+        tabBarActiveTintColor={ACCENT}
         screenOptions={{
           // Explicitly use the native background bar color property
-          barTintColor: '#0D1017',
+          barTintColor: '#0B0B0D',
         } as any}
       >
         <Tab.Screen
@@ -39,6 +48,14 @@ function MainTabs() {
           options={{
             title: 'Athan',
             tabBarIcon: () => ({ sfSymbol: 'moon.stars.fill' })
+          } as any}
+        />
+        <Tab.Screen
+          name="Calendar"
+          component={CalendarScreen}
+          options={{
+            title: 'Calendar',
+            tabBarIcon: () => ({ sfSymbol: 'calendar' })
           } as any}
         />
         <Tab.Screen
@@ -65,8 +82,10 @@ function MainTabs() {
             tabBarIcon: () => ({ sfSymbol: 'gearshape.fill' })
           } as any}
         />
-      </Tab.Navigator>
-    </NavigationContainer>
+        </Tab.Navigator>
+      </NavigationContainer>
+      <OnboardingTour />
+    </View>
   );
 }
 
@@ -75,7 +94,7 @@ function Root() {
   const [fontsLoaded] = useFonts({ AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf') });
 
   // Hold on a neutral surface until persisted settings + the mushaf font load.
-  if (!ready || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#0D0A11' }} />;
+  if (!ready || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#0B0B0D' }} />;
   if (!onboardingComplete) return <OnboardingScreen />;
   return <MainTabs />;
 }
@@ -85,8 +104,12 @@ export default function App() {
     <SafeAreaProvider>
       <SettingsProvider>
         <ThemeProvider>
-          <StatusBar style="light" />
-          <Root />
+          <ImmersiveProvider>
+            <OnboardingProvider>
+              <StatusBar style="light" />
+              <Root />
+            </OnboardingProvider>
+          </ImmersiveProvider>
         </ThemeProvider>
       </SettingsProvider>
     </SafeAreaProvider>

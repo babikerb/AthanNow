@@ -40,13 +40,13 @@ function ayahMarker(w: MushafWord): string {
 }
 
 function MushafPageInner({ data, words, width, height, colors, dark, isBookmarked, onBookmarkVerse }: MushafPageProps) {
-  const frameColor = dark ? 'rgba(255,255,255,0.16)' : 'rgba(120,90,40,0.35)';
-  const ruleColor = dark ? 'rgba(255,255,255,0.05)' : 'rgba(120,90,40,0.1)';
   const markerColor = colors.textTertiary;
+  const bandColor = dark ? 'rgba(255,255,255,0.05)' : 'rgba(120,90,40,0.07)';
   const lines = data.lines.length || 15;
-  const baseFont = Math.min((height - 96) / lines / 1.85, width / 16);
+  // Fill the page edge-to-edge; reserve a little for the baked header/footer.
+  const baseFont = Math.min((height - 64) / lines / 1.5, width / 12);
 
-  const surahNames = data.surahs.map((s) => getSurah(s.id)?.transliteration ?? s.name).join('  ');
+  const surahNames = data.surahs.map((s) => getSurah(s.id)?.transliteration ?? s.name).join('  ·  ');
 
   const longPress = (w: MushafWord) => {
     if (!w.verse_key) return;
@@ -56,77 +56,73 @@ function MushafPageInner({ data, words, width, height, colors, dark, isBookmarke
   };
 
   return (
-    <View style={[styles.outer, { width, height }]}>
-      {/* Top header: surahs on this page + juz/part */}
-      <View style={styles.topHeader}>
-        <Text style={[styles.topNames, { color: colors.textTertiary }]} numberOfLines={1}>
+    <View style={[styles.page, { width, height, backgroundColor: colors.background }]}>
+      {/* Baked-in page header: surah(s) on this page, and the Juz. Centered so it
+          stays clear of the floating corner controls. */}
+      <View style={styles.header}>
+        <Text style={[styles.headerText, { color: colors.textSecondary }]} numberOfLines={1}>
           {surahNames}
+          <Text style={{ color: colors.textTertiary }}>{'   ·   Juz '}{juzForPage(data.page)}</Text>
         </Text>
-        <Text style={[styles.topPart, { color: colors.textTertiary }]}>Part {juzForPage(data.page)}</Text>
       </View>
 
-      <View style={[styles.frame, { borderColor: frameColor, backgroundColor: colors.surface }]}>
-        <View style={[styles.inner, { borderColor: frameColor }]}>
-          {data.lines.map((line) => {
-            const kind = lineKind(line);
-            if (kind === 'surah_header') {
-              const text = line.words.map((w) => w.text).join(' ');
-              return (
-                <View key={line.line} style={styles.lineSlot}>
-                  <View style={[styles.band, { borderColor: frameColor, backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(120,90,40,0.06)' }]}>
-                    <Text style={[styles.headerText, { color: colors.textPrimary, fontSize: baseFont * 0.78 }]} numberOfLines={1} adjustsFontSizeToFit>
-                      {text}
-                    </Text>
-                  </View>
-                </View>
-              );
-            }
+      {/* The page lines, filling all remaining height. No frame, no rules. */}
+      <View style={styles.body}>
+        {data.lines.map((line) => {
+          const kind = lineKind(line);
+          if (kind === 'surah_header') {
+            const text = line.words.map((w) => w.text).join(' ');
             return (
-              <View key={line.line} style={[styles.lineSlot, { borderBottomColor: ruleColor }]}>
-                <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.lineText, { fontFamily: QURAN_FONT, fontSize: baseFont, color: colors.textPrimary }]}>
-                  {line.words.map((w, i) => {
-                    if (w.type === 'end') {
-                      return (
-                        <Text key={i} style={{ color: markerColor, fontSize: baseFont * 0.78 }}>
-                          {' '}{ayahMarker(w)}{' '}
-                        </Text>
-                      );
-                    }
-                    if (w.type === 'quarter') {
-                      return (
-                        <Text key={i} style={{ color: markerColor, fontSize: baseFont * 0.9 }}>
-                          {'۞ '}
-                        </Text>
-                      );
-                    }
-                    let marked = false;
-                    const vk = w.verse_key;
-                    if (vk) {
-                      const [s, a] = vk.split(':').map(Number);
-                      marked = isBookmarked(s, a);
-                    }
-                    // Prefer the full Uthmani word (with waqf marks) when available.
-                    const rich = vk && w.position ? words[vk]?.[w.position - 1] : undefined;
-                    const display = rich ?? w.text;
-                    return (
-                      <Text key={i} onLongPress={() => longPress(w)} style={marked ? { backgroundColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(120,90,40,0.14)' } : undefined}>
-                        {`${display} `}
-                      </Text>
-                    );
-                  })}
-                </Text>
+              <View key={line.line} style={styles.lineSlot}>
+                <View style={[styles.band, { backgroundColor: bandColor }]}>
+                  <Text style={[styles.bandText, { color: colors.textPrimary, fontSize: baseFont * 0.74 }]} numberOfLines={1} adjustsFontSizeToFit>
+                    {text}
+                  </Text>
+                </View>
               </View>
             );
-          })}
-        </View>
+          }
+          return (
+            <View key={line.line} style={styles.lineSlot}>
+              <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.lineText, { fontFamily: QURAN_FONT, fontSize: baseFont, color: colors.textPrimary }]}>
+                {line.words.map((w, i) => {
+                  if (w.type === 'end') {
+                    return (
+                      <Text key={i} style={{ color: markerColor, fontSize: baseFont * 0.78 }}>
+                        {' '}{ayahMarker(w)}{' '}
+                      </Text>
+                    );
+                  }
+                  if (w.type === 'quarter') {
+                    return (
+                      <Text key={i} style={{ color: markerColor, fontSize: baseFont * 0.9 }}>
+                        {'۞ '}
+                      </Text>
+                    );
+                  }
+                  let marked = false;
+                  const vk = w.verse_key;
+                  if (vk) {
+                    const [s, a] = vk.split(':').map(Number);
+                    marked = isBookmarked(s, a);
+                  }
+                  // Prefer the full Uthmani word (with waqf marks) when available.
+                  const rich = vk && w.position ? words[vk]?.[w.position - 1] : undefined;
+                  const display = rich ?? w.text;
+                  return (
+                    <Text key={i} onLongPress={() => longPress(w)} style={marked ? { backgroundColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(120,90,40,0.14)' } : undefined}>
+                      {`${display} `}
+                    </Text>
+                  );
+                })}
+              </Text>
+            </View>
+          );
+        })}
       </View>
 
-      {/* Page number pill */}
-      <View style={styles.pillWrap}>
-        <View style={[styles.pagePill, { borderColor: frameColor }]}>
-          <Text style={[styles.pageNum, { color: colors.textSecondary }]}>{data.page}</Text>
-        </View>
-      </View>
+      {/* Baked-in page number. */}
+      <Text style={[styles.pageNum, { color: colors.textTertiary }]}>{data.page}</Text>
     </View>
   );
 }
@@ -134,17 +130,13 @@ function MushafPageInner({ data, words, width, height, colors, dark, isBookmarke
 export const MushafPage = React.memo(MushafPageInner);
 
 const styles = StyleSheet.create({
-  outer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignSelf: 'stretch', paddingHorizontal: 8, marginBottom: 4 },
-  topNames: { fontSize: 12, flex: 1, marginRight: 12 },
-  topPart: { fontSize: 12 },
-  frame: { flex: 1, alignSelf: 'stretch', borderWidth: 1, borderRadius: 8, padding: 5 },
-  inner: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderRadius: 4, paddingVertical: 8, paddingHorizontal: 10 },
-  lineSlot: { flex: 1, justifyContent: 'center', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
+  page: { paddingHorizontal: 18 },
+  header: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 56, height: 24 },
+  headerText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  body: { flex: 1, justifyContent: 'space-evenly' },
+  lineSlot: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   lineText: { textAlign: 'center', writingDirection: 'rtl', includeFontPadding: false as any },
-  band: { alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderRadius: 6, paddingVertical: 4 },
-  headerText: { fontFamily: QURAN_FONT, writingDirection: 'rtl', textAlign: 'center' },
-  pillWrap: { alignItems: 'center', marginTop: 6 },
-  pagePill: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 3 },
-  pageNum: { fontSize: 12, fontVariant: ['tabular-nums'] },
+  band: { alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center', borderRadius: 6, paddingVertical: 4, marginVertical: 2 },
+  bandText: { fontFamily: QURAN_FONT, writingDirection: 'rtl', textAlign: 'center' },
+  pageNum: { alignSelf: 'center', fontSize: 12, fontVariant: ['tabular-nums'], height: 20, textAlign: 'center' },
 });

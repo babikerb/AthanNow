@@ -1,10 +1,8 @@
 import * as Haptics from 'expo-haptics';
-import { StatusBar } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
-  SafeAreaView,
   StyleProp,
   StyleSheet,
   Text,
@@ -17,11 +15,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AmbientGradient from '../components/AmbientGradient';
 import SkyScene from '../components/SkyScene';
+import { GlassPill, HeaderBar } from '../components/AppHeader';
 import { LocationSheet } from '../components/LocationSheet';
+import { useOnboardingTarget } from '../context/OnboardingContext';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLocation } from '../hooks/useLocation';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
+import { useFocusedStatusBar } from '../hooks/useStatusBar';
+import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { prayerStatusBarLight } from '../theme/colors';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
@@ -31,14 +33,20 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SKY_STRIP_HEIGHT = SCREEN_HEIGHT * 0.1;
 
 export default function AthanScreen() {
-  const { location, cityName, status, refreshLocation, setLocationByQuery } = useLocation();
+  const { location, cityName, status, refreshLocation, setLocationByQuery, setLocationByPlace } = useLocation();
   const settings = useSettings();
   const { calcMethod, asrMadhab, use24Hour } = settings;
   const { prayerGradients } = useTheme();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+
+  // Onboarding spotlight targets.
+  const locTarget = useOnboardingTarget('athan-location');
+  const countTarget = useOnboardingTarget('athan-countdown');
+  const listTarget = useOnboardingTarget('athan-list');
 
   useNotificationScheduler(location, settings);
 
@@ -54,16 +62,23 @@ export default function AthanScreen() {
     return getPrayerTimes(location, localDayAnchor(currentTime, tz), calcMethod, asrMadhab);
   }, [location, currentTime, tz, calcMethod, asrMadhab]);
 
+  // Status bar contrast: dark icons only over the light (dhuhr) sky, white otherwise.
+  useFocusedStatusBar(prayerData && prayerStatusBarLight[prayerData.currentPrayer] === false ? 'dark' : 'light');
+
   // Push the day's prayer times to the iOS widget (App Group). Keyed so it only
   // writes when the city or the day's times actually change, not every second.
   const widgetKey =
-    prayerData && location ? `${cityName}|${prayerData.listRows[0]?.time.toDateString()}` : '';
+    prayerData && location ? `${cityName}|${prayerData.listRows[0]?.time.toDateString()}|${use24Hour}` : '';
   useEffect(() => {
     if (!prayerData || !location) return;
-    const times = prayerData.listRows
-      .filter((r) => r.id !== 'sunrise')
-      .map((r) => ({ name: r.label, time: Math.floor(r.time.getTime() / 1000) }));
-    updateWidgetData(cityName, times);
+    const toRows = (rows: typeof prayerData.listRows) =>
+      rows.filter((r) => r.id !== 'sunrise').map((r) => ({ name: r.label, time: Math.floor(r.time.getTime() / 1000) }));
+    // Include tomorrow's prayers too, so when today's are all done (e.g. after Isha)
+    // the widget counts down to tomorrow's Fajr with a real future time, not a past one.
+    const tomorrowAnchor = localDayAnchor(new Date(currentTime.getTime() + 24 * 60 * 60 * 1000), tz);
+    const tomorrow = getPrayerTimes(location, tomorrowAnchor, calcMethod, asrMadhab);
+    const times = [...toRows(prayerData.listRows), ...toRows(tomorrow.listRows)];
+    updateWidgetData(cityName, times, use24Hour);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetKey]);
 
@@ -81,6 +96,7 @@ export default function AthanScreen() {
       loading={status === 'loading'}
       onRefresh={refreshLocation}
       onSearch={setLocationByQuery}
+      onSelectPlace={setLocationByPlace}
     />
   );
 
@@ -88,7 +104,6 @@ export default function AthanScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <AmbientGradient colors={prayerGradients.isha} />
-        <StatusBar style="light" />
         <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Syncing prayer times</Text>
         <TouchableOpacity style={styles.retryPill} onPress={openLocation} activeOpacity={0.8}>
           <Text style={styles.retryText}>Set location</Text>
@@ -105,24 +120,27 @@ export default function AthanScreen() {
   return (
     <View style={styles.container}>
       <AmbientGradient colors={prayerGradients[displayPrayer] || prayerGradients.isha} />
-      <SkyScene prayer={displayPrayer as any} skyAreaY={insets.top + 44} />
-      <StatusBar style={prayerStatusBarLight[displayPrayer] ? 'light' : 'dark'} />
+      {/* Start the celestial arc below the glass header pill so the sun/moon
+          never renders behind it (header ≈ inset + 58pt tall). */}
+      <SkyScene prayer={displayPrayer as any} skyAreaY={insets.top + 72} />
 
-      <SafeAreaView style={styles.safeArea}>
-        {/* --- LOCATION PILL --- */}
-        <View style={styles.locationPillContainer}>
-          <TouchableOpacity style={styles.locationPill} activeOpacity={0.8} onPress={openLocation}>
-            <SymbolView name="location.fill" size={12} tintColor="rgba(255,255,255,0.85)" />
-            <Text style={styles.locationText}>{cityName}</Text>
+      {/* --- HEADER (location pill) — clears the Dynamic Island --- */}
+      <View ref={locTarget.ref} onLayout={locTarget.onLayout} collapsable={false}>
+        <HeaderBar>
+          <GlassPill flex onPress={openLocation}>
+            <SymbolView name="location.fill" size={12} tintColor="rgba(255,255,255,0.9)" />
+            <Text style={styles.locationText} numberOfLines={1}>{cityName}</Text>
             <SymbolView name="chevron.down" size={10} tintColor="rgba(255,255,255,0.6)" />
-          </TouchableOpacity>
-        </View>
+          </GlassPill>
+        </HeaderBar>
+      </View>
 
+      <View style={[styles.content, { paddingBottom: tabBarHeight + 8 }]}>
         {/* --- SKY STRIP (reserves space; celestial drawn by SkyScene) --- */}
         <View style={{ height: SKY_STRIP_HEIGHT }} />
 
         {/* --- HERO SECTION --- */}
-        <View style={styles.heroContainer}>
+        <View ref={countTarget.ref} onLayout={countTarget.onLayout} collapsable={false} style={styles.heroContainer}>
           <View style={styles.heroRow}>
             <Text style={styles.heroPrayerName}>{displayPrayer.toUpperCase()}</Text>
             <Text style={styles.heroArabicAccent}>{celestial.arabicName}</Text>
@@ -134,7 +152,7 @@ export default function AthanScreen() {
         </View>
 
         {/* --- PRAYER LIST --- */}
-        <View style={styles.listContainer}>
+        <View ref={listTarget.ref} onLayout={listTarget.onLayout} collapsable={false} style={styles.listContainer}>
           {listRows.map((row) => {
             const isCurrent = row.id === currentPrayer;
             const isPast = row.time < currentTime && !isCurrent;
@@ -165,7 +183,7 @@ export default function AthanScreen() {
           </Text>
           <Text style={styles.hijriText}>{getHijriDate(currentTime)}</Text>
         </View>
-      </SafeAreaView>
+      </View>
 
       {locationSheet}
     </View>
@@ -174,6 +192,7 @@ export default function AthanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#070d18' },
+  content: { flex: 1, justifyContent: 'space-between' },
   centered: { justifyContent: 'center', alignItems: 'center', gap: 16 },
   retryPill: {
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -182,20 +201,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   retryText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
-  safeArea: { flex: 1, justifyContent: 'space-between' },
-  locationPillContainer: { alignItems: 'center', zIndex: 10, marginTop: 8 },
-  locationPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.10)',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  locationText: { color: '#FFF', fontSize: 13, fontWeight: '500', letterSpacing: 0.3 },
+  locationText: { color: '#FFF', fontSize: 13, fontWeight: '500', letterSpacing: 0.3, flexShrink: 1 },
   skyStrip: { width: '100%', position: 'relative', overflow: 'hidden' },
   celestialBody: { position: 'absolute', width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
   heroContainer: { alignItems: 'center', marginTop: -10 },

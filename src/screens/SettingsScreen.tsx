@@ -12,7 +12,9 @@ import {
   View,
 } from 'react-native';
 
+import { GlassPill, HeaderBar, HeaderSpacer, HeaderTitle } from '../components/AppHeader';
 import { Sheet } from '../components/Sheet';
+import { useOnboardingTarget } from '../context/OnboardingContext';
 import {
   AsrMadhab,
   CalcMethod,
@@ -20,6 +22,8 @@ import {
   useSettings,
 } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
+import { useFocusedStatusBar } from '../hooks/useStatusBar';
+import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { ACCENT } from '../theme/colors';
 
 const CALC_METHODS: { key: CalcMethod; label: string }[] = [
@@ -40,7 +44,7 @@ const CALC_METHODS: { key: CalcMethod; label: string }[] = [
 const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 30];
 
 function minutesLabel(m: number): string {
-  return m === 0 ? 'At athan' : `${m} min before`;
+  return m === 0 ? 'Off' : `${m} min before`;
 }
 
 const PRAYER_LABELS: { key: PrayerKey; label: string }[] = [
@@ -53,8 +57,11 @@ const PRAYER_LABELS: { key: PrayerKey; label: string }[] = [
 ];
 
 export default function SettingsScreen() {
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const settings = useSettings();
+  const tabBarHeight = useTabBarHeight();
+  const calcTarget = useOnboardingTarget('settings-calc');
+  useFocusedStatusBar(scheme === 'dark' ? 'light' : 'dark');
   const [methodSheetOpen, setMethodSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
 
@@ -81,10 +88,16 @@ export default function SettingsScreen() {
   const methodLabel = CALC_METHODS.find((m) => m.key === settings.calcMethod)?.label ?? settings.calcMethod;
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentInsetAdjustmentBehavior="automatic">
-      <View style={styles.content}>
-        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Settings</Text>
-
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <HeaderBar>
+        <HeaderSpacer />
+        <GlassPill flex scheme={scheme}>
+          <HeaderTitle title="Settings" color={colors.textPrimary} subColor={colors.textSecondary} />
+        </GlassPill>
+        <HeaderSpacer />
+      </HeaderBar>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 8, paddingBottom: tabBarHeight + 16 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
         {/* TIME & APPEARANCE */}
         <Section title="Time" colors={colors}>
           <ToggleRow
@@ -97,6 +110,7 @@ export default function SettingsScreen() {
         </Section>
 
         {/* PRAYER CALCULATION */}
+        <View ref={calcTarget.ref} onLayout={calcTarget.onLayout} collapsable={false}>
         <Section title="Prayer calculation" colors={colors}>
           <NavRow
             icon="globe"
@@ -121,6 +135,7 @@ export default function SettingsScreen() {
             last
           />
         </Section>
+        </View>
 
         {/* NOTIFICATIONS */}
         <Section title="Notifications" footer="Reminders are time sensitive, so they come through even on Focus or silent." colors={colors}>
@@ -141,7 +156,7 @@ export default function SettingsScreen() {
           ))}
         </Section>
 
-        <Section title="" colors={colors}>
+        <Section title="" footer="Each enabled prayer rings at athan time. A reminder adds an extra heads-up that many minutes before." colors={colors}>
           <NavRow
             icon="timer"
             label="Reminder time"
@@ -164,22 +179,6 @@ export default function SettingsScreen() {
             label="Morning Quran reminder"
             value={settings.notifications.quranMorningEnabled}
             onValueChange={(v) => settings.updateNotifications({ quranMorningEnabled: v })}
-            colors={colors}
-            last
-          />
-        </Section>
-
-        {/* QURAN */}
-        <Section title="Quran" colors={colors}>
-          <SegmentRow
-            icon="arrow.left.arrow.right"
-            label="Scroll direction"
-            options={[
-              { key: 'horizontal', label: 'Pages' },
-              { key: 'vertical', label: 'Scroll' },
-            ]}
-            value={settings.quranScrollDirection}
-            onChange={(v) => settings.update({ quranScrollDirection: v as 'horizontal' | 'vertical' })}
             colors={colors}
             last
           />
@@ -244,7 +243,8 @@ export default function SettingsScreen() {
           })}
         </ScrollView>
       </Sheet>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -377,7 +377,6 @@ function SegmentRow({
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 8 },
-  screenTitle: { fontSize: 34, fontWeight: '800', marginVertical: 12 },
   section: { marginBottom: 24 },
   sectionTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, marginBottom: 8, marginLeft: 8 },
   sectionFooter: { fontSize: 12, marginTop: 8, marginLeft: 8, lineHeight: 16 },

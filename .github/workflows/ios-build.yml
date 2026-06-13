@@ -1,0 +1,65 @@
+name: iOS Build (local on macOS runner)
+
+# Builds the iOS app — including the home-screen + lock-screen widget extension —
+# on GitHub's free macOS runner via `eas build --local`, and uploads the .ipa as a
+# downloadable artifact. Trigger it by hand from the Actions tab.
+#
+# Prerequisites (one-time):
+#   1. Repo secret EXPO_TOKEN  -> https://expo.dev/settings/access-tokens
+#   2. iOS signing credentials exist on EAS. The simplest way to create them:
+#        eas credentials            (run once locally, pick iOS > the profile)
+#      For the "preview"/"development" (internal) profiles you must also register
+#      the test device once:  eas device:create   then reinstall the build on it.
+#   3. (For free unlimited minutes) make the repository public. macOS minutes on
+#      private repos are billed at 10x and the free monthly allowance runs out fast.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - development
+          - production
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build iOS (.ipa) locally on the macOS runner
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build \
+            --platform ios \
+            --profile ${{ github.event.inputs.profile }} \
+            --local \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/AthanNow-${{ github.event.inputs.profile }}.ipa"
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AthanNow-${{ github.event.inputs.profile }}-ipa
+          path: ${{ github.workspace }}/AthanNow-*.ipa
+          if-no-files-found: error
+          retention-days: 14

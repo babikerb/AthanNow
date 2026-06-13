@@ -1,38 +1,79 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
-import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookmarkSheet } from '../components/BookmarkSheet';
-import { MushafReader } from '../components/MushafReader';
+import { MushafImageReader } from '../components/MushafImageReader';
 import { QuranReader, ReaderSection } from '../components/QuranReader';
 import { SurahPickerSheet } from '../components/SurahPickerSheet';
+import { useImmersive } from '../context/ImmersiveContext';
+import { useOnboardingTarget } from '../context/OnboardingContext';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { getSurah } from '../data/surahs';
-import { pageForSurah, surahForPage } from '../data/surahPages';
+import { pageForSurah, surahForPage, TOTAL_PAGES } from '../data/surahPages';
 import { Bookmark, useBookmarks } from '../hooks/useBookmarks';
+import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { ACCENT } from '../theme/colors';
 import { fetchChapterVerses } from '../utils/quran';
 import { fetchMushafPage, pageForVerse } from '../utils/mushaf';
 
 const LAST_SURAH = 114;
+const LAST_PAGE_KEY = 'athannow.quran.lastpage.v1';
 
 export default function QuranScreen() {
   const { colors, scheme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { quranScrollDirection, quranLineMode } = useSettings();
   const { bookmarks, isBookmarked, toggleBookmark, removeBookmark } = useBookmarks();
 
-  const isMushaf = quranScrollDirection === 'horizontal';
+  // Quran is always the printed-page mushaf with horizontal page turning.
+  const isMushaf = true;
+
+  // Neutral reading palette — pure dark or warm paper, never the app's purple.
+  const pageColors = useMemo(
+    () =>
+      scheme === 'dark'
+        ? { ...colors, background: '#0F0F10', surface: '#0F0F10', textPrimary: '#ECECEC', textSecondary: 'rgba(255,255,255,0.6)', textTertiary: 'rgba(255,255,255,0.4)' }
+        : { ...colors, background: '#F7F3EA', surface: '#F7F3EA', textPrimary: '#1B1B1B', textSecondary: 'rgba(0,0,0,0.6)', textTertiary: 'rgba(0,0,0,0.42)' },
+    [colors, scheme],
+  );
+
+  useFocusedStatusBar(scheme === 'dark' ? 'light' : 'dark');
 
   const [selectedSurahId, setSelectedSurahId] = useState(1);
   const [visibleSurahId, setVisibleSurahId] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageTarget, setPageTarget] = useState(1);
+  // Restore the last-read page so the reader resumes instead of resetting to page 1.
+  const [restored, setRestored] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    AsyncStorage.getItem(LAST_PAGE_KEY)
+      .then((v) => {
+        const n = Number(v);
+        if (!cancelled && Number.isFinite(n) && n >= 1 && n <= TOTAL_PAGES) {
+          setPageTarget(n);
+          setCurrentPage(n);
+          setVisibleSurahId(surahForPage(n));
+          setSelectedSurahId(surahForPage(n));
+        }
+      })
+      .finally(() => !cancelled && setRestored(true));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Persist the page as the user reads (after restore, so we don't overwrite with 1).
+  useEffect(() => {
+    if (restored) AsyncStorage.setItem(LAST_PAGE_KEY, String(currentPage)).catch(() => {});
+  }, [currentPage, restored]);
 
   const [sections, setSections] = useState<ReaderSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +81,47 @@ export default function QuranScreen() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
+
+  // Immersive reading: tap the page to hide all chrome (floating controls + the
+  // native tab bar) for a full-bleed, Ayah-style page. Tap again to bring it back.
+  const { setTabBarHidden } = useImmersive();
+  const [immersive, setImmersive] = useState(false);
+  const chrome = useRef(new Animated.Value(1)).current;
+  const titleTarget = useOnboardingTarget('quran-title');
+
+  useEffect(() => {
+    setTabBarHidden(immersive);
+    Animated.timing(chrome, {
+      toValue: immersive ? 0 : 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [immersive, setTabBarHidden, chrome]);
+
+  // Always restore the tab bar when leaving the Quran tab.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setImmersive(false);
+        setTabBarHidden(false);
+      };
+    }, [setTabBarHidden]),
+  );
+
+  // Detect a tap (short, no drag) anywhere on the page to toggle immersive mode,
+  // without stealing scroll/long-press from the reader underneath.
+  const touchStart = useRef({ x: 0, y: 0, t: 0 });
+  const onTouchStart = useCallback((e: GestureResponderEvent) => {
+    touchStart.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY, t: Date.now() };
+  }, []);
+  const onTouchEnd = useCallback((e: GestureResponderEvent) => {
+    const { x, y, t } = touchStart.current;
+    const moved = Math.abs(e.nativeEvent.pageX - x) + Math.abs(e.nativeEvent.pageY - y);
+    if (Date.now() - t < 250 && moved < 12) {
+      Haptics.selectionAsync();
+      setImmersive((v) => !v);
+    }
+  }, []);
 
   const sectionsRef = useRef<ReaderSection[]>([]);
   sectionsRef.current = sections;
@@ -63,10 +145,9 @@ export default function QuranScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    if (isMushaf) return;
-    return loadSelected(selectedSurahId);
-  }, [selectedSurahId, isMushaf, loadSelected]);
+  // Both reading modes now render the printed page images, so no chapter text is
+  // fetched for display. (loadSelected is retained for potential future use.)
+  void loadSelected;
 
   const onRequestMore = useCallback(() => {
     if (loadingMoreRef.current) return;
@@ -120,6 +201,14 @@ export default function QuranScreen() {
     [toggleBookmark, currentPage],
   );
 
+  // Jump straight to a page number (from the general search).
+  const goToPage = useCallback((page: number) => {
+    setPageTarget(page);
+    setCurrentPage(page);
+    setVisibleSurahId(surahForPage(page));
+    setSelectedSurahId(surahForPage(page));
+  }, []);
+
   const selectBookmark = useCallback((b: Bookmark) => {
     if (b.page) {
       setPageTarget(b.page);
@@ -136,14 +225,13 @@ export default function QuranScreen() {
 
   const headerSurah = useMemo(() => getSurah(visibleSurahId) ?? getSurah(selectedSurahId)!, [visibleSurahId, selectedSurahId]);
 
-  const currentlyBookmarked = isMushaf
-    ? bookmarks.some((b) => b.page === currentPage)
-    : isBookmarked(visibleSurahId, 1);
+  // Page-based bookmarking in both modes (the printed page is the unit).
+  const currentlyBookmarked = bookmarks.some((b) => b.page === currentPage);
 
-  // One tap sets/removes a bookmark at the current spot.
+  // One tap sets/removes a bookmark at the current page.
   const quickBookmark = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (isMushaf) {
+    {
       try {
         const data = await fetchMushafPage(currentPage);
         const fw = data.lines.flatMap((l) => l.words).find((w) => w.verse_key);
@@ -152,68 +240,45 @@ export default function QuranScreen() {
       } catch {
         toggleBookmark(visibleSurahId, 1, headerSurah.transliteration, currentPage);
       }
-    } else {
-      toggleBookmark(visibleSurahId, 1, headerSurah.transliteration);
     }
-  }, [isMushaf, currentPage, visibleSurahId, headerSurah, toggleBookmark]);
+  }, [currentPage, visibleSurahId, headerSurah, toggleBookmark]);
 
   const renderBody = () => {
-    const topPad = insets.top + 64;
-    if (isMushaf) {
-      return (
-        <MushafReader
-          initialPage={pageTarget}
-          topInset={topPad}
-          bottomInset={insets.bottom + 50}
-          colors={colors}
-          dark={scheme === 'dark'}
-          onPageChange={onMushafPageChange}
-          isBookmarked={isBookmarked}
-          onBookmarkVerse={bookmarkVerse}
-        />
-      );
-    }
-    if (loading) {
+    // Wait for the saved page to load so we open where the user left off (no page-1 flash).
+    if (!restored) {
       return (
         <View style={styles.center}>
-          <ActivityIndicator color={ACCENT} />
+          <ActivityIndicator color={pageColors.textTertiary} />
         </View>
       );
     }
-    if (error) {
-      return (
-        <View style={styles.center}>
-          <SymbolView name="wifi.slash" size={36} tintColor={colors.textTertiary} />
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            Couldn't load this surah. Check your connection and try again.
-          </Text>
-          <Pressable onPress={() => loadSelected(selectedSurahId)} style={[styles.retry, { backgroundColor: ACCENT }]}>
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
-        </View>
-      );
-    }
+    // The actual printed King Fahd Madani pages, horizontal page turning.
     return (
-      <QuranReader
-        sections={sections}
-        scrollDirection="vertical"
-        lineMode={quranLineMode}
-        topInset={topPad}
+      <MushafImageReader
+        vertical={!isMushaf}
+        initialPage={pageTarget}
+        topInset={insets.top}
         bottomInset={insets.bottom}
-        isBookmarked={isBookmarked}
-        onToggleBookmark={toggleBookmark}
-        onVisibleSurahChange={setVisibleSurahId}
-        onRequestMore={onRequestMore}
+        colors={pageColors}
+        dark={scheme === 'dark'}
+        onPageChange={onMushafPageChange}
       />
     );
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+    <View style={[styles.container, { backgroundColor: pageColors.background }]}>
+      {/* The reading surface. A tap toggles immersive mode; scroll/long-press pass through. */}
+      <View style={styles.body} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        {renderBody()}
+      </View>
 
-      <GlassHeader insetTop={insets.top}>
-        {/* Left element: bookmark (tap sets, long-press opens manager) */}
+      {/* Floating glass controls — no solid header bar. Fade out in immersive mode. */}
+      <Animated.View
+        pointerEvents={immersive ? 'none' : 'box-none'}
+        style={[styles.floating, { paddingTop: insets.top + 6, opacity: chrome }]}
+      >
+        {/* Left: bookmark (tap sets, long-press opens manager) */}
         <GlassCircle scheme={scheme} colors={colors}>
           <Pressable
             onPress={quickBookmark}
@@ -225,27 +290,12 @@ export default function QuranScreen() {
           </Pressable>
         </GlassCircle>
 
-        {/* Center title pill (tap to pick a surah) */}
-        <Pressable
-          style={styles.titleButton}
-          onPress={() => {
-            Haptics.selectionAsync();
-            setPickerOpen(true);
-          }}
-        >
-          <TitlePill scheme={scheme} colors={colors}>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-              {headerSurah.transliteration}
-            </Text>
-            <Text style={[styles.headerSub, { color: colors.textTertiary }]}>
-              {isMushaf ? `Page ${currentPage}` : `${headerSurah.totalVerses} ayat`}
-            </Text>
-          </TitlePill>
-        </Pressable>
-
-        {/* Right element: search */}
+        {/* Right: surah browser / search (surah + Juz are now baked into the page) */}
         <GlassCircle scheme={scheme} colors={colors}>
           <Pressable
+            ref={titleTarget.ref}
+            onLayout={titleTarget.onLayout}
+            collapsable={false}
             onPress={() => {
               Haptics.selectionAsync();
               setPickerOpen(true);
@@ -256,9 +306,7 @@ export default function QuranScreen() {
             <SymbolView name="magnifyingglass" size={19} tintColor={colors.textPrimary} />
           </Pressable>
         </GlassCircle>
-      </GlassHeader>
-
-      {renderBody()}
+      </Animated.View>
 
       <SurahPickerSheet
         visible={pickerOpen}
@@ -266,6 +314,7 @@ export default function QuranScreen() {
         currentSurahId={visibleSurahId}
         onSelect={selectSurah}
         onSelectVerse={goToVerse}
+        onSelectPage={goToPage}
       />
       <BookmarkSheet
         visible={bookmarkOpen}
@@ -276,17 +325,6 @@ export default function QuranScreen() {
       />
     </View>
   );
-}
-
-function TitlePill({ scheme, colors, children }: { scheme: 'light' | 'dark'; colors: any; children: React.ReactNode }) {
-  if (isLiquidGlassSupported) {
-    return (
-      <LiquidGlassView interactive colorScheme={scheme} style={styles.pill}>
-        {children}
-      </LiquidGlassView>
-    );
-  }
-  return <View style={[styles.pill, styles.pillFallback, { borderColor: colors.separator }]}>{children}</View>;
 }
 
 function GlassCircle({ scheme, colors, children }: { scheme: 'light' | 'dark'; colors: any; children: React.ReactNode }) {
@@ -300,33 +338,15 @@ function GlassCircle({ scheme, colors, children }: { scheme: 'light' | 'dark'; c
   return <View style={[styles.circle, styles.circleFallback, { borderColor: colors.separator }]}>{children}</View>;
 }
 
-function GlassHeader({ insetTop, children }: { insetTop: number; children: React.ReactNode }) {
-  const { colors, scheme } = useTheme();
-  const content = <View style={[styles.headerInner, { paddingTop: insetTop + 8 }]}>{children}</View>;
-
-  if (isLiquidGlassSupported) {
-    return (
-      <LiquidGlassView effect="regular" colorScheme={scheme} style={styles.header}>
-        {content}
-      </LiquidGlassView>
-    );
-  }
-  return (
-    <View
-      style={[
-        styles.header,
-        { backgroundColor: colors.surface, borderBottomColor: colors.separator, borderBottomWidth: StyleSheet.hairlineWidth },
-      ]}
-    >
-      {content}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
-  headerInner: {
+  body: { flex: 1 },
+  floating: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -337,11 +357,6 @@ const styles = StyleSheet.create({
   circle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   circleFallback: { backgroundColor: 'rgba(127,127,127,0.12)', borderWidth: StyleSheet.hairlineWidth },
   circleHit: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  titleButton: { flex: 1, alignItems: 'center' },
-  pill: { borderRadius: 22, paddingHorizontal: 22, paddingVertical: 7, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', minWidth: 140 },
-  pillFallback: { backgroundColor: 'rgba(127,127,127,0.12)', borderWidth: StyleSheet.hairlineWidth },
-  headerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
-  headerSub: { fontSize: 11, marginTop: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 40 },
   errorText: { fontSize: 15, textAlign: 'center', lineHeight: 21 },
   retry: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },

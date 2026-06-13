@@ -14,9 +14,18 @@ export interface WidgetPrayer {
   time: number; // epoch seconds
 }
 
-export async function updateWidgetData(city: string, times: WidgetPrayer[]): Promise<void> {
+/**
+ * The prayer times themselves already reflect the user's calculation method and
+ * madhab (the app computes them with those settings before calling here). We also
+ * pass `use24Hour` so the widget renders clock times in the user's chosen format.
+ */
+export async function updateWidgetData(
+  city: string,
+  times: WidgetPrayer[],
+  use24Hour: boolean,
+): Promise<void> {
   try {
-    await SharedGroupPreferences.setItem(KEY, JSON.stringify({ city, times }), APP_GROUP);
+    await SharedGroupPreferences.setItem(KEY, JSON.stringify({ city, times, use24Hour }), APP_GROUP);
   } catch {
     // Native module/widget not in this build yet, or App Group unavailable.
   }

@@ -35,8 +35,11 @@ export function Sheet({ visible, onClose, title, headerRight, children }: SheetP
       animationType="slide"
       presentationStyle="pageSheet"
     >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]}>
-        <View style={[styles.header, { borderBottomColor: colors.separator }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.grabberWrap}>
+          <View style={[styles.grabber, { backgroundColor: colors.separator }]} />
+        </View>
+        <View style={styles.header}>
           <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
             {title}
           </Text>
@@ -45,7 +48,7 @@ export function Sheet({ visible, onClose, title, headerRight, children }: SheetP
             <Pressable onPress={onClose} hitSlop={12} style={styles.closeButton}>
               <SymbolView
                 name="xmark.circle.fill"
-                size={26}
+                size={28}
                 tintColor={colors.textTertiary}
               />
             </Pressable>
@@ -59,15 +62,17 @@ export function Sheet({ visible, onClose, title, headerRight, children }: SheetP
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  grabberWrap: { alignItems: 'center', paddingTop: 8 },
+  grabber: { width: 36, height: 5, borderRadius: 3 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
-  title: { fontSize: 18, fontWeight: '700', flex: 1 },
+  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.4, flex: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   closeButton: { marginLeft: 4 },
   body: { flex: 1 },

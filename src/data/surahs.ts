@@ -74,7 +74,7 @@ export const SURAHS: Surah[] = [
   { id: 59, arabicName: "الحشر", transliteration: "Al-Hashr", translation: "The Exile", type: "medinan", totalVerses: 24 },
   { id: 60, arabicName: "الممتحنة", transliteration: "Al-Mumtahanah", translation: "She that is to be examined", type: "medinan", totalVerses: 13 },
   { id: 61, arabicName: "الصف", transliteration: "As-Saf", translation: "The Ranks", type: "medinan", totalVerses: 14 },
-  { id: 62, arabicName: "ا��جمعة", transliteration: "Al-Jumu'ah", translation: "The Congregation, Friday", type: "medinan", totalVerses: 11 },
+  { id: 62, arabicName: "الجمعة", transliteration: "Al-Jumu'ah", translation: "The Congregation, Friday", type: "medinan", totalVerses: 11 },
   { id: 63, arabicName: "المنافقون", transliteration: "Al-Munafiqun", translation: "The Hypocrites", type: "medinan", totalVerses: 11 },
   { id: 64, arabicName: "التغابن", transliteration: "At-Taghabun", translation: "The Mutual Disillusion", type: "medinan", totalVerses: 18 },
   { id: 65, arabicName: "الطلاق", transliteration: "At-Talaq", translation: "The Divorce", type: "medinan", totalVerses: 12 },

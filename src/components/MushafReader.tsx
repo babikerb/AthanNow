@@ -100,7 +100,7 @@ function PageHost({
 
 export function MushafReader({ initialPage, topInset, bottomInset, colors, dark, onPageChange, isBookmarked, onBookmarkVerse }: MushafReaderProps) {
   const { width, height } = useWindowDimensions();
-  const pageHeight = height - topInset - bottomInset - 28; // 28 ~ page-number footer
+  const pageHeight = height - topInset - bottomInset; // header + page number are baked into the page
   const listRef = useRef<FlatList<number>>(null);
 
   useEffect(() => {

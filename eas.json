@@ -8,6 +8,13 @@
       "developmentClient": true,
       "distribution": "internal"
     },
+    "preview": {
+      "distribution": "internal",
+      "channel": "production",
+      "ios": {
+        "simulator": false
+      }
+    },
     "production": {
       "channel": "production",
       "autoIncrement": true

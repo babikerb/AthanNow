@@ -7,6 +7,11 @@ import { getPrayerTimes } from './prayerEngine';
  *  DATE triggers and refresh this window whenever the app opens or settings change. */
 const DAYS_AHEAD = 7;
 
+/** iOS keeps at most 64 pending local notifications and silently drops the rest.
+ *  We schedule chronologically and stop before that ceiling so the SOONEST
+ *  prayers always get both their reminder and their athan. */
+const MAX_PENDING = 60;
+
 const PRAYER_LABELS: Record<PrayerKey, string> = {
   fajr: 'Fajr',
   sunrise: 'Sunrise',
@@ -52,62 +57,70 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
 
   const { notifications } = settings;
   const now = new Date();
+  const mins = notifications.reminderMinutesBefore || 0;
 
-  for (let offset = 0; offset < DAYS_AHEAD; offset++) {
+  // Two independent things per prayer:
+  //   • the athan — fires at the prayer time (the per-prayer toggle), and
+  //   • the reminder — an optional heads-up `mins` before (0 = off).
+  // Both fire when both are on. Scheduled chronologically; we stop at the iOS cap.
+  let count = 0;
+  const schedule = async (content: Notifications.NotificationContentInput, date: Date): Promise<boolean> => {
+    if (count >= MAX_PENDING) return false;
+    if (date <= now) return true; // skip past times, but keep going
+    count++;
+    await Notifications.scheduleNotificationAsync({ content, trigger: dateTrigger(date) });
+    return true;
+  };
+
+  for (let offset = 0; offset < DAYS_AHEAD && count < MAX_PENDING; offset++) {
     const day = new Date();
     day.setDate(now.getDate() + offset);
     const { listRows } = getPrayerTimes(coords, day, settings.calcMethod, settings.asrMadhab);
 
     for (const row of listRows) {
+      if (count >= MAX_PENDING) break;
       const key = row.id as PrayerKey;
       const time = row.time;
       if (time <= now) continue;
-
-      const mins = notifications.reminderMinutesBefore || 0;
+      const reminderAt = new Date(time.getTime() - mins * 60_000);
 
       if (key !== 'sunrise') {
-        // Athan notification per enabled prayer.
         if (notifications.athanEnabled[key]) {
-          const fireAt = new Date(time.getTime() - mins * 60_000);
-          if (fireAt > now) {
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: `${PRAYER_LABELS[key]}`,
-                body: mins > 0 ? `${PRAYER_LABELS[key]} is in ${mins} minutes.` : `It's time for ${PRAYER_LABELS[key]} prayer.`,
-                // Custom adhan sound (bundled via the expo-notifications plugin); needs a build.
-                sound: notifications.athanSound ? 'adhan.wav' : undefined,
-                interruptionLevel: 'timeSensitive',
-              },
-              trigger: dateTrigger(fireAt),
-            });
+          if (mins > 0) {
+            await schedule(
+              { title: `${PRAYER_LABELS[key]} soon`, body: `${PRAYER_LABELS[key]} is in ${mins} minutes.`, interruptionLevel: 'timeSensitive' },
+              reminderAt,
+            );
           }
+          // The athan itself, exactly at prayer time (with the adhan sound if enabled).
+          await schedule(
+            {
+              title: `${PRAYER_LABELS[key]}`,
+              body: `It's time for ${PRAYER_LABELS[key]} prayer.`,
+              sound: notifications.athanSound ? 'adhan.wav' : undefined,
+              interruptionLevel: 'timeSensitive',
+            },
+            time,
+          );
         }
       } else {
-        // Sunrise reminder (marks the end of Fajr time). Default tone, not the adhan.
+        // Sunrise (marks the end of Fajr time). Default tone, not the adhan.
         if (notifications.athanEnabled.sunrise) {
-          const fireAt = new Date(time.getTime() - mins * 60_000);
-          if (fireAt > now) {
-            await Notifications.scheduleNotificationAsync({
-              content: {
-                title: 'Sunrise',
-                body: mins > 0 ? `Sunrise is in ${mins} minutes (Fajr ends).` : 'The sun has risen. Fajr time has ended.',
-                sound: 'default',
-                interruptionLevel: 'timeSensitive',
-              },
-              trigger: dateTrigger(fireAt),
-            });
+          if (mins > 0) {
+            await schedule(
+              { title: 'Sunrise soon', body: `Sunrise is in ${mins} minutes (Fajr ends).`, sound: 'default', interruptionLevel: 'timeSensitive' },
+              reminderAt,
+            );
           }
+          await schedule(
+            { title: 'Sunrise', body: 'The sun has risen. Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
+            time,
+          );
         }
 
         // Morning Quran reminder around sunrise.
         if (notifications.quranMorningEnabled) {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: 'Good morning',
-              body: 'Start your day with the Quran.',
-            },
-            trigger: dateTrigger(time),
-          });
+          await schedule({ title: 'Good morning', body: 'Start your day with the Quran.' }, time);
         }
       }
     }
