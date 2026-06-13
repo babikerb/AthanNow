@@ -16,7 +16,9 @@
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true,
-        "com.apple.security.application-groups": ["group.com.bbabiker.AthanNow"]
+        "com.apple.security.application-groups": [
+          "group.com.bbabiker.AthanNow"
+        ]
       }
     },
     "web": {
@@ -27,7 +29,9 @@
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/sounds/adhan.wav"]
+          "sounds": [
+            "./assets/sounds/adhan.wav"
+          ]
         }
       ],
       "expo-font",
@@ -39,7 +43,8 @@
           "deploymentTarget": "16.2",
           "groupIdentifier": "group.com.bbabiker.AthanNow"
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "extra": {
       "eas": {
