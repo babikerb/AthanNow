@@ -4,6 +4,7 @@ import { SFSymbol } from 'sf-symbols-typescript';
 import React, { useState } from 'react';
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,9 @@ import {
   Text,
   View,
 } from 'react-native';
+
+// Hosted at the landing site. Update if you move to a custom domain.
+const PRIVACY_URL = 'https://babikerb.github.io/athannow-landing/privacy/';
 
 import { GlassPill, HeaderBar, HeaderSpacer, HeaderTitle } from '../components/AppHeader';
 import { Sheet } from '../components/Sheet';
@@ -190,6 +194,21 @@ export default function SettingsScreen() {
             <SymbolView name="trash" size={20} tintColor="#E5484D" />
             <Text style={[styles.rowLabel, { color: '#E5484D' }]}>Reset all data</Text>
           </Pressable>
+        </Section>
+
+        {/* ABOUT */}
+        <Section title="About" colors={colors}>
+          <NavRow
+            icon="hand.raised"
+            label="Privacy Policy"
+            value=""
+            onPress={() => {
+              tap();
+              Linking.openURL(PRIVACY_URL).catch(() => {});
+            }}
+            colors={colors}
+            last
+          />
         </Section>
 
         <View style={{ height: 40 }} />
