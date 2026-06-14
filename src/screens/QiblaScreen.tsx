@@ -221,6 +221,8 @@ export default function QiblaScreen() {
                 <Text style={styles.errorText}>Enable location to find the Qibla direction</Text>
               ) : calibrating ? (
                 <Text style={styles.calibrateText}>Wave your phone in a figure 8 to calibrate</Text>
+              ) : qibla.toleranceDeg >= 30 ? (
+                <Text style={styles.calibrateText}>Every direction faces the Qibla here</Text>
               ) : (
                 !!cityName && <Text style={styles.cityText}>{cityName}</Text>
               )}
