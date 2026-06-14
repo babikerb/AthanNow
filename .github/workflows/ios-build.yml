@@ -20,6 +20,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Expo SDK 56 / React Native requires Xcode >= 16.1 (pod install fails otherwise).
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Print Xcode version
+        run: xcodebuild -version
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
