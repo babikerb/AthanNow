@@ -483,8 +483,8 @@ struct AthanMorningWidget: Widget {
     StaticConfiguration(kind: "AthanMorningWidget", provider: Provider()) { entry in
       AthanGroupWidgetView(entry: entry, ids: MORNING_IDS)
     }
-    .configurationDisplayName("Morning Prayers")
-    .description("Fajr, Sunrise and Dhuhr. Pair with Evening Prayers for the full day.")
+    .configurationDisplayName("1/2 Prayers")
+    .description("Fajr, Sunrise and Dhuhr. Pair with 2/2 Prayers for the full day.")
     .supportedFamilies([.accessoryRectangular])
   }
 }
@@ -494,8 +494,8 @@ struct AthanEveningWidget: Widget {
     StaticConfiguration(kind: "AthanEveningWidget", provider: Provider()) { entry in
       AthanGroupWidgetView(entry: entry, ids: EVENING_IDS)
     }
-    .configurationDisplayName("Evening Prayers")
-    .description("Asr, Maghrib and Isha. Pair with Morning Prayers for the full day.")
+    .configurationDisplayName("2/2 Prayers")
+    .description("Asr, Maghrib and Isha. Pair with 1/2 Prayers for the full day.")
     .supportedFamilies([.accessoryRectangular])
   }
 }
@@ -537,8 +537,8 @@ struct AthanWidget_Previews: PreviewProvider {
       LargeView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .systemLarge)).previewDisplayName("Large")
       CircularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryCircular)).previewDisplayName("Lock · Circular")
       RectangularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Rectangular")
-      PrayerGroupRectangularView(data: SAMPLE, ids: MORNING_IDS).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Morning")
-      PrayerGroupRectangularView(data: SAMPLE, ids: EVENING_IDS).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Evening")
+      PrayerGroupRectangularView(data: SAMPLE, ids: MORNING_IDS).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · 1/2 Prayers")
+      PrayerGroupRectangularView(data: SAMPLE, ids: EVENING_IDS).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · 2/2 Prayers")
       InlineView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryInline)).previewDisplayName("Lock · Inline")
     }
   }
