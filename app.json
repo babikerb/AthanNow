@@ -40,7 +40,7 @@
         {
           "frequentUpdates": false,
           "widgetsFolder": "widgets",
-          "deploymentTarget": "16.2",
+          "deploymentTarget": "16.4",
           "groupIdentifier": "group.com.bbabiker.AthanNow"
         }
       ],
@@ -48,7 +48,7 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "16.2",
+            "deploymentTarget": "16.4",
             "useFrameworks": "static"
           }
         }
