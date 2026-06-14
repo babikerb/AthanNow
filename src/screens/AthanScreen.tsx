@@ -100,6 +100,19 @@ export default function AthanScreen() {
     />
   );
 
+  // Shift the sky toward the next prayer's gradient as its time approaches. Declared
+  // before any early return so the hook order stays stable while prayerData is null.
+  const skyColors = useMemo(() => {
+    if (!prayerData) return prayerGradients.isha;
+    const cur = prayerGradients[prayerData.currentPrayer] || prayerGradients.isha;
+    const nextCols = prayerGradients[(prayerData.nextPrayer || '').toLowerCase()];
+    if (!nextCols) return cur;
+    const windowMin = gradientShiftMinutes[prayerData.currentPrayer] ?? 45;
+    const minsToNext = (prayerData.nextPrayerTime.getTime() - currentTime.getTime()) / 60000;
+    if (minsToNext < 0 || minsToNext > windowMin) return cur;
+    return blendGradients(cur, nextCols, 1 - minsToNext / windowMin);
+  }, [prayerData, currentTime, prayerGradients]);
+
   if (!prayerData) {
     return (
       <View style={[styles.container, styles.centered]}>
@@ -116,18 +129,6 @@ export default function AthanScreen() {
   const { currentPrayer, nextPrayer, nextPrayerTime, listRows } = prayerData;
   const displayPrayer = currentPrayer;
   const celestial = getCelestialConfig(displayPrayer);
-
-  // Shift the sky toward the next prayer's gradient as its time approaches. The
-  // blend only kicks in inside that stage's shift window (see gradientShiftMinutes).
-  const skyColors = useMemo(() => {
-    const cur = prayerGradients[displayPrayer] || prayerGradients.isha;
-    const nextCols = prayerGradients[(nextPrayer || '').toLowerCase()];
-    if (!nextCols) return cur;
-    const windowMin = gradientShiftMinutes[displayPrayer] ?? 45;
-    const minsToNext = (nextPrayerTime.getTime() - currentTime.getTime()) / 60000;
-    if (minsToNext < 0 || minsToNext > windowMin) return cur;
-    return blendGradients(cur, nextCols, 1 - minsToNext / windowMin);
-  }, [displayPrayer, nextPrayer, nextPrayerTime, currentTime, prayerGradients]);
 
   return (
     <View style={styles.container}>
