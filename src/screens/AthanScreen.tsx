@@ -71,8 +71,10 @@ export default function AthanScreen() {
     prayerData && location ? `${cityName}|${prayerData.listRows[0]?.time.toDateString()}|${use24Hour}` : '';
   useEffect(() => {
     if (!prayerData || !location) return;
+    // Include Sunrise so the widgets can show it (the morning lock-screen widget
+    // and the home lists). Widget code skips it where it isn't a prayer (gradient).
     const toRows = (rows: typeof prayerData.listRows) =>
-      rows.filter((r) => r.id !== 'sunrise').map((r) => ({ name: r.label, time: Math.floor(r.time.getTime() / 1000) }));
+      rows.map((r) => ({ name: r.label, time: Math.floor(r.time.getTime() / 1000) }));
     // Include tomorrow's prayers too, so when today's are all done (e.g. after Isha)
     // the widget counts down to tomorrow's Fajr with a real future time, not a past one.
     const tomorrowAnchor = localDayAnchor(new Date(currentTime.getTime() + 24 * 60 * 60 * 1000), tz);

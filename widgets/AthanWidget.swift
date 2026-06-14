@@ -65,7 +65,8 @@ func currentStage(_ data: WidgetData, now: Date) -> String {
   let t = now.timeIntervalSince1970
   var stage = "isha"
   for p in data.times where p.time <= t {
-    stage = p.name.lowercased()
+    let s = p.name.lowercased()
+    if GRADIENTS[s] != nil { stage = s } // skip stages with no gradient (e.g. Sunrise)
   }
   return GRADIENTS[stage] != nil ? stage : "isha"
 }
@@ -250,7 +251,7 @@ struct MediumView: View {
         }
       }
       VStack(alignment: .leading, spacing: 5) {
-        ForEach(data.times.prefix(5), id: \.name) { p in
+        ForEach(data.times.prefix(6), id: \.name) { p in
           let isNext = p.name == next?.name
           HStack {
             Text(p.name).font(.system(size: 12, weight: isNext ? .bold : .regular))
@@ -289,7 +290,7 @@ struct LargeView: View {
       Spacer(minLength: 10)
       // Full prayer list
       VStack(spacing: 0) {
-        ForEach(data.times.prefix(5), id: \.name) { p in
+        ForEach(data.times.prefix(6), id: \.name) { p in
           let date = Date(timeIntervalSince1970: p.time)
           let isNext = p.name == next?.name
           let isPast = p.time <= now.timeIntervalSince1970 && !isNext
@@ -411,45 +412,50 @@ extension View {
   }
 }
 
-// MARK: - "Today's Prayers" lock-screen list (a separate, user-selectable widget)
+// MARK: - Split lock-screen widgets (a pair, meant to be added side by side)
 //
-// A rectangular accessory widget that shows all five of today's prayers at once,
-// with the next one accented and the ones that already passed dimmed — the same
-// at-a-glance read as the home-screen list. Offered as its own widget so it shows
-// up alongside "Prayer Times" when adding a lock-screen widget.
+// One widget covers the morning trio (Fajr, Sunrise, Dhuhr), the other the
+// afternoon/evening trio (Asr, Maghrib, Isha). Stacked on the Lock Screen they
+// show the whole day. Next prayer accented, passed ones dimmed.
 
-struct TodayListRectangularView: View {
+private let MORNING_IDS: Set<String> = ["fajr", "sunrise", "dhuhr"]
+private let EVENING_IDS: Set<String> = ["asr", "maghrib", "isha"]
+
+struct PrayerGroupRectangularView: View {
   let data: WidgetData
+  let ids: Set<String>
   var body: some View {
     let now = Date()
     let next = nextPrayer(data, now: now)
-    HStack(spacing: 0) {
-      ForEach(data.times.prefix(5), id: \.name) { p in
+    // Today's prayers (the first 6 entries) that belong to this group.
+    let rows = data.times.prefix(6).filter { ids.contains($0.name.lowercased()) }
+    VStack(alignment: .leading, spacing: 2) {
+      ForEach(rows, id: \.name) { p in
         let date = Date(timeIntervalSince1970: p.time)
         let isNext = p.name == next?.name
         let isPast = p.time <= now.timeIntervalSince1970 && !isNext
-        VStack(spacing: 1) {
-          Text(String(p.name.prefix(3)))
-            .font(.system(size: 11, weight: isNext ? .bold : .regular))
+        HStack {
+          Text(p.name).font(.system(size: 13, weight: isNext ? .bold : .regular))
+          Spacer()
           Text(shortTime(date, data.use24Hour ?? false))
-            .font(.system(size: 12, weight: isNext ? .bold : .medium))
+            .font(.system(size: 13, weight: isNext ? .bold : .medium))
             .monospacedDigit()
         }
-        .frame(maxWidth: .infinity)
         .opacity(isPast ? 0.45 : 1)
         .widgetAccentable(isNext)
       }
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     .accessoryContainer()
   }
 }
 
-struct AthanListWidgetView: View {
+struct AthanGroupWidgetView: View {
   var entry: AthanEntry
+  let ids: Set<String>
   var body: some View {
     if let data = entry.data, !data.times.isEmpty {
-      TodayListRectangularView(data: data)
+      PrayerGroupRectangularView(data: data, ids: ids)
     } else {
       Label("Open AthanNow", systemImage: "moon.stars.fill").font(.caption2).accessoryContainer()
     }
@@ -472,13 +478,24 @@ struct AthanWidget: Widget {
   }
 }
 
-struct AthanListWidget: Widget {
+struct AthanMorningWidget: Widget {
   var body: some WidgetConfiguration {
-    StaticConfiguration(kind: "AthanListWidget", provider: Provider()) { entry in
-      AthanListWidgetView(entry: entry)
+    StaticConfiguration(kind: "AthanMorningWidget", provider: Provider()) { entry in
+      AthanGroupWidgetView(entry: entry, ids: MORNING_IDS)
     }
-    .configurationDisplayName("Today's Prayers")
-    .description("All of today's prayer times, with past ones dimmed.")
+    .configurationDisplayName("Morning Prayers")
+    .description("Fajr, Sunrise and Dhuhr. Pair with Evening Prayers for the full day.")
+    .supportedFamilies([.accessoryRectangular])
+  }
+}
+
+struct AthanEveningWidget: Widget {
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: "AthanEveningWidget", provider: Provider()) { entry in
+      AthanGroupWidgetView(entry: entry, ids: EVENING_IDS)
+    }
+    .configurationDisplayName("Evening Prayers")
+    .description("Asr, Maghrib and Isha. Pair with Morning Prayers for the full day.")
     .supportedFamilies([.accessoryRectangular])
   }
 }
@@ -487,7 +504,8 @@ struct AthanListWidget: Widget {
 struct AthanWidgetBundle: WidgetBundle {
   var body: some Widget {
     AthanWidget()
-    AthanListWidget()
+    AthanMorningWidget()
+    AthanEveningWidget()
   }
 }
 
@@ -502,6 +520,7 @@ private let SAMPLE = WidgetData(
   city: "San Francisco",
   times: [
     PrayerTime(name: "Fajr", time: Date().addingTimeInterval(-7200).timeIntervalSince1970),
+    PrayerTime(name: "Sunrise", time: Date().addingTimeInterval(-5400).timeIntervalSince1970),
     PrayerTime(name: "Dhuhr", time: Date().addingTimeInterval(1500).timeIntervalSince1970),
     PrayerTime(name: "Asr", time: Date().addingTimeInterval(9000).timeIntervalSince1970),
     PrayerTime(name: "Maghrib", time: Date().addingTimeInterval(18000).timeIntervalSince1970),
@@ -518,7 +537,8 @@ struct AthanWidget_Previews: PreviewProvider {
       LargeView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .systemLarge)).previewDisplayName("Large")
       CircularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryCircular)).previewDisplayName("Lock · Circular")
       RectangularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Rectangular")
-      TodayListRectangularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Today's Prayers")
+      PrayerGroupRectangularView(data: SAMPLE, ids: MORNING_IDS).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Morning")
+      PrayerGroupRectangularView(data: SAMPLE, ids: EVENING_IDS).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Evening")
       InlineView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryInline)).previewDisplayName("Lock · Inline")
     }
   }
