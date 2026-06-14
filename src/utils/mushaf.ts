@@ -119,6 +119,49 @@ export function glyph(word: MushafWord): string {
   }
 }
 
+// ---- Page meta (juz / hizb / rub' quarter) from the quran.com API ----
+
+export interface PageMeta {
+  juz: number;
+  hizb: number; // 1..60
+  rub: number; // 1..240
+  quarter: number; // 1..4 within the hizb
+}
+
+const metaMemory = new Map<number, PageMeta>();
+
+/** Juz/Hizb/quarter for a page, from the first ayah on it. Cached on-device. */
+export async function fetchPageMeta(page: number): Promise<PageMeta> {
+  if (metaMemory.has(page)) return metaMemory.get(page)!;
+  const key = `athannow.pagemeta.${page}.v1`;
+  try {
+    const cached = await AsyncStorage.getItem(key);
+    if (cached) {
+      const data: PageMeta = JSON.parse(cached);
+      metaMemory.set(page, data);
+      return data;
+    }
+  } catch {
+    // ignore
+  }
+  const res = await fetch(
+    `https://api.quran.com/api/v4/verses/by_page/${page}?per_page=1&words=false&fields=hizb_number,rub_el_hizb_number,juz_number`,
+  );
+  if (!res.ok) throw new Error(`Failed to load page meta ${page}`);
+  const json = (await res.json()) as { verses?: { juz_number?: number; hizb_number?: number; rub_el_hizb_number?: number }[] };
+  const v = json.verses?.[0] ?? {};
+  const rub = v.rub_el_hizb_number ?? 1;
+  const meta: PageMeta = {
+    juz: v.juz_number ?? 1,
+    hizb: v.hizb_number ?? Math.ceil(rub / 4),
+    rub,
+    quarter: ((rub - 1) % 4) + 1,
+  };
+  metaMemory.set(page, meta);
+  AsyncStorage.setItem(key, JSON.stringify(meta)).catch(() => {});
+  return meta;
+}
+
 // ---- Verse -> page index (for "2:286" style search) ----
 
 type VerseIndex = Record<string, { page: number }>;

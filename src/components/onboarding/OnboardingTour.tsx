@@ -45,7 +45,7 @@ const STEPS: Step[] = [
     id: 'quran-title',
     accent: ACCENT,
     title: 'Read the Quran',
-    body: 'Tap to browse surahs or search. Tap the page itself to hide everything for a clean full screen read.',
+    body: 'Tap to browse surahs or search. Tap the page itself to hide the controls and tab bar for a clean, distraction free read.',
     round: true,
   },
   {

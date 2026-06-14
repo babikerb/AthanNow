@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, useWin
 import { getSurah } from '../data/surahs';
 import { surahForPage, TOTAL_PAGES } from '../data/surahPages';
 import { Palette } from '../theme/colors';
+import { fetchPageMeta, PageMeta } from '../utils/mushaf';
 
 interface MushafImageReaderProps {
   /** 1-based page to open on. */
@@ -50,7 +51,8 @@ function PageImage({ page, imgWidth, imgHeight, colors, dark, resize }: { page: 
     <View style={{ width: imgWidth, height: imgHeight, alignItems: 'center', justifyContent: 'center' }}>
       <Image
         source={{ uri: pageUrl(page) }}
-        style={{ width: imgWidth, height: imgHeight, tintColor: dark ? '#E8E8E8' : '#141414' }}
+        // Slightly softened in dark mode so light-on-dark ink doesn't read as bold/heavy.
+        style={{ width: imgWidth, height: imgHeight, tintColor: dark ? '#CFCFCF' : '#141414' }}
         resizeMode={resize}
         onLoad={() => setState('ready')}
         onError={() => setState('error')}
@@ -70,6 +72,81 @@ function PageImage({ page, imgWidth, imgHeight, colors, dark, resize }: { page: 
           </Pressable>
         </View>
       )}
+    </View>
+  );
+}
+
+/** Loads the Juz/Hizb-quarter for a page (cached); null until ready. */
+function usePageMeta(page: number): PageMeta | null {
+  const [meta, setMeta] = useState<PageMeta | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setMeta(null);
+    fetchPageMeta(page)
+      .then((m) => !cancelled && setMeta(m))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
+  return meta;
+}
+
+/**
+ * One full-screen printed page with its chrome: surah (top-left), Juz (top-right),
+ * Hizb quarter (bottom-left) and the page number in a pill (bottom-center). The
+ * page image fills the area edge-to-edge by width (contain — never stretched or
+ * side-cropped); chrome sits in the top/bottom margins.
+ */
+function MushafPage({
+  page,
+  width,
+  pageHeight,
+  topInset,
+  bottomInset,
+  colors,
+  dark,
+}: {
+  page: number;
+  width: number;
+  pageHeight: number;
+  topInset: number;
+  bottomInset: number;
+  colors: Palette;
+  dark: boolean;
+}) {
+  const meta = usePageMeta(page);
+  const surah = getSurah(surahForPage(page))?.transliteration ?? '';
+  const juz = juzForPage(page);
+
+  return (
+    <View style={{ width, paddingTop: topInset, paddingBottom: bottomInset }}>
+      <View style={{ width, height: pageHeight }}>
+        <View style={styles.imgClip}>
+          <PageImage page={page} imgWidth={width} imgHeight={pageHeight} colors={colors} dark={dark} resize="contain" />
+        </View>
+
+        {/* Top margin: surah · juz */}
+        <View style={styles.topBar} pointerEvents="none">
+          <Text style={[styles.cornerText, styles.cornerLeft, { color: colors.textTertiary }]} numberOfLines={1}>
+            {surah}
+          </Text>
+          <Text style={[styles.cornerText, styles.cornerRight, { color: colors.textTertiary }]} numberOfLines={1}>
+            Juz {juz}
+          </Text>
+        </View>
+
+        {/* Bottom margin: hizb quarter · page-number pill */}
+        <View style={styles.bottomBar} pointerEvents="none">
+          <Text style={[styles.cornerText, styles.cornerLeft, { color: colors.textTertiary }]} numberOfLines={1}>
+            {meta ? `${meta.quarter}/4` : ''}
+          </Text>
+          <View style={[styles.pagePill, { borderColor: colors.separator }]}>
+            <Text style={[styles.pageNumText, { color: colors.textSecondary }]}>{page}</Text>
+          </View>
+          <View style={styles.cornerRight} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -132,19 +209,7 @@ export function MushafImageReader({ initialPage, topInset, bottomInset, colors, 
   // ---- Horizontal page turning (full-bleed) ----
   const pageHeight = height - topInset - bottomInset;
   const renderItem = ({ item }: { item: number }) => (
-    <View style={{ width, paddingTop: topInset, paddingBottom: bottomInset }}>
-      <View style={{ width, height: pageHeight }}>
-        <View style={styles.header}>
-          <Text style={[styles.headerText, { color: colors.textSecondary }]} numberOfLines={1}>
-            {pageLabel(item)}
-          </Text>
-        </View>
-        <View style={styles.imgClip}>
-          <PageImage page={item} imgWidth={width} imgHeight={pageHeight - 46} colors={colors} dark={dark} resize="contain" />
-        </View>
-        <Text style={[styles.pageNum, { color: colors.textTertiary }]}>{item}</Text>
-      </View>
-    </View>
+    <MushafPage page={item} width={width} pageHeight={pageHeight} topInset={topInset} bottomInset={bottomInset} colors={colors} dark={dark} />
   );
 
   return (
@@ -169,14 +234,18 @@ export function MushafImageReader({ initialPage, topInset, bottomInset, colors, 
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 56, height: 26 },
-  headerText: { fontSize: 12.5, fontWeight: '600', textAlign: 'center' },
-  imgClip: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  imgClip: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  topBar: { position: 'absolute', top: 6, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 10 },
+  bottomBar: { position: 'absolute', bottom: 6, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 10 },
+  cornerText: { fontSize: 12.5, fontWeight: '600', letterSpacing: 0.2 },
+  cornerLeft: { flex: 1, textAlign: 'left' },
+  cornerRight: { flex: 1, textAlign: 'right' },
+  pagePill: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 3, minWidth: 42, alignItems: 'center' },
+  pageNumText: { fontSize: 12.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 12 },
   msg: { fontSize: 14 },
   retry: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: 18, paddingVertical: 8 },
   retryText: { fontSize: 14, fontWeight: '600' },
-  pageNum: { alignSelf: 'center', fontSize: 12.5, fontVariant: ['tabular-nums'], height: 20, textAlign: 'center' },
   caption: { height: CAPTION_H, alignItems: 'center', justifyContent: 'center', borderTopWidth: StyleSheet.hairlineWidth },
   captionText: { fontSize: 12, fontWeight: '500' },
 });
