@@ -88,6 +88,7 @@ export default function QuranScreen() {
   const [immersive, setImmersive] = useState(false);
   const chrome = useRef(new Animated.Value(1)).current;
   const titleTarget = useOnboardingTarget('quran-title');
+  const bookmarkTarget = useOnboardingTarget('quran-bookmark');
 
   useEffect(() => {
     setTabBarHidden(immersive);
@@ -281,6 +282,9 @@ export default function QuranScreen() {
         {/* Left: bookmark (tap sets, long-press opens manager) */}
         <GlassCircle scheme={scheme} colors={colors}>
           <Pressable
+            ref={bookmarkTarget.ref}
+            onLayout={bookmarkTarget.onLayout}
+            collapsable={false}
             onPress={quickBookmark}
             onLongPress={() => setBookmarkOpen(true)}
             hitSlop={10}

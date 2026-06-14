@@ -5,7 +5,6 @@ import SwiftUI
 
 private let APP_GROUP = "group.com.bbabiker.AthanNow"
 private let DATA_KEY = "athannow_widget"
-private let ACCENT = Color(red: 0x96 / 255, green: 0x69 / 255, blue: 0xb8 / 255)
 
 struct PrayerTime: Codable {
   let name: String
@@ -71,12 +70,60 @@ func currentStage(_ data: WidgetData, now: Date) -> String {
   return GRADIENTS[stage] != nil ? stage : "isha"
 }
 
+// Minutes before the next prayer when the sky starts shifting toward it (mirrors
+// gradientShiftMinutes in src/theme/colors.ts). Widgets refresh on a coarse
+// timeline so this reads as a gentle step-shift rather than a continuous slide.
+private let SHIFT_MINUTES: [String: Double] = [
+  "fajr": 35, "dhuhr": 50, "asr": 95, "maghrib": 45, "isha": 75,
+]
+
+private func rampRGB(_ hexes: [UInt32], _ p: Double) -> (Double, Double, Double) {
+  func rgb(_ h: UInt32) -> (Double, Double, Double) {
+    (Double((h >> 16) & 0xFF), Double((h >> 8) & 0xFF), Double(h & 0xFF))
+  }
+  let n = hexes.count
+  if n == 1 { return rgb(hexes[0]) }
+  let x = max(0, min(1, p)) * Double(n - 1)
+  let i = Int(floor(x))
+  if i >= n - 1 { return rgb(hexes[n - 1]) }
+  let f = x - Double(i)
+  let a = rgb(hexes[i]); let b = rgb(hexes[i + 1])
+  return (a.0 + (b.0 - a.0) * f, a.1 + (b.1 - a.1) * f, a.2 + (b.2 - a.2) * f)
+}
+
+// The backdrop colors, blended from the current stage toward the next prayer's
+// stage as its time approaches (within that stage's shift window).
+func skyColors(_ data: WidgetData, now: Date) -> [Color] {
+  let stage = currentStage(data, now: now)
+  let curHexes = GRADIENTS[stage] ?? GRADIENTS["isha"]!
+  guard
+    let next = nextPrayer(data, now: now),
+    let nextHexes = GRADIENTS[next.name.lowercased()]
+  else { return curHexes.map { Color(hex: $0) } }
+
+  let window = SHIFT_MINUTES[stage] ?? 45
+  let mins = next.date.timeIntervalSince(now) / 60
+  if mins < 0 || mins > window { return curHexes.map { Color(hex: $0) } }
+
+  let t = 1 - mins / window
+  let stops = 6
+  return (0..<stops).map { s in
+    let p = Double(s) / Double(stops - 1)
+    let a = rampRGB(curHexes, p)
+    let b = rampRGB(nextHexes, p)
+    return Color(
+      red: (a.0 + (b.0 - a.0) * t) / 255,
+      green: (a.1 + (b.1 - a.1) * t) / 255,
+      blue: (a.2 + (b.2 - a.2) * t) / 255
+    )
+  }
+}
+
 struct SkyBackground: View {
-  let stage: String
+  let colors: [Color]
   var body: some View {
-    let hexes = GRADIENTS[stage] ?? GRADIENTS["isha"]!
     LinearGradient(
-      colors: hexes.map { Color(hex: $0) },
+      colors: colors,
       startPoint: .topLeading,
       endPoint: .bottomTrailing
     )
@@ -140,7 +187,7 @@ struct AthanWidgetView: View {
         Text("Open AthanNow").font(.caption).foregroundColor(.white.opacity(0.7))
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .skyBackgroundCompat(stage: "isha")
+      .skyBackgroundCompat(colors: GRADIENTS["isha"]!.map { Color(hex: $0) })
     }
   }
 }
@@ -151,8 +198,21 @@ private func timeString(_ date: Date, _ use24Hour: Bool) -> String {
   return f.string(from: date)
 }
 
-// Accent reads as a light lavender on the dark gradients.
-private let ACCENT_ON_SKY = Color(red: 0xc9 / 255, green: 0xb0 / 255, blue: 0xdd / 255)
+// Compact time without the AM/PM suffix, for tight multi-column lists.
+private func shortTime(_ date: Date, _ use24Hour: Bool) -> String {
+  let f = DateFormatter()
+  f.dateFormat = use24Hour ? "HH:mm" : "h:mm"
+  return f.string(from: date)
+}
+
+// The hero countdown, made unambiguous with a leading "in " so it never reads as
+// a clock time. e.g. "in 2:07:07" rather than a bare "2:07:07".
+private func countdownLabel(_ date: Date, size: CGFloat) -> some View {
+  (Text("in ").font(.system(size: max(11, size * 0.42), weight: .medium)).foregroundColor(.white.opacity(0.75))
+    + Text(date, style: .timer).font(.system(size: size, weight: .bold)).foregroundColor(.white))
+    .monospacedDigit()
+    .lineLimit(1)
+}
 
 struct SmallView: View {
   let data: WidgetData
@@ -164,14 +224,14 @@ struct SmallView: View {
         Text(data.city).font(.system(size: 11)).foregroundColor(.white.opacity(0.7)).lineLimit(1)
       }
       Spacer()
-      Text(next?.name.uppercased() ?? "").font(.system(size: 13, weight: .semibold)).foregroundColor(ACCENT_ON_SKY)
+      Text(next?.name.uppercased() ?? "").font(.system(size: 13, weight: .semibold)).foregroundColor(.white)
       if let n = next {
-        Text(n.date, style: .timer).font(.system(size: 22, weight: .bold)).monospacedDigit().foregroundColor(.white).lineLimit(1)
-        Text(timeString(n.date, data.use24Hour ?? false)).font(.system(size: 11)).foregroundColor(.white.opacity(0.7))
+        countdownLabel(n.date, size: 22)
+        Text("at " + timeString(n.date, data.use24Hour ?? false)).font(.system(size: 11)).foregroundColor(.white.opacity(0.7))
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .skyBackgroundCompat(stage: currentStage(data, now: Date()))
+    .skyBackgroundCompat(colors: skyColors(data, now: Date()))
   }
 }
 
@@ -183,10 +243,10 @@ struct MediumView: View {
       VStack(alignment: .leading, spacing: 2) {
         Text(data.city).font(.system(size: 11)).foregroundColor(.white.opacity(0.7)).lineLimit(1)
         Spacer()
-        Text(next?.name.uppercased() ?? "").font(.system(size: 13, weight: .semibold)).foregroundColor(ACCENT_ON_SKY)
+        Text(next?.name.uppercased() ?? "").font(.system(size: 13, weight: .semibold)).foregroundColor(.white)
         if let n = next {
-          Text(n.date, style: .timer).font(.system(size: 24, weight: .bold)).monospacedDigit().foregroundColor(.white).lineLimit(1)
-          Text("until " + timeString(n.date, data.use24Hour ?? false)).font(.system(size: 11)).foregroundColor(.white.opacity(0.7))
+          countdownLabel(n.date, size: 24)
+          Text("at " + timeString(n.date, data.use24Hour ?? false)).font(.system(size: 11)).foregroundColor(.white.opacity(0.7))
         }
       }
       VStack(alignment: .leading, spacing: 5) {
@@ -198,12 +258,12 @@ struct MediumView: View {
             Text(timeString(Date(timeIntervalSince1970: p.time), data.use24Hour ?? false))
               .font(.system(size: 12, weight: isNext ? .bold : .regular)).monospacedDigit()
           }
-          .foregroundColor(isNext ? ACCENT_ON_SKY : .white.opacity(0.85))
+          .foregroundColor(isNext ? .white : .white.opacity(0.75))
         }
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .skyBackgroundCompat(stage: currentStage(data, now: Date()))
+    .skyBackgroundCompat(colors: skyColors(data, now: Date()))
   }
 }
 
@@ -219,10 +279,10 @@ struct LargeView: View {
         Text(data.city).font(.system(size: 13)).foregroundColor(.white.opacity(0.7)).lineLimit(1)
       }
       Spacer(minLength: 8)
-      Text(next?.name.uppercased() ?? "").font(.system(size: 15, weight: .semibold)).foregroundColor(ACCENT_ON_SKY)
+      Text(next?.name.uppercased() ?? "").font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
       if let n = next {
-        Text(n.date, style: .timer).font(.system(size: 44, weight: .bold)).monospacedDigit().foregroundColor(.white).lineLimit(1)
-        Text("until " + timeString(n.date, data.use24Hour ?? false)).font(.system(size: 12)).foregroundColor(.white.opacity(0.7))
+        countdownLabel(n.date, size: 44)
+        Text("at " + timeString(n.date, data.use24Hour ?? false)).font(.system(size: 12)).foregroundColor(.white.opacity(0.7))
       }
       Spacer(minLength: 10)
       Divider().overlay(Color.white.opacity(0.18))
@@ -238,13 +298,13 @@ struct LargeView: View {
             Spacer()
             Text(timeString(date, data.use24Hour ?? false)).font(.system(size: 15, weight: isNext ? .bold : .regular)).monospacedDigit()
           }
-          .foregroundColor(isNext ? ACCENT_ON_SKY : .white.opacity(isPast ? 0.4 : 0.9))
+          .foregroundColor(isNext ? .white : .white.opacity(isPast ? 0.4 : 0.85))
           .padding(.vertical, 6)
         }
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .skyBackgroundCompat(stage: currentStage(data, now: now))
+    .skyBackgroundCompat(colors: skyColors(data, now: now))
   }
 }
 
@@ -273,18 +333,20 @@ struct CircularView: View {
     ZStack {
       AccessoryWidgetBackground()
       VStack(spacing: 1) {
-        Text(next?.name.prefix(3).uppercased() ?? "—")
-          .font(.system(size: 11, weight: .semibold))
+        Text(next?.name ?? "—")
+          .font(.system(size: 12, weight: .semibold))
+          .minimumScaleFactor(0.5)
+          .lineLimit(1)
           .widgetAccentable()
         if let n = next {
-          Text(timeString(n.date, data.use24Hour ?? false))
+          Text(shortTime(n.date, data.use24Hour ?? false))
             .font(.system(size: 13, weight: .bold))
             .monospacedDigit()
             .minimumScaleFactor(0.6)
             .lineLimit(1)
         }
       }
-      .padding(3)
+      .padding(2)
     }
     .accessoryContainer()
   }
@@ -338,18 +400,63 @@ struct InlineView: View {
 // We paint the prayer-stage gradient as that background so it matches the app.
 extension View {
   @ViewBuilder
-  func skyBackgroundCompat(stage: String) -> some View {
+  func skyBackgroundCompat(colors: [Color]) -> some View {
     // A soft drop shadow on all text keeps it readable over any stage's gradient.
     let shadowed = self.shadow(color: .black.opacity(0.45), radius: 1.5, x: 0, y: 1)
     if #available(iOS 17.0, *) {
-      shadowed.padding(16).containerBackground(for: .widget) { SkyBackground(stage: stage) }
+      shadowed.padding(16).containerBackground(for: .widget) { SkyBackground(colors: colors) }
     } else {
-      shadowed.padding(16).background(SkyBackground(stage: stage))
+      shadowed.padding(16).background(SkyBackground(colors: colors))
     }
   }
 }
 
-// MARK: - Widget
+// MARK: - "Today's Prayers" lock-screen list (a separate, user-selectable widget)
+//
+// A rectangular accessory widget that shows all five of today's prayers at once,
+// with the next one accented and the ones that already passed dimmed — the same
+// at-a-glance read as the home-screen list. Offered as its own widget so it shows
+// up alongside "Prayer Times" when adding a lock-screen widget.
+
+struct TodayListRectangularView: View {
+  let data: WidgetData
+  var body: some View {
+    let now = Date()
+    let next = nextPrayer(data, now: now)
+    HStack(spacing: 0) {
+      ForEach(data.times.prefix(5), id: \.name) { p in
+        let date = Date(timeIntervalSince1970: p.time)
+        let isNext = p.name == next?.name
+        let isPast = p.time <= now.timeIntervalSince1970 && !isNext
+        VStack(spacing: 1) {
+          Text(String(p.name.prefix(3)))
+            .font(.system(size: 11, weight: isNext ? .bold : .regular))
+          Text(shortTime(date, data.use24Hour ?? false))
+            .font(.system(size: 12, weight: isNext ? .bold : .medium))
+            .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity)
+        .opacity(isPast ? 0.45 : 1)
+        .widgetAccentable(isNext)
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .accessoryContainer()
+  }
+}
+
+struct AthanListWidgetView: View {
+  var entry: AthanEntry
+  var body: some View {
+    if let data = entry.data, !data.times.isEmpty {
+      TodayListRectangularView(data: data)
+    } else {
+      Label("Open AthanNow", systemImage: "moon.stars.fill").font(.caption2).accessoryContainer()
+    }
+  }
+}
+
+// MARK: - Widgets
 
 struct AthanWidget: Widget {
   var body: some WidgetConfiguration {
@@ -365,10 +472,22 @@ struct AthanWidget: Widget {
   }
 }
 
+struct AthanListWidget: Widget {
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: "AthanListWidget", provider: Provider()) { entry in
+      AthanListWidgetView(entry: entry)
+    }
+    .configurationDisplayName("Today's Prayers")
+    .description("All of today's prayer times, with past ones dimmed.")
+    .supportedFamilies([.accessoryRectangular])
+  }
+}
+
 @main
 struct AthanWidgetBundle: WidgetBundle {
   var body: some Widget {
     AthanWidget()
+    AthanListWidget()
   }
 }
 
@@ -399,6 +518,7 @@ struct AthanWidget_Previews: PreviewProvider {
       LargeView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .systemLarge)).previewDisplayName("Large")
       CircularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryCircular)).previewDisplayName("Lock · Circular")
       RectangularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Rectangular")
+      TodayListRectangularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Today's Prayers")
       InlineView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryInline)).previewDisplayName("Lock · Inline")
     }
   }

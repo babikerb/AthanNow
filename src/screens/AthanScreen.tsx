@@ -24,7 +24,7 @@ import { useLocation } from '../hooks/useLocation';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
-import { prayerStatusBarLight } from '../theme/colors';
+import { blendGradients, gradientShiftMinutes, prayerStatusBarLight } from '../theme/colors';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 import { updateWidgetData } from '../utils/widget';
@@ -117,9 +117,21 @@ export default function AthanScreen() {
   const displayPrayer = currentPrayer;
   const celestial = getCelestialConfig(displayPrayer);
 
+  // Shift the sky toward the next prayer's gradient as its time approaches. The
+  // blend only kicks in inside that stage's shift window (see gradientShiftMinutes).
+  const skyColors = useMemo(() => {
+    const cur = prayerGradients[displayPrayer] || prayerGradients.isha;
+    const nextCols = prayerGradients[(nextPrayer || '').toLowerCase()];
+    if (!nextCols) return cur;
+    const windowMin = gradientShiftMinutes[displayPrayer] ?? 45;
+    const minsToNext = (nextPrayerTime.getTime() - currentTime.getTime()) / 60000;
+    if (minsToNext < 0 || minsToNext > windowMin) return cur;
+    return blendGradients(cur, nextCols, 1 - minsToNext / windowMin);
+  }, [displayPrayer, nextPrayer, nextPrayerTime, currentTime, prayerGradients]);
+
   return (
     <View style={styles.container}>
-      <AmbientGradient colors={prayerGradients[displayPrayer] || prayerGradients.isha} />
+      <AmbientGradient colors={skyColors} />
       {/* Start the celestial arc below the glass header pill so the sun/moon
           never renders behind it (header ≈ inset + 58pt tall). */}
       <SkyScene prayer={displayPrayer as any} skyAreaY={insets.top + 72} />

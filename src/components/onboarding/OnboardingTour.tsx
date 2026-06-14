@@ -13,6 +13,8 @@ interface Step {
   title: string;
   body: string;
   center?: boolean;
+  /** Highlight a circular / pill-shaped target with a matching rounded ring. */
+  round?: boolean;
 }
 
 const STEPS: Step[] = [
@@ -21,35 +23,46 @@ const STEPS: Step[] = [
     id: 'athan-countdown',
     accent: ACCENT,
     title: 'Your next prayer',
-    body: 'This countdown shows how long until the next prayer, with the exact time right below it.',
+    body: 'This is the countdown to your next prayer, and the exact time sits right below it.',
   },
   {
     tab: 'Athan',
     id: 'athan-location',
     accent: ACCENT,
     title: 'Set your location',
-    body: 'Tap here any time to change your city. Prayer times recalculate automatically.',
+    body: 'Tap here whenever you want to change your city. Your prayer times update on their own.',
+    round: true,
   },
   {
     tab: 'Athan',
     id: 'athan-list',
     accent: ACCENT,
     title: "Today's times",
-    body: 'All five prayers plus sunrise for today. The current prayer is highlighted; past ones dim out.',
+    body: 'Here are all five prayers plus sunrise. The current one is highlighted and the ones that passed fade out.',
   },
   {
     tab: 'Quran',
     id: 'quran-title',
     accent: ACCENT,
     title: 'Read the Quran',
-    body: 'Tap here to browse surahs or search. Tap the page itself to hide everything for a full-screen, distraction-free read.',
+    body: 'Tap to browse surahs or search. Tap the page itself to hide everything for a clean full screen read.',
+    round: true,
+  },
+  {
+    tab: 'Quran',
+    id: 'quran-bookmark',
+    accent: ACCENT,
+    title: 'Save your place',
+    body: 'Tap the bookmark to save the page you are on. Press and hold it to see all your saved spots.',
+    round: true,
   },
   {
     tab: 'Qibla',
     id: 'qibla-compass',
     accent: ACCENT,
     title: 'Find the Qibla',
-    body: 'Point your phone and follow the marker to the Kaaba. It turns green the moment you line up.',
+    body: 'Point your phone and follow the marker to the Kaaba. The compass turns green the moment you line up.',
+    round: true,
   },
 ];
 
@@ -71,6 +84,12 @@ export function OnboardingTour() {
 
   if (!active || !cur) return null;
 
+  // End the tour back on the Athan home tab, wherever the last step left us.
+  const endTour = () => {
+    navigateToTab('Athan');
+    finish();
+  };
+
   const last = step === STEPS.length - 1;
   return (
     <Spotlight
@@ -82,11 +101,12 @@ export function OnboardingTour() {
       total={STEPS.length}
       last={last}
       center={cur.center}
+      round={cur.round}
       onNext={() => {
         Haptics.selectionAsync();
-        last ? finish() : next();
+        last ? endTour() : next();
       }}
-      onSkip={finish}
+      onSkip={endTour}
     />
   );
 }

@@ -80,6 +80,26 @@ function TwinklingStarField({ stars }: { stars: StarDef[] }) {
 
 const RAY_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
+/**
+ * A slow "breathing" loop (0 -> 1 -> 0). `half` is the milliseconds for each
+ * direction, so a full cycle is 2 * half. Used to gently pulse celestial glows —
+ * deliberately slow (several seconds) so the sky feels alive, not busy.
+ */
+function useSlowPulse(half: number) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(v, { toValue: 1, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(v, { toValue: 0, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [v, half]);
+  return v;
+}
+
 function ActiveSun({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
   const cfg = {
     dhuhr: { r: 22, glow: 'rgba(255,252,200,0.38)', rays: true },
@@ -89,10 +109,16 @@ function ActiveSun({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
   const { r, glow, rays } = cfg[prayer as keyof typeof cfg] ?? { r: 16, glow: 'rgba(255,252,200,0.28)', rays: false };
   const RAY_LEN = 9;
   const RAY_GAP = 4;
+
+  // Slow glow pulse — asr breathes the slowest, then maghrib, then dhuhr.
+  const pulse = useSlowPulse(prayer === 'asr' ? 5200 : prayer === 'maghrib' ? 4400 : 3800);
+  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.14] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+
   return (
     <>
-      <View style={{ position: 'absolute', left: x - r - 12, top: y - r - 12, width: (r + 12) * 2, height: (r + 12) * 2, borderRadius: r + 12, backgroundColor: glow }} />
-      <View style={{ position: 'absolute', left: x - r - 5, top: y - r - 5, width: (r + 5) * 2, height: (r + 5) * 2, borderRadius: r + 5, backgroundColor: 'rgba(255,252,210,0.15)' }} />
+      <Animated.View style={{ position: 'absolute', left: x - r - 12, top: y - r - 12, width: (r + 12) * 2, height: (r + 12) * 2, borderRadius: r + 12, backgroundColor: glow, opacity: glowOpacity, transform: [{ scale: glowScale }] }} />
+      <Animated.View style={{ position: 'absolute', left: x - r - 5, top: y - r - 5, width: (r + 5) * 2, height: (r + 5) * 2, borderRadius: r + 5, backgroundColor: 'rgba(255,252,210,0.15)', opacity: glowOpacity, transform: [{ scale: glowScale }] }} />
       <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: '#FFF6CC' }} />
       {rays && RAY_ANGLES.map((deg) => {
         const isDiag = deg % 90 !== 0;
@@ -112,20 +138,45 @@ function ActiveMoon({ x, y, prayer }: { x: number; y: number; prayer: Period }) 
   const size = isFajr ? 34 : 40;
   const shadowColor = isFajr ? '#0c0b1c' : '#070d18';
   const offsetX = isFajr ? 12 : -12;
+
+  // A soft moonlit halo that breathes very slowly behind the moon.
+  const pulse = useSlowPulse(isFajr ? 4800 : 6000);
+  const haloScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.12] });
+  const haloOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.85] });
+  const halo = size + 22;
+
   return (
-    <View style={{ position: 'absolute', left: x - size / 2, top: y - size / 2, width: size, height: size, overflow: 'hidden', borderRadius: size / 2 }}>
-      <View style={[StyleSheet.absoluteFill, { borderRadius: size / 2, backgroundColor: 'rgba(200,185,240,0.62)' }]} />
-      <View style={{ position: 'absolute', left: offsetX, top: -4, width: size, height: size, borderRadius: size / 2, backgroundColor: shadowColor }} />
-    </View>
+    <>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          left: x - halo / 2,
+          top: y - halo / 2,
+          width: halo,
+          height: halo,
+          borderRadius: halo / 2,
+          backgroundColor: 'rgba(200,190,245,0.16)',
+          opacity: haloOpacity,
+          transform: [{ scale: haloScale }],
+        }}
+      />
+      <View style={{ position: 'absolute', left: x - size / 2, top: y - size / 2, width: size, height: size, overflow: 'hidden', borderRadius: size / 2 }}>
+        <View style={[StyleSheet.absoluteFill, { borderRadius: size / 2, backgroundColor: 'rgba(200,185,240,0.62)' }]} />
+        <View style={{ position: 'absolute', left: offsetX, top: -4, width: size, height: size, borderRadius: size / 2, backgroundColor: shadowColor }} />
+      </View>
+    </>
   );
 }
 
 function SunriseSun({ x, y }: { x: number; y: number }) {
   const r = 13;
+  const pulse = useSlowPulse(4600);
+  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1.16] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
   return (
     <>
-      <View style={{ position: 'absolute', left: x - r - 20, top: y - r - 20, width: (r + 20) * 2, height: (r + 20) * 2, borderRadius: r + 20, backgroundColor: 'rgba(190, 115, 20, 0.22)' }} />
-      <View style={{ position: 'absolute', left: x - r - 8, top: y - r - 8, width: (r + 8) * 2, height: (r + 8) * 2, borderRadius: r + 8, backgroundColor: 'rgba(210, 135, 30, 0.18)' }} />
+      <Animated.View style={{ position: 'absolute', left: x - r - 20, top: y - r - 20, width: (r + 20) * 2, height: (r + 20) * 2, borderRadius: r + 20, backgroundColor: 'rgba(190, 115, 20, 0.22)', opacity: glowOpacity, transform: [{ scale: glowScale }] }} />
+      <Animated.View style={{ position: 'absolute', left: x - r - 8, top: y - r - 8, width: (r + 8) * 2, height: (r + 8) * 2, borderRadius: r + 8, backgroundColor: 'rgba(210, 135, 30, 0.18)', opacity: glowOpacity, transform: [{ scale: glowScale }] }} />
       <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: '#EFBE50' }} />
     </>
   );

@@ -24,11 +24,12 @@ interface Props {
   onNext: () => void;
   onSkip: () => void;
   center?: boolean; // show the tooltip centered with no target (e.g. closing step)
+  round?: boolean; // target is circular / pill-shaped -> draw a matching rounded ring
 }
 
 // Dims the screen, cuts a pulsing highlight around `target` (or centers when
 // null), and shows a pointing tooltip with controls. Ported from Hardwood.
-export function Spotlight({ target, accent, title, body, index, total, last, onNext, onSkip, center = false }: Props) {
+export function Spotlight({ target, accent, title, body, index, total, last, onNext, onSkip, center = false, round = false }: Props) {
   const { width: SW, height: SH } = useWindowDimensions();
   const pulse = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(0)).current;
@@ -59,6 +60,10 @@ export function Spotlight({ target, accent, title, body, index, total, last, onN
   const sw = t ? t.width + PAD * 2 : 0;
   const sh = t ? t.height + PAD * 2 : 0;
 
+  // Match the ring's corner radius to the target: a full circle/pill for round
+  // targets (search button, location pill, compass), gentle corners otherwise.
+  const ringRadius = round ? Math.min(sw, sh) / 2 : 18;
+
   const placeBelow = t ? sy + sh + 220 < SH : true;
   const caretLeft = t ? Math.min(Math.max(t.x + t.width / 2 - 20 - CARET, 20), SW - 40 - 20) : SW / 2 - CARET;
 
@@ -75,7 +80,7 @@ export function Spotlight({ target, accent, title, body, index, total, last, onN
           <View style={[st.dim, { top: sy + sh, left: 0, right: 0, bottom: 0 }]} />
           <Animated.View
             pointerEvents="none"
-            style={[st.ring, { top: sy, left: sx, width: sw, height: sh, borderColor: accent, opacity: Animated.multiply(fade, ringOpacity), transform: [{ scale: ringScale }] }]}
+            style={[st.ring, { top: sy, left: sx, width: sw, height: sh, borderRadius: ringRadius, borderColor: accent, opacity: Animated.multiply(fade, ringOpacity), transform: [{ scale: ringScale }] }]}
           />
         </>
       ) : (

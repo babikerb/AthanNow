@@ -1,9 +1,10 @@
+import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import { SFSymbol } from 'sf-symbols-typescript';
 import React, { useMemo, useRef } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 
-import { GlassPill, HeaderBar, HeaderSpacer, HeaderTitle } from '../components/AppHeader';
+import { GlassCircleButton, GlassPill, HeaderBar, HeaderSpacer, HeaderTitle } from '../components/AppHeader';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { AppLocation, useLocation } from '../hooks/useLocation';
@@ -130,7 +131,15 @@ export default function CalendarScreen() {
         <GlassPill flex scheme={scheme}>
           <HeaderTitle title="Calendar" color={colors.textPrimary} subColor={colors.textSecondary} />
         </GlassPill>
-        <HeaderSpacer />
+        <GlassCircleButton
+          icon="arrow.uturn.backward"
+          scheme={scheme}
+          tintColor={colors.textPrimary}
+          onPress={() => {
+            Haptics.selectionAsync();
+            listRef.current?.scrollToIndex({ index: TODAY_INDEX, animated: true });
+          }}
+        />
       </HeaderBar>
 
       {!location ? (
