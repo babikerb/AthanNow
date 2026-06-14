@@ -7,9 +7,9 @@
 
 // Brand accent — sampled from the app icon background. Used sparingly for
 // active/selected states and highlights only; never as a full surface fill.
-export const ACCENT = '#9669b8';
-export const ACCENT_SOFT = 'rgba(150, 105, 184, 0.16)';
-export const ACCENT_BORDER = 'rgba(150, 105, 184, 0.35)';
+export const ACCENT = '#315C46';
+export const ACCENT_SOFT = 'rgba(49, 92, 70, 0.16)';
+export const ACCENT_BORDER = 'rgba(49, 92, 70, 0.35)';
 
 export type Palette = {
   background: string;
