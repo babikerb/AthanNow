@@ -13,8 +13,7 @@ import {
   View,
 } from 'react-native';
 
-// Hosted at the landing site. Update if you move to a custom domain.
-const PRIVACY_URL = 'https://babikerb.github.io/athannow-landing/privacy/';
+const PRIVACY_URL = 'https://athannow.bbabiker.com/privacy';
 
 import { GlassPill, HeaderBar, HeaderSpacer, HeaderTitle } from '../components/AppHeader';
 import { Sheet } from '../components/Sheet';
