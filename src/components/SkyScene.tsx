@@ -7,6 +7,14 @@ type Period = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
 
 interface Props {
   prayer: Period;
+  /** The upcoming prayer period, used to cross-fade the sky during transitions. */
+  nextPrayer?: Period;
+  /**
+   * How far we are into the transition toward `nextPrayer` (0..1). At 0 only the
+   * current scene shows; as it rises the current celestial body fades out and the
+   * next one fades in, so e.g. the Fajr moon dissolves into the sunrise sun.
+   */
+  progress?: number;
   /** Absolute Y where the sky strip starts (below the location pill). */
   skyAreaY: number;
 }
@@ -26,7 +34,7 @@ const ARC: Record<Exclude<Period, 'sunrise'>, { deg: number; body: 'sun' | 'moon
   fajr: { deg: 152, body: 'moon' },
   dhuhr: { deg: 100, body: 'sun' },
   asr: { deg: 65, body: 'sun' },
-  maghrib: { deg: 30, body: 'sun' },
+  maghrib: { deg: 30, body: 'moon' },
   isha: { deg: 22, body: 'moon' },
 };
 
@@ -139,15 +147,12 @@ function ActiveMoon({ x, y, prayer }: { x: number; y: number; prayer: Period }) 
   const shadowColor = isFajr ? '#0c0b1c' : '#070d18';
   const offsetX = isFajr ? 12 : -12;
 
-  // A soft moonlit halo that breathes very slowly behind the moon.
-  const pulse = useSlowPulse(isFajr ? 4800 : 6000);
-  const haloScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.12] });
-  const haloOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.85] });
+  // A soft, steady moonlit halo. The moon never pulses; only the stars twinkle.
   const halo = size + 22;
 
   return (
     <>
-      <Animated.View
+      <View
         style={{
           position: 'absolute',
           left: x - halo / 2,
@@ -156,8 +161,7 @@ function ActiveMoon({ x, y, prayer }: { x: number; y: number; prayer: Period }) 
           height: halo,
           borderRadius: halo / 2,
           backgroundColor: 'rgba(200,190,245,0.16)',
-          opacity: haloOpacity,
-          transform: [{ scale: haloScale }],
+          opacity: 0.7,
         }}
       />
       <View style={{ position: 'absolute', left: x - size / 2, top: y - size / 2, width: size, height: size, overflow: 'hidden', borderRadius: size / 2 }}>
@@ -182,25 +186,38 @@ function SunriseSun({ x, y }: { x: number; y: number }) {
   );
 }
 
-export default function SkyScene({ prayer, skyAreaY }: Props) {
-  const { cx, cy, a, b } = useMemo(() => getArc(skyAreaY), [skyAreaY]);
-
+/** One full celestial scene (stars + sun/moon) for a single prayer period. */
+function PrayerScene({ prayer, arc, opacity }: { prayer: Period; arc: ReturnType<typeof getArc>; opacity: number }) {
+  const { cx, cy, a, b } = arc;
   if (prayer === 'sunrise') {
     const { x, y } = arcXY(cx, cy, a, b, 130);
     return (
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <View style={[StyleSheet.absoluteFill, { opacity }]}>
         <SunriseSun x={x} y={y} />
       </View>
     );
   }
-
   const stars = STARS_FOR[prayer];
   const { deg, body } = ARC[prayer];
   const { x, y } = arcXY(cx, cy, a, b, deg);
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, { opacity }]}>
       {stars && <TwinklingStarField key={prayer} stars={stars} />}
       {body === 'sun' ? <ActiveSun x={x} y={y} prayer={prayer} /> : <ActiveMoon x={x} y={y} prayer={prayer} />}
+    </View>
+  );
+}
+
+export default function SkyScene({ prayer, nextPrayer, progress = 0, skyAreaY }: Props) {
+  const arc = useMemo(() => getArc(skyAreaY), [skyAreaY]);
+
+  // Clamp and only treat it as a transition when there's a distinct next period.
+  const t = nextPrayer && nextPrayer !== prayer ? Math.max(0, Math.min(1, progress)) : 0;
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <PrayerScene prayer={prayer} arc={arc} opacity={1 - t} />
+      {t > 0 && nextPrayer && <PrayerScene prayer={nextPrayer} arc={arc} opacity={t} />}
     </View>
   );
 }

@@ -105,7 +105,7 @@ const DayCard = React.memo(function DayCard({ offset, location, calcMethod, asrM
                 {r.label}
               </Text>
               <Text style={[styles.rowTime, { color: active ? ACCENT : colors.textPrimary, fontWeight: active ? '700' : '600' }]}>
-                {r.time ? formatClock(r.time, use24Hour, tz) : '—'}
+                {r.time ? formatClock(r.time, use24Hour, tz) : '--:--'}
               </Text>
             </View>
           );

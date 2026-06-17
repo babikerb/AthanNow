@@ -34,6 +34,20 @@ export interface AppLocation {
 
 export type LocationStatus = 'idle' | 'loading' | 'ready' | 'denied' | 'error';
 
+/**
+ * Fallback location used when the device has Location Services disabled (or the
+ * permission is denied) and the user hasn't picked a city yet. This guarantees
+ * the app is fully functional without GPS — it shows Mecca's prayer times until
+ * the user searches for their own city. Required by App Store guideline 5.1.5.
+ */
+const DEFAULT_LOCATION: AppLocation = {
+  latitude: 21.4225,
+  longitude: 39.8262,
+  city: 'Mecca',
+  timezone: 'Asia/Riyadh',
+  isManual: false,
+};
+
 /** A geocoding autocomplete result (Open-Meteo). */
 export interface PlaceSuggestion {
   id: number;
@@ -115,6 +129,9 @@ export function useLocation() {
       const { status: perm } = await Location.requestForegroundPermissionsAsync();
       if (perm !== 'granted') {
         setStatus('denied');
+        // Without GPS the app must still work: fall back to a default city so
+        // prayer times render. The user can change it from the location pill.
+        setLocation((prev) => prev ?? DEFAULT_LOCATION);
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
@@ -132,6 +149,8 @@ export function useLocation() {
       });
     } catch {
       setStatus('error');
+      // Same fallback if GPS lookup itself fails, so we never strand the user.
+      setLocation((prev) => prev ?? DEFAULT_LOCATION);
     }
   }, [persist]);
 

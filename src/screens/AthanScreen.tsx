@@ -102,18 +102,25 @@ export default function AthanScreen() {
     />
   );
 
+  // How far we are into the shift toward the next prayer (0..1), shared by both the
+  // gradient blend and the celestial cross-fade so the sky and sun/moon move together.
+  const skyProgress = useMemo(() => {
+    if (!prayerData) return 0;
+    const windowMin = gradientShiftMinutes[prayerData.currentPrayer] ?? 45;
+    const minsToNext = (prayerData.nextPrayerTime.getTime() - currentTime.getTime()) / 60000;
+    if (minsToNext < 0 || minsToNext > windowMin) return 0;
+    return 1 - minsToNext / windowMin;
+  }, [prayerData, currentTime]);
+
   // Shift the sky toward the next prayer's gradient as its time approaches. Declared
   // before any early return so the hook order stays stable while prayerData is null.
   const skyColors = useMemo(() => {
     if (!prayerData) return prayerGradients.isha;
     const cur = prayerGradients[prayerData.currentPrayer] || prayerGradients.isha;
     const nextCols = prayerGradients[(prayerData.nextPrayer || '').toLowerCase()];
-    if (!nextCols) return cur;
-    const windowMin = gradientShiftMinutes[prayerData.currentPrayer] ?? 45;
-    const minsToNext = (prayerData.nextPrayerTime.getTime() - currentTime.getTime()) / 60000;
-    if (minsToNext < 0 || minsToNext > windowMin) return cur;
-    return blendGradients(cur, nextCols, 1 - minsToNext / windowMin);
-  }, [prayerData, currentTime, prayerGradients]);
+    if (!nextCols || skyProgress <= 0) return cur;
+    return blendGradients(cur, nextCols, skyProgress);
+  }, [prayerData, prayerGradients, skyProgress]);
 
   if (!prayerData) {
     return (
@@ -137,7 +144,12 @@ export default function AthanScreen() {
       <AmbientGradient colors={skyColors} />
       {/* Start the celestial arc below the glass header pill so the sun/moon
           never renders behind it (header ≈ inset + 58pt tall). */}
-      <SkyScene prayer={displayPrayer as any} skyAreaY={insets.top + 72} />
+      <SkyScene
+        prayer={displayPrayer as any}
+        nextPrayer={(nextPrayer || '').toLowerCase() as any}
+        progress={skyProgress}
+        skyAreaY={insets.top + 72}
+      />
 
       {/* --- HEADER (location pill) — clears the Dynamic Island --- */}
       <View ref={locTarget.ref} onLayout={locTarget.onLayout} collapsable={false}>

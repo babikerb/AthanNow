@@ -12,7 +12,7 @@
       "bundleIdentifier": "com.bbabiker.AthanNow",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "AthanNow uses your location to calculate accurate prayer times for where you are."
+        "NSLocationWhenInUseUsageDescription": "AthanNow can use your location to calculate accurate prayer times for where you are. This is optional. You can also search for your city manually."
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true,
