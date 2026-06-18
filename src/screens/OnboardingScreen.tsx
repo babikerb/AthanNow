@@ -19,7 +19,11 @@ export default function OnboardingScreen() {
     setBusy(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await refreshLocation();
+      // Kick off location (this shows the permission prompt and fetches in the
+      // background) but DON'T await the GPS fix — it can stall when Location
+      // Services are off, which would freeze this button on a spinner. The app
+      // already has a default city, so we can move on immediately.
+      refreshLocation().catch(() => {});
       await requestNotificationPermission();
     } finally {
       update({ onboardingComplete: true });
