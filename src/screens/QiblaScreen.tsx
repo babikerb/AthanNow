@@ -46,6 +46,7 @@ function Compass({
   isAligned,
   hasLocation,
   calibrating,
+  unavailable,
 }: {
   headingAnim: Animated.Value;
   heading: number;
@@ -53,6 +54,7 @@ function Compass({
   isAligned: boolean;
   hasLocation: boolean;
   calibrating: boolean;
+  unavailable: boolean;
 }) {
   const dialSpin = toDeg(headingAnim);
   // Keep every labelled mark upright as the dial turns.
@@ -157,7 +159,14 @@ function Compass({
 
         {/* Fixed center heading readout */}
         <View style={styles.readout} pointerEvents="none">
-          {calibrating ? (
+          {unavailable ? (
+            // No compass: the dial stays north-up, so the Kaaba marker already
+            // sits at the true bearing. Show that bearing from North statically.
+            <>
+              <Text style={styles.readoutDeg}>{Math.round(qiblaBearing)}°</Text>
+              <Text style={styles.readoutCard}>{toCardinal(qiblaBearing)}</Text>
+            </>
+          ) : calibrating ? (
             <SymbolView name="figure.walk.motion" size={26} tintColor="rgba(255,255,255,0.6)" />
           ) : (
             <>
@@ -180,6 +189,7 @@ export default function QiblaScreen() {
   const qibla = useQibla(latitude, longitude);
   const loading = !location && status === 'loading';
   const error = status === 'denied' || status === 'error';
+  const compassUnavailable = qibla.compassAvailable === false;
   const calibrating = qibla.headingAccuracy < 0;
 
   const wasAligned = useRef(false);
@@ -213,12 +223,17 @@ export default function QiblaScreen() {
                 isAligned={qibla.isAligned}
                 hasLocation={qibla.hasLocation}
                 calibrating={calibrating}
+                unavailable={compassUnavailable}
               />
             </View>
 
             <View style={styles.infoBlock}>
               {error ? (
                 <Text style={styles.errorText}>Enable location to find the Qibla direction</Text>
+              ) : compassUnavailable ? (
+                <Text style={styles.calibrateText}>
+                  Compass isn’t available on this device.{'\n'}Point the top of the device North — the Qibla is {qibla.toleranceDeg >= 30 ? 'any direction here' : `${toCardinal(qibla.qiblaBearing)}, ${Math.round(qibla.qiblaBearing)}° from North`}.
+                </Text>
               ) : calibrating ? (
                 <Text style={styles.calibrateText}>Wave your phone in a figure 8 to calibrate</Text>
               ) : qibla.toleranceDeg >= 30 ? (

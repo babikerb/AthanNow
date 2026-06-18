@@ -48,6 +48,24 @@ const DEFAULT_LOCATION: AppLocation = {
   isManual: false,
 };
 
+/** Reject after `ms` so a stalled GPS read (e.g. Location Services switched off
+ *  device-wide) can never hang the location flow forever. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('location timeout')), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
 /** A geocoding autocomplete result (Open-Meteo). */
 export interface PlaceSuggestion {
   id: number;
@@ -94,7 +112,11 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
 }
 
 export function useLocation() {
-  const [location, setLocation] = useState<AppLocation | null>(null);
+  // Seed with a default city so the app is *always* functional immediately, even
+  // with Location Services disabled and no stored city yet (App Store 5.1.5). The
+  // restore effect below replaces it with the user's saved city when there is one,
+  // and a successful GPS read replaces it with their real location.
+  const [location, setLocation] = useState<AppLocation | null>(DEFAULT_LOCATION);
   const [status, setStatus] = useState<LocationStatus>('idle');
 
   // Restore the last known location immediately so the UI isn't blank on launch.
@@ -134,7 +156,10 @@ export function useLocation() {
         setLocation((prev) => prev ?? DEFAULT_LOCATION);
         return;
       }
-      const loc = await Location.getCurrentPositionAsync({});
+      // Cap the GPS read: when Location Services are off device-wide, iOS can
+      // still report the app as authorized but never returns a fix, which would
+      // otherwise hang here forever. On timeout we fall through to the catch.
+      const loc = await withTimeout(Location.getCurrentPositionAsync({}), 10000);
       const geocode = await Location.reverseGeocodeAsync({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,

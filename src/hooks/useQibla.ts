@@ -65,6 +65,9 @@ export interface QiblaData {
   hasLocation: boolean;
   usingTrueHeading: boolean;
   headingAccuracy: number;
+  /** null while detecting, true if the device reports a compass heading, false
+   *  when no heading ever arrives (e.g. a Wi-Fi iPad with no magnetometer). */
+  compassAvailable: boolean | null;
 }
 
 /** Native iOS compass via expo-location heading + adhan Qibla bearing. */
@@ -72,6 +75,7 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
   const [heading, setHeading] = useState(0);
   const [usingTrueHeading, setUsingTrueHeading] = useState(false);
   const [headingAccuracy, setHeadingAccuracy] = useState(-1);
+  const [compassAvailable, setCompassAvailable] = useState<boolean | null>(null);
 
   const headingAnim = useRef(new Animated.Value(0)).current;
   const lastAnimAngle = useRef(0);
@@ -83,6 +87,15 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
     let headingSub: Location.LocationSubscription | null = null;
     let gpsSub: Location.LocationSubscription | null = null;
     let cancelled = false;
+    let sawHeading = false;
+
+    // If no heading event arrives shortly after subscribing, the device has no
+    // usable compass (common on Wi-Fi iPads). That's distinct from "present but
+    // needs calibration", where events DO arrive with accuracy < 0 — so we can
+    // tell the user the compass is unavailable instead of looping a calibrate prompt.
+    const noCompassTimer = setTimeout(() => {
+      if (!cancelled && !sawHeading) setCompassAvailable(false);
+    }, 4000);
 
     Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 500 }, () => {}).then((s) => {
       if (!cancelled) gpsSub = s;
@@ -91,6 +104,10 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
 
     Location.watchHeadingAsync((data) => {
       if (cancelled) return;
+      if (!sawHeading) {
+        sawHeading = true;
+        setCompassAvailable(true);
+      }
       setHeadingAccuracy(data.accuracy);
       if (data.accuracy < 0) return;
 
@@ -118,13 +135,19 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
         setHeading(h);
         setUsingTrueHeading(usingTrue);
       }
-    }).then((s) => {
-      if (!cancelled) headingSub = s;
-      else s.remove();
-    });
+    })
+      .then((s) => {
+        if (!cancelled) headingSub = s;
+        else s.remove();
+      })
+      .catch(() => {
+        // Heading updates aren't available on this device at all.
+        if (!cancelled) setCompassAvailable(false);
+      });
 
     return () => {
       cancelled = true;
+      clearTimeout(noCompassTimer);
       headingSub?.remove();
       gpsSub?.remove();
     };
@@ -138,12 +161,12 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
   }, [latitude, longitude]);
 
   if (!qiblaInfo) {
-    return { headingAnim, heading, qiblaBearing: 0, distanceKm: 0, cardinal: toCardinal(heading), isAligned: false, toleranceDeg: SENSOR_TOL_DEG, hasLocation: false, usingTrueHeading, headingAccuracy };
+    return { headingAnim, heading, qiblaBearing: 0, distanceKm: 0, cardinal: toCardinal(heading), isAligned: false, toleranceDeg: SENSOR_TOL_DEG, hasLocation: false, usingTrueHeading, headingAccuracy, compassAvailable };
   }
 
   const { bearing: qiblaBearing, distanceKm, tolerance } = qiblaInfo;
   const needleRotation = (((qiblaBearing - heading) % 360) + 360) % 360;
   const diff = needleRotation > 180 ? 360 - needleRotation : needleRotation;
 
-  return { headingAnim, heading, qiblaBearing, distanceKm, cardinal: toCardinal(heading), isAligned: diff < tolerance, toleranceDeg: tolerance, hasLocation: true, usingTrueHeading, headingAccuracy };
+  return { headingAnim, heading, qiblaBearing, distanceKm, cardinal: toCardinal(heading), isAligned: diff < tolerance, toleranceDeg: tolerance, hasLocation: true, usingTrueHeading, headingAccuracy, compassAvailable };
 }
