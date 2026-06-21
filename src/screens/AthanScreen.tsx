@@ -75,12 +75,17 @@ export default function AthanScreen() {
     // and the home lists). Widget code skips it where it isn't a prayer (gradient).
     const toRows = (rows: typeof prayerData.listRows) =>
       rows.map((r) => ({ name: r.label, time: Math.floor(r.time.getTime() / 1000) }));
-    // Include tomorrow's prayers too, so when today's are all done (e.g. after Isha)
-    // the widget counts down to tomorrow's Fajr with a real future time, not a past one.
-    const tomorrowAnchor = localDayAnchor(new Date(currentTime.getTime() + 24 * 60 * 60 * 1000), tz);
-    const tomorrow = getPrayerTimes(location, tomorrowAnchor, calcMethod, asrMadhab);
-    const times = [...toRows(prayerData.listRows), ...toRows(tomorrow.listRows)];
-    updateWidgetData(cityName, times, use24Hour);
+    // Write a week of prayer times, not just today, so the widget always has a real
+    // future prayer to count down to even if the app isn't opened for several days.
+    // Without this the widget runs out of future entries and shows a stale, wrong
+    // countdown (e.g. "Fajr in 56:00:00" — counting up from an old, passed time).
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const times = [toRows(prayerData.listRows)];
+    for (let d = 1; d <= 6; d += 1) {
+      const anchor = localDayAnchor(new Date(currentTime.getTime() + d * DAY_MS), tz);
+      times.push(toRows(getPrayerTimes(location, anchor, calcMethod, asrMadhab).listRows));
+    }
+    updateWidgetData(cityName, times.flat(), use24Hour);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetKey]);
 

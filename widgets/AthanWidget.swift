@@ -31,10 +31,10 @@ func nextPrayer(_ data: WidgetData, now: Date) -> (name: String, date: Date)? {
   if let p = data.times.first(where: { $0.time > t }) {
     return (p.name, Date(timeIntervalSince1970: p.time))
   }
-  // All of today's passed: fall back to the first (next day) entry.
-  if let p = data.times.first {
-    return (p.name, Date(timeIntervalSince1970: p.time))
-  }
+  // Every stored time is in the past — the data is stale (app not opened in days).
+  // Return nil rather than the first (oldest) entry: a passed time would make the
+  // `.timer` countdown count *up*, e.g. "Fajr in 56:00:00". The view shows an
+  // "Open AthanNow" prompt instead so it never displays a bogus countdown.
   return nil
 }
 
@@ -156,13 +156,24 @@ struct Provider: TimelineProvider {
   }
   func getTimeline(in context: Context, completion: @escaping (Timeline<AthanEntry>) -> Void) {
     let now = Date()
-    let entry = AthanEntry(date: now, data: loadWidgetData())
-    // Refresh at the next prayer (so the stage/gradient flips) or in 15 min, whichever is sooner.
-    var refresh = Calendar.current.date(byAdding: .minute, value: 15, to: now) ?? now.addingTimeInterval(900)
-    if let data = entry.data, let next = nextPrayer(data, now: now), next.date > now, next.date < refresh {
-      refresh = next.date.addingTimeInterval(1)
+    let data = loadWidgetData()
+    // One entry now, plus one at each upcoming prayer boundary. Each view renders
+    // relative to its own entry.date, so the displayed prayer (and the sky stage)
+    // advances exactly when each athan passes — without depending on iOS issuing a
+    // just-in-time refresh. This is what stops the countdown from flipping to a
+    // count-up ("Dhuhr in 1:27" rising) after a prayer's time has passed.
+    var entries: [AthanEntry] = [AthanEntry(date: now, data: data)]
+    if let data = data {
+      let t = now.timeIntervalSince1970
+      for p in data.times where p.time > t {
+        entries.append(AthanEntry(date: Date(timeIntervalSince1970: p.time), data: data))
+      }
     }
-    completion(Timeline(entries: [entry], policy: .after(refresh)))
+    // Reload once we run past the last baked entry (a week out), or in 15 min if we
+    // had no data yet, so we pick up freshly written times.
+    let policy: TimelineReloadPolicy =
+      entries.count > 1 ? .atEnd : .after(now.addingTimeInterval(900))
+    completion(Timeline(entries: entries, policy: policy))
   }
 }
 
@@ -173,14 +184,17 @@ struct AthanWidgetView: View {
   var entry: AthanEntry
 
   var body: some View {
-    if let data = entry.data, !data.times.isEmpty {
+    // Require a real upcoming prayer, not just non-empty data: if every stored time
+    // has passed (stale data), fall through to the "Open AthanNow" prompt rather than
+    // rendering a count-up from an old time.
+    if let data = entry.data, nextPrayer(data, now: entry.date) != nil {
       switch family {
-      case .systemLarge: LargeView(data: data)
-      case .systemMedium: MediumView(data: data)
-      case .accessoryInline: InlineView(data: data)
-      case .accessoryCircular: CircularView(data: data)
-      case .accessoryRectangular: RectangularView(data: data)
-      default: SmallView(data: data)
+      case .systemLarge: LargeView(data: data, now: entry.date)
+      case .systemMedium: MediumView(data: data, now: entry.date)
+      case .accessoryInline: InlineView(data: data, now: entry.date)
+      case .accessoryCircular: CircularView(data: data, now: entry.date)
+      case .accessoryRectangular: RectangularView(data: data, now: entry.date)
+      default: SmallView(data: data, now: entry.date)
       }
     } else {
       VStack(spacing: 4) {
@@ -217,8 +231,9 @@ private func countdownLabel(_ date: Date, size: CGFloat) -> some View {
 
 struct SmallView: View {
   let data: WidgetData
+  let now: Date
   var body: some View {
-    let next = nextPrayer(data, now: Date())
+    let next = nextPrayer(data, now: now)
     VStack(alignment: .leading, spacing: 2) {
       HStack(spacing: 4) {
         Image(systemName: "location.fill").font(.system(size: 9)).foregroundColor(.white.opacity(0.7))
@@ -232,14 +247,15 @@ struct SmallView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .skyBackgroundCompat(colors: skyColors(data, now: Date()))
+    .skyBackgroundCompat(colors: skyColors(data, now: now))
   }
 }
 
 struct MediumView: View {
   let data: WidgetData
+  let now: Date
   var body: some View {
-    let next = nextPrayer(data, now: Date())
+    let next = nextPrayer(data, now: now)
     HStack(spacing: 16) {
       VStack(alignment: .leading, spacing: 2) {
         Text(data.city).font(.system(size: 11)).foregroundColor(.white.opacity(0.7)).lineLimit(1)
@@ -264,14 +280,14 @@ struct MediumView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .skyBackgroundCompat(colors: skyColors(data, now: Date()))
+    .skyBackgroundCompat(colors: skyColors(data, now: now))
   }
 }
 
 struct LargeView: View {
   let data: WidgetData
+  let now: Date
   var body: some View {
-    let now = Date()
     let next = nextPrayer(data, now: now)
     VStack(alignment: .leading, spacing: 0) {
       // Header: location + next prayer hero
@@ -329,8 +345,9 @@ extension View {
 
 struct CircularView: View {
   let data: WidgetData
+  let now: Date
   var body: some View {
-    let next = nextPrayer(data, now: Date())
+    let next = nextPrayer(data, now: now)
     ZStack {
       AccessoryWidgetBackground()
       VStack(spacing: 1) {
@@ -355,8 +372,9 @@ struct CircularView: View {
 
 struct RectangularView: View {
   let data: WidgetData
+  let now: Date
   var body: some View {
-    let next = nextPrayer(data, now: Date())
+    let next = nextPrayer(data, now: now)
     VStack(alignment: .leading, spacing: 1) {
       HStack(spacing: 3) {
         Image(systemName: "moon.stars.fill").font(.system(size: 11))
@@ -380,8 +398,9 @@ struct RectangularView: View {
 
 struct InlineView: View {
   let data: WidgetData
+  let now: Date
   var body: some View {
-    let next = nextPrayer(data, now: Date())
+    let next = nextPrayer(data, now: now)
     Group {
       if let n = next {
         Label {
@@ -424,8 +443,8 @@ private let EVENING_IDS: Set<String> = ["asr", "maghrib", "isha"]
 struct PrayerGroupRectangularView: View {
   let data: WidgetData
   let ids: Set<String>
+  let now: Date
   var body: some View {
-    let now = Date()
     let next = nextPrayer(data, now: now)
     // Today's prayers (the first 6 entries) that belong to this group.
     let rows = data.times.prefix(6).filter { ids.contains($0.name.lowercased()) }
@@ -455,7 +474,7 @@ struct AthanGroupWidgetView: View {
   let ids: Set<String>
   var body: some View {
     if let data = entry.data, !data.times.isEmpty {
-      PrayerGroupRectangularView(data: data, ids: ids)
+      PrayerGroupRectangularView(data: data, ids: ids, now: entry.date)
     } else {
       Label("Open AthanNow", systemImage: "moon.stars.fill").font(.caption2).accessoryContainer()
     }
@@ -532,14 +551,14 @@ private let SAMPLE = WidgetData(
 struct AthanWidget_Previews: PreviewProvider {
   static var previews: some View {
     Group {
-      SmallView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .systemSmall)).previewDisplayName("Small")
-      MediumView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .systemMedium)).previewDisplayName("Medium")
-      LargeView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .systemLarge)).previewDisplayName("Large")
-      CircularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryCircular)).previewDisplayName("Lock · Circular")
-      RectangularView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Rectangular")
-      PrayerGroupRectangularView(data: SAMPLE, ids: MORNING_IDS).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · 1/2 Prayers")
-      PrayerGroupRectangularView(data: SAMPLE, ids: EVENING_IDS).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · 2/2 Prayers")
-      InlineView(data: SAMPLE).previewContext(WidgetPreviewContext(family: .accessoryInline)).previewDisplayName("Lock · Inline")
+      SmallView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .systemSmall)).previewDisplayName("Small")
+      MediumView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .systemMedium)).previewDisplayName("Medium")
+      LargeView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .systemLarge)).previewDisplayName("Large")
+      CircularView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryCircular)).previewDisplayName("Lock · Circular")
+      RectangularView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Rectangular")
+      PrayerGroupRectangularView(data: SAMPLE, ids: MORNING_IDS, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · 1/2 Prayers")
+      PrayerGroupRectangularView(data: SAMPLE, ids: EVENING_IDS, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · 2/2 Prayers")
+      InlineView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryInline)).previewDisplayName("Lock · Inline")
     }
   }
 }

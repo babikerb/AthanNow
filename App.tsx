@@ -12,7 +12,6 @@ import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { OnboardingTour } from './src/components/onboarding/OnboardingTour';
 import { navigationRef } from './src/navigation/navigationRef';
-import { ACCENT } from './src/theme/colors';
 import { configureNotificationHandler } from './src/utils/notifications';
 
 // Foreground notification presentation behavior (set once at startup).
@@ -36,7 +35,7 @@ function MainTabs() {
       <NavigationContainer ref={navigationRef}>
         <Tab.Navigator
         {...({ tabBarHidden } as any)}
-        tabBarActiveTintColor={ACCENT}
+        tabBarActiveTintColor="#FFFFFF"
         screenOptions={{
           // Explicitly use the native background bar color property
           barTintColor: '#0B0B0D',

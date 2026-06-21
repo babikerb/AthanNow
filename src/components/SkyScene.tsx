@@ -30,12 +30,26 @@ function arcXY(cx: number, cy: number, a: number, b: number, deg: number) {
   return { x: cx + a * Math.cos(rad), y: cy - b * Math.sin(rad) };
 }
 
-const ARC: Record<Exclude<Period, 'sunrise'>, { deg: number; body: 'sun' | 'moon' }> = {
-  fajr: { deg: 152, body: 'moon' },
-  dhuhr: { deg: 100, body: 'sun' },
-  asr: { deg: 65, body: 'sun' },
-  maghrib: { deg: 30, body: 'moon' },
-  isha: { deg: 22, body: 'moon' },
+// Where each period's celestial body sits on the arc, and which body it is. During
+// a transition we interpolate the position between the two so a single body travels
+// across the strip (and, when the type changes, morphs sun<->moon in place) rather
+// than two separate bodies cross-fading at two different spots.
+const DEG: Record<Period, number> = {
+  fajr: 152,
+  sunrise: 130,
+  dhuhr: 100,
+  asr: 65,
+  maghrib: 30,
+  isha: 22,
+};
+
+const BODY: Record<Period, 'sun' | 'moon' | 'sunrise'> = {
+  fajr: 'moon',
+  sunrise: 'sunrise',
+  dhuhr: 'sun',
+  asr: 'sun',
+  maghrib: 'moon',
+  isha: 'moon',
 };
 
 interface StarDef { lf: number; tf: number; r: number; op: number }
@@ -145,30 +159,15 @@ function ActiveMoon({ x, y, prayer }: { x: number; y: number; prayer: Period }) 
   const isFajr = prayer === 'fajr';
   const size = isFajr ? 34 : 40;
   const shadowColor = isFajr ? '#0c0b1c' : '#070d18';
-  const offsetX = isFajr ? 12 : -12;
-
-  // A soft, steady moonlit halo. The moon never pulses; only the stars twinkle.
-  const halo = size + 22;
+  // A crescent: a bright disc with a slightly offset shadow disc carving it. No halo
+  // ring and no pulsing — the moon stays steady; only the stars twinkle.
+  const offsetX = isFajr ? 9 : -9;
 
   return (
-    <>
-      <View
-        style={{
-          position: 'absolute',
-          left: x - halo / 2,
-          top: y - halo / 2,
-          width: halo,
-          height: halo,
-          borderRadius: halo / 2,
-          backgroundColor: 'rgba(200,190,245,0.16)',
-          opacity: 0.7,
-        }}
-      />
-      <View style={{ position: 'absolute', left: x - size / 2, top: y - size / 2, width: size, height: size, overflow: 'hidden', borderRadius: size / 2 }}>
-        <View style={[StyleSheet.absoluteFill, { borderRadius: size / 2, backgroundColor: 'rgba(200,185,240,0.62)' }]} />
-        <View style={{ position: 'absolute', left: offsetX, top: -4, width: size, height: size, borderRadius: size / 2, backgroundColor: shadowColor }} />
-      </View>
-    </>
+    <View style={{ position: 'absolute', left: x - size / 2, top: y - size / 2, width: size, height: size, overflow: 'hidden', borderRadius: size / 2 }}>
+      <View style={[StyleSheet.absoluteFill, { borderRadius: size / 2, backgroundColor: 'rgba(214,208,245,0.92)' }]} />
+      <View style={{ position: 'absolute', left: offsetX, top: -3, width: size, height: size, borderRadius: size / 2, backgroundColor: shadowColor }} />
+    </View>
   );
 }
 
@@ -186,24 +185,26 @@ function SunriseSun({ x, y }: { x: number; y: number }) {
   );
 }
 
-/** One full celestial scene (stars + sun/moon) for a single prayer period. */
-function PrayerScene({ prayer, arc, opacity }: { prayer: Period; arc: ReturnType<typeof getArc>; opacity: number }) {
-  const { cx, cy, a, b } = arc;
-  if (prayer === 'sunrise') {
-    const { x, y } = arcXY(cx, cy, a, b, 130);
-    return (
-      <View style={[StyleSheet.absoluteFill, { opacity }]}>
-        <SunriseSun x={x} y={y} />
-      </View>
-    );
-  }
+/**
+ * One full celestial scene (stars + sun/moon) for a single period, drawn at an
+ * explicit position. The position is supplied by the parent so that during a
+ * transition both the outgoing and incoming scenes share the same interpolated
+ * spot — the body reads as one object moving/morphing, never two at once.
+ */
+function PrayerScene({ prayer, pos, opacity }: { prayer: Period; pos: { x: number; y: number }; opacity: number }) {
+  const { x, y } = pos;
   const stars = STARS_FOR[prayer];
-  const { deg, body } = ARC[prayer];
-  const { x, y } = arcXY(cx, cy, a, b, deg);
+  const body = BODY[prayer];
   return (
     <View style={[StyleSheet.absoluteFill, { opacity }]}>
       {stars && <TwinklingStarField key={prayer} stars={stars} />}
-      {body === 'sun' ? <ActiveSun x={x} y={y} prayer={prayer} /> : <ActiveMoon x={x} y={y} prayer={prayer} />}
+      {body === 'sunrise' ? (
+        <SunriseSun x={x} y={y} />
+      ) : body === 'sun' ? (
+        <ActiveSun x={x} y={y} prayer={prayer} />
+      ) : (
+        <ActiveMoon x={x} y={y} prayer={prayer} />
+      )}
     </View>
   );
 }
@@ -214,10 +215,17 @@ export default function SkyScene({ prayer, nextPrayer, progress = 0, skyAreaY }:
   // Clamp and only treat it as a transition when there's a distinct next period.
   const t = nextPrayer && nextPrayer !== prayer ? Math.max(0, Math.min(1, progress)) : 0;
 
+  // A single shared position that slides from the current body's spot toward the
+  // next one's as the transition progresses. Both scenes render here, so the body
+  // travels (and sun<->moon dissolves in place) instead of two appearing at once.
+  const { cx, cy, a, b } = arc;
+  const deg = DEG[prayer] + (((nextPrayer ? DEG[nextPrayer] : DEG[prayer]) - DEG[prayer]) * t);
+  const pos = arcXY(cx, cy, a, b, deg);
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <PrayerScene prayer={prayer} arc={arc} opacity={1 - t} />
-      {t > 0 && nextPrayer && <PrayerScene prayer={nextPrayer} arc={arc} opacity={t} />}
+      <PrayerScene prayer={prayer} pos={pos} opacity={1 - t} />
+      {t > 0 && nextPrayer && <PrayerScene prayer={nextPrayer} pos={pos} opacity={t} />}
     </View>
   );
 }
