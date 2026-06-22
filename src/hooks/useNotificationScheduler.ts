@@ -28,21 +28,30 @@ export function useNotificationScheduler(location: AppLocation | null, settings:
     ready: settings.ready,
   });
   const lastSignature = useRef<string | null>(null);
+  // Serialize reschedules. Each run does cancelAll() then schedules ~60 awaited
+  // notifications; on launch the signature changes more than once (restored city ->
+  // GPS city), so without this a later run's cancelAll() could fire mid-way through
+  // an earlier run's scheduling loop and wipe notifications it had already booked —
+  // which is why some athans "sometimes" didn't fire. Chaining keeps runs strictly
+  // sequential, so the last (newest) signature always leaves the final state.
+  const chain = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     if (!settings.ready || !location) return;
     if (lastSignature.current === signature) return;
     lastSignature.current = signature;
 
-    (async () => {
-      if (!anyNotificationEnabled(settings)) {
-        await cancelAllNotifications();
-        return;
-      }
-      const granted = await requestNotificationPermission();
-      if (!granted) return;
-      await rescheduleNotifications(location, settings);
-    })();
+    chain.current = chain.current
+      .then(async () => {
+        if (!anyNotificationEnabled(settings)) {
+          await cancelAllNotifications();
+          return;
+        }
+        const granted = await requestNotificationPermission();
+        if (!granted) return;
+        await rescheduleNotifications(location, settings);
+      })
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 }

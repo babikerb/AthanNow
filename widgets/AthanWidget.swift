@@ -71,6 +71,30 @@ func currentStage(_ data: WidgetData, now: Date) -> String {
   return GRADIENTS[stage] != nil ? stage : "isha"
 }
 
+// The six prayers for the day that `now` falls in. The app bakes a week of times
+// (6 per day, ascending, each day starting at Fajr) so the widget keeps working
+// while the app is unopened. Without this the list views froze on the day the data
+// was written — so a few days later the hero countdown advanced correctly while the
+// list kept showing the original day's (now all-past) times.
+func dayPrayers(_ data: WidgetData, now: Date) -> ArraySlice<PrayerTime> {
+  let t = now.timeIntervalSince1970
+  // Pick the latest day-block whose Fajr (the block's first entry) has begun; before
+  // the first Fajr we're still on the first block.
+  var start = 0
+  for i in stride(from: 0, to: data.times.count, by: 6) where data.times[i].time <= t {
+    start = i
+  }
+  return data.times[start..<min(start + 6, data.times.count)]
+}
+
+// Whether `p` is the upcoming prayer. Compared by time, not name: prayer names
+// repeat across the week of baked entries, so name-matching would light up an
+// already-passed prayer (e.g. today's Fajr once next is tomorrow's Fajr).
+func isUpcoming(_ p: PrayerTime, _ next: (name: String, date: Date)?) -> Bool {
+  guard let next = next else { return false }
+  return abs(p.time - next.date.timeIntervalSince1970) < 1
+}
+
 // Minutes before the next prayer when the sky starts shifting toward it (mirrors
 // gradientShiftMinutes in src/theme/colors.ts). Widgets refresh on a coarse
 // timeline so this reads as a gentle step-shift rather than a continuous slide.
@@ -267,8 +291,8 @@ struct MediumView: View {
         }
       }
       VStack(alignment: .leading, spacing: 5) {
-        ForEach(data.times.prefix(6), id: \.name) { p in
-          let isNext = p.name == next?.name
+        ForEach(dayPrayers(data, now: now), id: \.name) { p in
+          let isNext = isUpcoming(p, next)
           HStack {
             Text(p.name).font(.system(size: 12, weight: isNext ? .bold : .regular))
             Spacer()
@@ -306,9 +330,9 @@ struct LargeView: View {
       Spacer(minLength: 10)
       // Full prayer list
       VStack(spacing: 0) {
-        ForEach(data.times.prefix(6), id: \.name) { p in
+        ForEach(dayPrayers(data, now: now), id: \.name) { p in
           let date = Date(timeIntervalSince1970: p.time)
-          let isNext = p.name == next?.name
+          let isNext = isUpcoming(p, next)
           let isPast = p.time <= now.timeIntervalSince1970 && !isNext
           HStack {
             Text(p.name).font(.system(size: 15, weight: isNext ? .bold : .regular))
@@ -446,12 +470,12 @@ struct PrayerGroupRectangularView: View {
   let now: Date
   var body: some View {
     let next = nextPrayer(data, now: now)
-    // Today's prayers (the first 6 entries) that belong to this group.
-    let rows = data.times.prefix(6).filter { ids.contains($0.name.lowercased()) }
+    // Today's prayers (the day-block `now` falls in) that belong to this group.
+    let rows = dayPrayers(data, now: now).filter { ids.contains($0.name.lowercased()) }
     VStack(alignment: .leading, spacing: 2) {
       ForEach(rows, id: \.name) { p in
         let date = Date(timeIntervalSince1970: p.time)
-        let isNext = p.name == next?.name
+        let isNext = isUpcoming(p, next)
         let isPast = p.time <= now.timeIntervalSince1970 && !isNext
         HStack {
           Text(p.name).font(.system(size: 13, weight: isNext ? .bold : .regular))

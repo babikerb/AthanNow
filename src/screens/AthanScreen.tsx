@@ -66,9 +66,14 @@ export default function AthanScreen() {
   useFocusedStatusBar(prayerData && prayerStatusBarLight[prayerData.currentPrayer] === false ? 'dark' : 'light');
 
   // Push the day's prayer times to the iOS widget (App Group). Keyed so it only
-  // writes when the city or the day's times actually change, not every second.
+  // writes when the city or the day's times actually change, not every second. We
+  // key on Fajr's exact timestamp (not just its date) plus the calc method and
+  // madhab, so changing those in Settings rewrites the widget immediately instead
+  // of leaving it stale until the next day or a city change.
   const widgetKey =
-    prayerData && location ? `${cityName}|${prayerData.listRows[0]?.time.toDateString()}|${use24Hour}` : '';
+    prayerData && location
+      ? `${cityName}|${prayerData.listRows[0]?.time.getTime()}|${use24Hour}|${calcMethod}|${asrMadhab}`
+      : '';
   useEffect(() => {
     if (!prayerData || !location) return;
     // Include Sunrise so the widgets can show it (the morning lock-screen widget
