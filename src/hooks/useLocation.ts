@@ -4,6 +4,8 @@ import tzlookup from 'tz-lookup';
 import { useCallback, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'athannow.location.v1';
+/** Same key, exported so the background-refresh task can read the saved location. */
+export const LOCATION_STORAGE_KEY = STORAGE_KEY;
 
 const deviceTimeZone = () => {
   try {

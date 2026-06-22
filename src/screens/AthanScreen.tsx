@@ -27,7 +27,7 @@ import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { blendGradients, gradientShiftMinutes, prayerStatusBarLight } from '../theme/colors';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
-import { updateWidgetData } from '../utils/widget';
+import { refreshWidgetData } from '../utils/widgetData';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SKY_STRIP_HEIGHT = SCREEN_HEIGHT * 0.1;
@@ -76,21 +76,10 @@ export default function AthanScreen() {
       : '';
   useEffect(() => {
     if (!prayerData || !location) return;
-    // Include Sunrise so the widgets can show it (the morning lock-screen widget
-    // and the home lists). Widget code skips it where it isn't a prayer (gradient).
-    const toRows = (rows: typeof prayerData.listRows) =>
-      rows.map((r) => ({ name: r.label, time: Math.floor(r.time.getTime() / 1000) }));
     // Write a week of prayer times, not just today, so the widget always has a real
     // future prayer to count down to even if the app isn't opened for several days.
-    // Without this the widget runs out of future entries and shows a stale, wrong
-    // countdown (e.g. "Fajr in 56:00:00" — counting up from an old, passed time).
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const times = [toRows(prayerData.listRows)];
-    for (let d = 1; d <= 6; d += 1) {
-      const anchor = localDayAnchor(new Date(currentTime.getTime() + d * DAY_MS), tz);
-      times.push(toRows(getPrayerTimes(location, anchor, calcMethod, asrMadhab).listRows));
-    }
-    updateWidgetData(cityName, times.flat(), use24Hour);
+    // (The same week is also re-rolled by the background-refresh task.)
+    refreshWidgetData(location, cityName, calcMethod, asrMadhab, use24Hour, currentTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetKey]);
 

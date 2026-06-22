@@ -2,6 +2,7 @@ import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -12,6 +13,9 @@ import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { OnboardingTour } from './src/components/onboarding/OnboardingTour';
 import { navigationRef } from './src/navigation/navigationRef';
+// Side-effect import: defines the background-refresh task at module scope so the
+// headless JS runtime can find it.
+import { registerBackgroundRefresh } from './src/utils/backgroundRefresh';
 import { configureNotificationHandler } from './src/utils/notifications';
 
 // Foreground notification presentation behavior (set once at startup).
@@ -99,6 +103,11 @@ function Root() {
 }
 
 export default function App() {
+  // Register the periodic background refresh once at startup (idempotent).
+  useEffect(() => {
+    registerBackgroundRefresh();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <SettingsProvider>

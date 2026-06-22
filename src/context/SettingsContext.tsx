@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 const STORAGE_KEY = 'athannow.settings.v1';
+/** Same key, exported so the background-refresh task can read saved settings. */
+export const SETTINGS_STORAGE_KEY = STORAGE_KEY;
 
 export type CalcMethod =
   | 'MuslimWorldLeague'
@@ -77,7 +79,7 @@ const SettingsContext = createContext<SettingsContextValue>({
   resetAllData: async () => {},
 });
 
-function mergeSettings(base: Settings, stored: Partial<Settings> | null): Settings {
+export function mergeSettings(base: Settings, stored: Partial<Settings> | null): Settings {
   if (!stored) return base;
   return {
     ...base,
