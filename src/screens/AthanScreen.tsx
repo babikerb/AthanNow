@@ -27,6 +27,7 @@ import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import {
   blendGradients,
   gradientShiftMinutes,
+  NIGHT_BG,
   prayerStatusBarLight,
   skyTextPrimary,
   skyTextSecondary,
@@ -43,8 +44,25 @@ import { refreshWidgetData } from '../utils/widgetData';
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SKY_STRIP_HEIGHT = SCREEN_HEIGHT * 0.1;
 
+// This screen is a deliberate no-scroll composition (a single flex column, no
+// ScrollView) so the countdown, full prayer list, and date always sit on one
+// screen together — there's no scroll fallback if content runs long. That's
+// fine at default text size (the flexSpacer absorbs the slack), but at large
+// Dynamic Type sizes the hero countdown + six-row list + date block combined
+// can exceed the screen height, and without a ScrollView that means clipping/
+// overlap rather than a scroll, not a graceful reflow. Capping the fixed-
+// budget chrome here (not the free-flowing text elsewhere in the app) follows
+// the same rule Calendar's fixed-height day cards already established.
+const NO_SCROLL_FONT_CAP = 1.3;
+
+// Decorative "glass" surface — intentionally matches AppHeader's
+// `fallbackStyle('dark')` values so the prayer-list card reads as the same
+// material as the header pill above it, not a second, unrelated surface.
+const GLASS_FILL = 'rgba(255,255,255,0.07)';
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
+
 export default function AthanScreen() {
-  const { location, cityName, status, refreshLocation, setLocationByQuery, setLocationByPlace } = useLocation();
+  const { location, cityName, status, hasRestored, refreshLocation, setLocationByQuery, setLocationByPlace } = useLocation();
   const settings = useSettings();
   const { calcMethod, asrMadhab, use24Hour } = settings;
   const { prayerGradients } = useTheme();
@@ -59,7 +77,12 @@ export default function AthanScreen() {
   const countTarget = useOnboardingTarget('athan-countdown');
   const listTarget = useOnboardingTarget('athan-list');
 
-  useNotificationScheduler(location, settings);
+  // Gate on `hasRestored`, not just `location` (which is always non-null — see
+  // `useLocation`'s DEFAULT_LOCATION seed): scheduling notifications off the
+  // transient Mecca seed before the real saved city has been read back would
+  // book a week of Mecca-timed athans that only gets corrected on the *next*
+  // location change, which may not come for days.
+  useNotificationScheduler(hasRestored ? location : null, settings);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -86,13 +109,22 @@ export default function AthanScreen() {
       ? `${cityName}|${prayerData.listRows[0]?.time.getTime()}|${use24Hour}|${calcMethod}|${asrMadhab}`
       : '';
   useEffect(() => {
-    if (!prayerData || !location) return;
+    // `hasRestored` matters as much as `location`/`prayerData` here: `location`
+    // is never null (it's seeded with the Mecca default — see `useLocation`),
+    // so without this the very first render after a cold launch would write
+    // Mecca's week to the widget's App Group storage before the real saved city
+    // has been read back from AsyncStorage. If the app backgrounds in that
+    // narrow window (e.g. opened just long enough to glance at the widget after
+    // tapping a notification), that incorrect write is left standing until the
+    // next successful refresh — which can be hours away — and reads exactly
+    // like "sometimes I get Mecca/Medina times instead of my real location."
+    if (!prayerData || !location || !hasRestored) return;
     // Write a week of prayer times, not just today, so the widget always has a real
     // future prayer to count down to even if the app isn't opened for several days.
     // (The same week is also re-rolled by the background-refresh task.)
     refreshWidgetData(location, cityName, calcMethod, asrMadhab, use24Hour, currentTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgetKey]);
+  }, [widgetKey, hasRestored]);
 
   const openLocation = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -155,11 +187,27 @@ export default function AthanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minutesToNext, prayerData?.nextPrayer]);
 
+  // Purely presentational: how far we are through the *current* prayer's window,
+  // used only for the thin progress rule under the countdown. Reads exclusively
+  // from data `getPrayerTimes` already returns — no change to prayer-time logic
+  // itself. Guarded so an edge case (e.g. the post-midnight `isha` fallback,
+  // whose "start" isn't in today's row list) simply hides the rule instead of
+  // ever rendering a broken/negative bar.
+  const heroProgress = useMemo(() => {
+    if (!prayerData) return null;
+    const start = prayerData.listRows.find((r) => r.id === prayerData.currentPrayer)?.time;
+    if (!start) return null;
+    const total = prayerData.nextPrayerTime.getTime() - start.getTime();
+    if (!(total > 0)) return null;
+    const elapsed = currentTime.getTime() - start.getTime();
+    return Math.max(0, Math.min(1, elapsed / total));
+  }, [prayerData, currentTime]);
+
   if (!prayerData) {
     return (
       <View style={[styles.container, styles.centered]}>
         <AmbientGradient colors={prayerGradients.isha} />
-        <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Syncing prayer times</Text>
+        <Text style={styles.syncingText}>Syncing prayer times</Text>
         <TouchableOpacity style={styles.retryPill} onPress={openLocation} activeOpacity={PRESSED_OPACITY}>
           <Text style={styles.retryText}>Set location</Text>
         </TouchableOpacity>
@@ -202,26 +250,37 @@ export default function AthanScreen() {
         </HeaderBar>
       </View>
 
-      <View style={[styles.content, { paddingBottom: tabBarHeight + 8 }]}>
+      <View style={[styles.content, { paddingBottom: tabBarHeight + spacing.xs }]}>
         {/* --- SKY STRIP (reserves space; celestial drawn by SkyScene) --- */}
         <View style={{ height: SKY_STRIP_HEIGHT }} />
 
-        {/* --- HERO SECTION --- */}
+        {/* --- HERO: current prayer eyebrow + countdown to next --- */}
         <View ref={countTarget.ref} onLayout={countTarget.onLayout} collapsable={false} style={styles.heroContainer}>
-          <View style={styles.heroRow}>
-            <Text style={styles.heroPrayerName}>{displayPrayer.toUpperCase()}</Text>
-            <Text style={styles.heroArabicAccent}>{celestial.arabicName}</Text>
+          <View style={styles.eyebrowPill}>
+            <Text style={styles.eyebrowText} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{displayPrayer.toUpperCase()}</Text>
+            <View style={styles.eyebrowDivider} />
+            <Text style={styles.eyebrowArabic} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{celestial.arabicName}</Text>
           </View>
-          <Text style={styles.countdownText} accessibilityLabel={countdownLabel}>
+          <Text style={styles.countdownText} accessibilityLabel={countdownLabel} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
             {formatCountdown(currentTime, nextPrayerTime)}
           </Text>
-          <Text style={styles.sublineText}>
-            until · {nextPrayer} {formatClock(nextPrayerTime, use24Hour, tz)}
+          <Text style={styles.sublineText} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+            until {nextPrayer} · {formatClock(nextPrayerTime, use24Hour, tz)}
           </Text>
+          {heroProgress != null && (
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${heroProgress * 100}%` }]} />
+            </View>
+          )}
         </View>
 
+        {/* Flexible gap: hero anchors near the sky, the list + date anchor near
+            the bottom, and this single spacer absorbs whatever room is left —
+            one deliberate gap instead of four `space-between` slices. */}
+        <View style={styles.flexSpacer} />
+
         {/* --- PRAYER LIST --- */}
-        <View ref={listTarget.ref} onLayout={listTarget.onLayout} collapsable={false} style={styles.listContainer}>
+        <View ref={listTarget.ref} onLayout={listTarget.onLayout} collapsable={false} style={styles.listCard}>
           {listRows.map((row) => {
             const isCurrent = row.id === currentPrayer;
             const isPast = row.time < currentTime && !isCurrent;
@@ -232,7 +291,7 @@ export default function AthanScreen() {
             if (isPast) rowStyle = isSunrise ? styles.pastSunriseRowText : styles.pastRowText;
 
             return (
-              <View key={row.id} style={styles.row}>
+              <View key={row.id} style={[styles.row, isCurrent && styles.rowCurrent]}>
                 <View style={styles.rowLabelWrap}>
                   {isPast && (
                     <SymbolView
@@ -242,17 +301,17 @@ export default function AthanScreen() {
                       style={styles.pastCheckmark}
                     />
                   )}
-                  <Text style={[styles.rowLabel, rowStyle]}>{row.label}</Text>
+                  <Text style={[styles.rowLabel, rowStyle]} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{row.label}</Text>
                 </View>
-                <Text style={[styles.rowTime, rowStyle]}>{formatClock(row.time, use24Hour, tz)}</Text>
+                <Text style={[styles.rowTime, rowStyle]} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{formatClock(row.time, use24Hour, tz)}</Text>
               </View>
             );
           })}
         </View>
 
-        {/* --- DATES + DEBUG --- */}
+        {/* --- DATES --- */}
         <View style={styles.dateContainer}>
-          <Text style={styles.gregorianText}>
+          <Text style={styles.gregorianText} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
             {currentTime.toLocaleDateString('en-US', {
               weekday: 'long',
               year: 'numeric',
@@ -260,7 +319,7 @@ export default function AthanScreen() {
               day: 'numeric',
             })}
           </Text>
-          <Text style={styles.hijriText}>{getHijriDate(currentTime)}</Text>
+          <Text style={styles.hijriText} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{getHijriDate(currentTime)}</Text>
         </View>
       </View>
 
@@ -270,9 +329,10 @@ export default function AthanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#070d18' },
-  content: { flex: 1, justifyContent: 'space-between' },
-  centered: { justifyContent: 'center', alignItems: 'center', gap: 16 },
+  container: { flex: 1, backgroundColor: NIGHT_BG },
+  content: { flex: 1 },
+  centered: { justifyContent: 'center', alignItems: 'center', gap: spacing.md },
+  syncingText: { color: skyTextSecondary, ...type.body } as TextStyle,
   retryPill: {
     backgroundColor: 'rgba(255,255,255,0.12)',
     // paddingHorizontal 18 doesn't land exactly on the spacing grid; kept as
@@ -282,41 +342,77 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: radii.lg,
   },
-  retryText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
-  locationText: { color: '#FFF', fontSize: 13, fontWeight: '500', letterSpacing: 0.3, flexShrink: 1 },
-  // marginTop -10 sits exactly between the xs (8) and sm (12) tokens and
-  // doesn't land cleanly on either; kept as token +/- 2 rather than snapping
-  // to a value that would visibly shift the hero block (same precedent as
-  // AppHeader.tsx's `bar` style).
-  heroContainer: { alignItems: 'center', marginTop: -(spacing.sm - 2) },
-  heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
-  heroPrayerName: { color: skyTextPrimary, ...type.title3 } as TextStyle,
-  heroArabicAccent: { fontSize: 16, color: 'rgba(255, 255, 255, 0.7)', fontWeight: '400' },
+  retryText: { color: skyTextPrimary, ...type.subhead } as TextStyle,
+  locationText: { ...type.footnote, color: skyTextPrimary, letterSpacing: 0.3, flexShrink: 1 } as TextStyle,
+
+  // --- Hero ---
+  heroContainer: { alignItems: 'center', marginTop: spacing.sm },
+  eyebrowPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xxs + 2,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  eyebrowText: { ...type.caption2, color: skyTextPrimary } as TextStyle,
+  eyebrowDivider: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: skyTextSecondary },
+  eyebrowArabic: { ...type.footnote, color: skyTextSecondary } as TextStyle,
   // Countdown is one of the three reserved Fraunces-SemiBold headline moments
-  // app-wide (plan §1.1) — a numeric hero moment, not a generic large number.
+  // app-wide — a numeric hero moment, not a generic large number.
   countdownText: {
     color: skyTextPrimary,
     ...type.hero,
     fontFamily: HEADLINE_FONT_FAMILY,
-    marginVertical: spacing.xxs,
+    marginTop: spacing.sm,
   } as TextStyle,
-  sublineText: { color: skyTextSecondary, ...type.caption } as TextStyle,
-  listContainer: { paddingHorizontal: spacing.xxl, maxHeight: SCREEN_HEIGHT * 0.4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm },
+  sublineText: { color: skyTextSecondary, ...type.caption, marginTop: spacing.xxs } as TextStyle,
+  // Width is a deliberate multiple of an existing token (xxxl * 3) rather than
+  // an invented pixel value — see spacing.ts's own precedent for this pattern.
+  progressTrack: {
+    width: spacing.xxxl * 3,
+    height: 3,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    overflow: 'hidden',
+    marginTop: spacing.md,
+  },
+  progressFill: { height: '100%', borderRadius: radii.pill, backgroundColor: 'rgba(255,255,255,0.85)' },
+
+  flexSpacer: { flex: 1, minHeight: spacing.xl },
+
+  // --- Prayer list card ---
+  listCard: {
+    marginHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.lg,
+    backgroundColor: GLASS_FILL,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: GLASS_BORDER,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
+  },
+  rowCurrent: { backgroundColor: 'rgba(255,255,255,0.10)' },
   rowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxs },
   pastCheckmark: { marginTop: 1 },
   rowLabel: { ...type.body } as TextStyle,
   rowTime: { ...type.body, fontVariant: ['tabular-nums'] } as TextStyle,
-  currentRowText: { color: '#FFF', fontWeight: '700' },
-  futureRowText: { color: '#FFF', fontWeight: '400' },
-  // Past rows are conveyed by color AND the leading checkmark glyph above (§2.5:
-  // never state-by-color/opacity-alone) rather than by a degraded opacity.
+  currentRowText: { color: skyTextPrimary, fontWeight: '700' },
+  futureRowText: { color: skyTextPrimary, fontWeight: '400' },
+  // Past rows are conveyed by color AND the leading checkmark glyph above (never
+  // state-by-color/opacity-alone) rather than by a degraded opacity.
   pastRowText: { color: skyTextSecondary },
   pastSunriseRowText: { color: skyTextSecondary, fontStyle: 'italic' },
-  // gap 3 doesn't land exactly on the spacing grid; kept as token - 1 rather
-  // than snapping to xxs (4), which would visibly loosen this tight date
-  // stack (same precedent as AppHeader.tsx's `bar` style).
-  dateContainer: { alignItems: 'center', marginBottom: spacing.md, gap: spacing.xxs - 1 },
-  gregorianText: { color: 'rgba(255, 255, 255, 0.65)', fontSize: 13, marginBottom: 2 },
-  hijriText: { color: skyTextSecondary, ...type.caption } as TextStyle,
+
+  dateContainer: { alignItems: 'center', marginTop: spacing.lg, marginBottom: spacing.xs, gap: 2 },
+  gregorianText: { ...type.footnote, color: skyTextSecondary } as TextStyle,
+  hijriText: { ...type.caption, color: skyTextSecondary } as TextStyle,
 });

@@ -6,18 +6,20 @@ import { ACCENT } from '../../theme/colors';
 import { duration, easing } from '../../theme/motion';
 
 interface Props {
-  /** 0-based index of the current screen. */
+  /** 0-based index of the current step. */
   index: number;
   total: number;
   style?: StyleProp<ViewStyle>;
 }
 
 /**
- * Persistent thin progress indicator (plan §4.2) — `total` segments, filled
- * up through the current screen. Replaces onboarding's previous zero
- * progress affordance. Segment fill animates smoothly between screens
- * (`duration.base`/`easing.standard`, plan §4.5) rather than snapping,
- * gated on reduced motion like every other onboarding animation.
+ * Persistent thin progress indicator spanning the entire merged onboarding
+ * flow — `total` segments, filled up through the current step. Rendered once
+ * at the top of `OnboardingBeacon` so all nine steps (opening beat, permission
+ * priming, calc method, real-UI highlights, widget intro, closing summary)
+ * read as one continuous journey instead of separate sub-flows. Segment fill
+ * animates smoothly between steps, gated on reduced motion like every other
+ * onboarding animation.
  */
 export function ProgressBar({ index, total, style }: Props) {
   return (

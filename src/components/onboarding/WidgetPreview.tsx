@@ -30,10 +30,10 @@ const PRAYER_LABELS: Record<GradientBucket, string> = {
 };
 
 /**
- * Widget-introduction preview (plan §4.2 Screen 5): reuses the real
- * `AmbientGradient` + `SkyScene` components at a small scale instead of a
- * static mockup image, so the preview is literally accurate and can't drift
- * from what the real widget/home screen actually look like.
+ * Widget-introduction preview: reuses the real `AmbientGradient` + `SkyScene`
+ * components at a small scale instead of a static mockup image, so the
+ * preview is literally accurate and can't drift from what the real
+ * widget/home screen actually look like.
  *
  * `SkyScene` positions everything in absolute device-screen coordinates
  * (`Dimensions.get('screen')`), so it can't be handed a small container

@@ -1,4 +1,3 @@
-import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 import { SymbolView } from 'expo-symbols';
 import { SFSymbol } from 'sf-symbols-typescript';
 import React from 'react';
@@ -12,10 +11,24 @@ import { spacing } from '../theme/spacing';
 import { type } from '../theme/typography';
 
 /**
- * Shared top header, ported from the Hardwood app: a row of liquid-glass pills
- * that sits below the safe-area inset (clear of the Dynamic Island / notch).
- * Compose the row from <GlassPill> and <GlassCircleButton>. Use across every
- * screen except the Quran reader (which is full-bleed/immersive).
+ * Shared top header, ported from the Hardwood app: a row of pills that sits
+ * below the safe-area inset (clear of the Dynamic Island / notch). Compose
+ * the row from <GlassPill> and <GlassCircleButton>. Use across every screen
+ * except the Quran reader (which is full-bleed/immersive).
+ *
+ * Visual treatment: a flat tinted surface + hairline border, matching the
+ * rest of the app's established "no shadow, no glass material" elevation
+ * language (see theme/shadow.ts's doc comment — shadows are reserved for two
+ * floating-overlay cases elsewhere, this isn't a third). The tint is a
+ * translucent black/white at low alpha keyed off the same base RGB the theme
+ * uses for `separator`/`textPrimary` in each scheme (17,17,19 light /
+ * 255,255,255 dark), so the header reads as one more instance of the app's
+ * existing "elevated surface" grammar rather than a bespoke material. The
+ * border goes a little stronger than the plain `separator` token in dark
+ * scheme specifically, because this pill floats over the Athan/Qibla
+ * animated sky (not a flat same-toned background like most bordered
+ * surfaces), so it needs a touch more definition to stay legible across
+ * every gradient stop.
  */
 
 // The 44pt circle is both the header's touch-target floor and its visual
@@ -24,10 +37,10 @@ const CIRCLE = 44;
 
 type Scheme = 'light' | 'dark';
 
-function fallbackStyle(scheme: Scheme): ViewStyle {
+function pillSurfaceStyle(scheme: Scheme): ViewStyle {
   return scheme === 'dark'
-    ? { backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.12)' }
-    : { backgroundColor: 'rgba(0,0,0,0.05)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(0,0,0,0.08)' };
+    ? { backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)' }
+    : { backgroundColor: 'rgba(17,17,19,0.05)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(17,17,19,0.10)' };
 }
 
 export function HeaderBar({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -51,7 +64,6 @@ interface GlassPillProps {
 }
 
 export function GlassPill({ children, onPress, scheme = 'dark', flex, style, accessibilityLabel, accessibilityHint }: GlassPillProps) {
-  const glass = isLiquidGlassSupported;
   const Wrapper: any = onPress ? TouchableOpacity : View;
   return (
     <Wrapper
@@ -60,11 +72,8 @@ export function GlassPill({ children, onPress, scheme = 'dark', flex, style, acc
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      style={[s.pill, flex && { flex: 1 }, !glass && fallbackStyle(scheme), style]}
+      style={[s.pill, flex && { flex: 1 }, pillSurfaceStyle(scheme), style]}
     >
-      {glass && (
-        <LiquidGlassView interactive={!!onPress} colorScheme={scheme} style={[StyleSheet.absoluteFill, { borderRadius: CIRCLE / 2 }]} />
-      )}
       <View style={s.pillInner}>{children}</View>
     </Wrapper>
   );
@@ -88,7 +97,6 @@ export function GlassCircleButton({
   accessibilityLabel: string;
   accessibilityHint?: string;
 }) {
-  const glass = isLiquidGlassSupported;
   return (
     <TouchableOpacity
       activeOpacity={PRESSED_OPACITY}
@@ -97,11 +105,8 @@ export function GlassCircleButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
-      style={[s.circle, !glass && fallbackStyle(scheme)]}
+      style={[s.circle, pillSurfaceStyle(scheme)]}
     >
-      {glass && (
-        <LiquidGlassView interactive colorScheme={scheme} style={[StyleSheet.absoluteFill, { borderRadius: CIRCLE / 2 }]} />
-      )}
       <View style={s.circleInner}>
         <SymbolView name={icon} size={size} tintColor={tintColor} weight="semibold" />
       </View>

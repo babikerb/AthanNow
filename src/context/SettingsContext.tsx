@@ -147,7 +147,8 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   );
 
   const resetAllData = useCallback(async () => {
-    // Full wipe: settings, the spotlight-tour flag, bookmarks, saved location, and
+    // Full wipe: settings (including `onboardingComplete`, which re-arms the
+    // merged onboarding flow's auto-start), bookmarks, saved location, and
     // cached Quran data — everything the app has stored — then back to defaults.
     await AsyncStorage.clear().catch(() => {});
     persist(DEFAULT_SETTINGS);

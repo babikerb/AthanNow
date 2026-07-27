@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
+import Svg, { Circle, Defs, Mask, RadialGradient, Stop } from 'react-native-svg';
 
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -21,10 +22,14 @@ interface Props {
   skyAreaY: number;
 }
 
+// The body travels along a shallow ellipse anchored just below the header. `b`
+// (vertical radius) is deliberately small relative to `a` (horizontal radius) —
+// a wide, gentle arc reads as "the sky" without the body wandering into the
+// content below it.
 function getArc(skyAreaY: number) {
   const remaining = H - skyAreaY;
   const skyH = remaining * 0.1;
-  return { cx: W * 0.5, cy: skyAreaY + skyH, a: W * 0.44, b: skyH * 0.65 };
+  return { cx: W * 0.5, cy: skyAreaY + skyH, a: W * 0.42, b: skyH * 0.72 };
 }
 
 function arcXY(cx: number, cy: number, a: number, b: number, deg: number) {
@@ -139,25 +144,67 @@ function useSlowPulse(half: number) {
   return v;
 }
 
+/**
+ * A soft, true radial-gradient halo behind a sun-type body — replaces the old
+ * "two flat-opacity rings" approximation (which read as visible concentric
+ * bands, a big part of the "vibe coded" look) with an actual smooth falloff
+ * to transparent, via `react-native-svg`'s `RadialGradient`.
+ */
+function CelestialGlow({
+  x,
+  y,
+  radius,
+  color,
+  opacity,
+  scale,
+}: {
+  x: number;
+  y: number;
+  radius: number;
+  color: string;
+  opacity: Animated.AnimatedInterpolation<number>;
+  scale: Animated.AnimatedInterpolation<number>;
+}) {
+  const rawId = useId().replace(/:/g, '');
+  const gradId = `glow-${rawId}`;
+  const d = radius * 2;
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: 'absolute', left: x - radius, top: y - radius, width: d, height: d, opacity, transform: [{ scale }] }}
+    >
+      <Svg width={d} height={d}>
+        <Defs>
+          <RadialGradient id={gradId} cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor={color} stopOpacity={0.55} />
+            <Stop offset="45%" stopColor={color} stopOpacity={0.24} />
+            <Stop offset="100%" stopColor={color} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={radius} cy={radius} r={radius} fill={`url(#${gradId})`} />
+      </Svg>
+    </Animated.View>
+  );
+}
+
 function ActiveSun({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
   const cfg = {
-    dhuhr: { r: 22, glow: 'rgba(255,252,200,0.38)', rays: true },
-    asr: { r: 16, glow: 'rgba(200,144,56,0.28)', rays: false },
-    maghrib: { r: 11, glow: 'rgba(220,110,40,0.22)', rays: false },
+    dhuhr: { r: 22, glow: '#FFF9CC', glowR: 60, rays: true },
+    asr: { r: 16, glow: '#E0B25E', glowR: 44, rays: false },
+    maghrib: { r: 11, glow: '#E0783C', glowR: 34, rays: false },
   } as const;
-  const { r, glow, rays } = cfg[prayer as keyof typeof cfg] ?? { r: 16, glow: 'rgba(255,252,200,0.28)', rays: false };
+  const { r, glow, glowR, rays } = cfg[prayer as keyof typeof cfg] ?? { r: 16, glow: '#FFF9CC', glowR: 44, rays: false };
   const RAY_LEN = 9;
-  const RAY_GAP = 4;
+  const RAY_GAP = 5;
 
   // Slow glow pulse — asr breathes the slowest, then maghrib, then dhuhr.
   const pulse = useSlowPulse(prayer === 'asr' ? 5200 : prayer === 'maghrib' ? 4400 : 3800);
-  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.14] });
-  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
+  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.1] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
 
   return (
     <>
-      <Animated.View style={{ position: 'absolute', left: x - r - 12, top: y - r - 12, width: (r + 12) * 2, height: (r + 12) * 2, borderRadius: r + 12, backgroundColor: glow, opacity: glowOpacity, transform: [{ scale: glowScale }] }} />
-      <Animated.View style={{ position: 'absolute', left: x - r - 5, top: y - r - 5, width: (r + 5) * 2, height: (r + 5) * 2, borderRadius: r + 5, backgroundColor: 'rgba(255,252,210,0.15)', opacity: glowOpacity, transform: [{ scale: glowScale }] }} />
+      <CelestialGlow x={x} y={y} radius={glowR} color={glow} opacity={glowOpacity} scale={glowScale} />
       <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: '#FFF6CC' }} />
       {rays && RAY_ANGLES.map((deg) => {
         const isDiag = deg % 90 !== 0;
@@ -166,37 +213,64 @@ function ActiveSun({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
         const rad = (deg * Math.PI) / 180;
         const rx = x + dist * Math.sin(rad);
         const ry = y - dist * Math.cos(rad);
-        return <View key={deg} style={{ position: 'absolute', left: rx - 1, top: ry - len / 2, width: 2, height: len, borderRadius: 1, backgroundColor: 'rgba(255,245,180,0.60)', transform: [{ rotate: `${deg}deg` }] }} />;
+        return <View key={deg} style={{ position: 'absolute', left: rx - 1, top: ry - len / 2, width: 2, height: len, borderRadius: 1, backgroundColor: 'rgba(255,245,180,0.55)', transform: [{ rotate: `${deg}deg` }] }} />;
       })}
     </>
   );
 }
 
+const MOON_COLOR = '#E7E3F8';
+
+/**
+ * The Fajr/Maghrib/Isha crescent.
+ *
+ * Previously this painted a full bright disc, then overlaid a second full
+ * disc filled with a hardcoded flat color (guessing at what the sky behind it
+ * looked like) to fake a shadowed edge. Because the real sky is a multi-stop
+ * animated gradient (and sometimes a darkening scrim on top of that), the
+ * guess was essentially always wrong and the "shadow" read as a mismatched
+ * dark smudge rather than a crescent.
+ *
+ * Fixed properly with `react-native-svg`: the shadowed portion is carved out
+ * with a true alpha `Mask` (a second circle painted black inside the mask
+ * definition), not a painted color. The masked-out pixels are genuinely
+ * transparent, so whatever is actually behind the moon at render time — the
+ * live gradient, the scrim, a star — shows through correctly with zero
+ * color-matching guesswork, and the silhouette itself is real crescent
+ * geometry instead of "two discs that hopefully blend."
+ */
 function ActiveMoon({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
   const isFajr = prayer === 'fajr';
-  const size = isFajr ? 34 : 40;
-  const shadowColor = isFajr ? '#0c0b1c' : '#070d18';
-  // A crescent: a bright disc with a slightly offset shadow disc carving it. No halo
-  // ring and no pulsing — the moon stays steady; only the stars twinkle.
-  const offsetX = isFajr ? 9 : -9;
+  const size = isFajr ? 32 : 38;
+  const r = size / 2;
+  // Offset direction flips between fajr (waning, before sunrise) and
+  // maghrib/isha (waxing, after sunset) so the lit edge always faces the
+  // direction the body is travelling along the arc.
+  const offset = (isFajr ? 1 : -1) * r * 0.62;
+  const rawId = useId().replace(/:/g, '');
+  const maskId = `moon-mask-${rawId}`;
 
   return (
-    <View style={{ position: 'absolute', left: x - size / 2, top: y - size / 2, width: size, height: size, overflow: 'hidden', borderRadius: size / 2 }}>
-      <View style={[StyleSheet.absoluteFill, { borderRadius: size / 2, backgroundColor: 'rgba(214,208,245,0.92)' }]} />
-      <View style={{ position: 'absolute', left: offsetX, top: -3, width: size, height: size, borderRadius: size / 2, backgroundColor: shadowColor }} />
-    </View>
+    <Svg width={size} height={size} style={{ position: 'absolute', left: x - r, top: y - r }}>
+      <Defs>
+        <Mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={size} height={size}>
+          <Circle cx={r} cy={r} r={r} fill="#fff" />
+          <Circle cx={r + offset} cy={r - r * 0.16} r={r * 1.04} fill="#000" />
+        </Mask>
+      </Defs>
+      <Circle cx={r} cy={r} r={r} fill={MOON_COLOR} mask={`url(#${maskId})`} />
+    </Svg>
   );
 }
 
 function SunriseSun({ x, y }: { x: number; y: number }) {
   const r = 13;
   const pulse = useSlowPulse(4600);
-  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1.16] });
-  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
+  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.12] });
+  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
   return (
     <>
-      <Animated.View style={{ position: 'absolute', left: x - r - 20, top: y - r - 20, width: (r + 20) * 2, height: (r + 20) * 2, borderRadius: r + 20, backgroundColor: 'rgba(190, 115, 20, 0.22)', opacity: glowOpacity, transform: [{ scale: glowScale }] }} />
-      <Animated.View style={{ position: 'absolute', left: x - r - 8, top: y - r - 8, width: (r + 8) * 2, height: (r + 8) * 2, borderRadius: r + 8, backgroundColor: 'rgba(210, 135, 30, 0.18)', opacity: glowOpacity, transform: [{ scale: glowScale }] }} />
+      <CelestialGlow x={x} y={y} radius={38} color="#E0913C" opacity={glowOpacity} scale={glowScale} />
       <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: '#EFBE50' }} />
     </>
   );

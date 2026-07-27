@@ -148,6 +148,24 @@ export function useLocation() {
   // and a successful GPS read replaces it with their real location.
   const [location, setLocation] = useState<AppLocation | null>(DEFAULT_LOCATION);
   const [status, setStatus] = useState<LocationStatus>('idle');
+  // True once the AsyncStorage restore below has actually run — false for the
+  // brief window where `location` is still just the synchronous DEFAULT_LOCATION
+  // seed, not a confirmed answer. `location` itself stays seeded with the Mecca
+  // default the whole time (by design — see the comment above the state) so the
+  // UI always has something to render immediately; but callers with a *persistent*
+  // side effect (writing the iOS widget's App Group data, scheduling local
+  // notifications) must wait for `hasRestored` before acting, or a real saved
+  // city can get silently clobbered by a Mecca-based write if the app backgrounds
+  // in the narrow window before this effect resolves — this was a real, hard-to-
+  // reproduce bug ("sometimes I get Mecca/Medina times"): the widget-write effect
+  // in `AthanScreen` fires on every `location` change including this first
+  // Mecca-seeded render, and if the app closes before the *next* effect run
+  // (with the real restored location) corrects it, the widget is left showing
+  // Mecca's times until the next successful refresh — which, per
+  // `backgroundRefresh.ts`'s own doc comment, is best-effort and can be hours
+  // away. In-app display rendering off the seed is fine and intentional;
+  // persisted side effects reacting to it are not.
+  const [hasRestored, setHasRestored] = useState(false);
 
   // Restore the last known location immediately so the UI isn't blank on launch.
   useEffect(() => {
@@ -158,13 +176,27 @@ export function useLocation() {
           setLocation(JSON.parse(raw));
           setStatus('ready');
         }
+        // If the stored location was manual, respect it; otherwise refresh from
+        // GPS — but only silently, i.e. only when permission is *already*
+        // granted. Since the merged onboarding flow (src/components/onboarding)
+        // now renders the real tab screens (and therefore mounts every screen's
+        // own `useLocation()` instance) from app launch, this mount effect
+        // running unconditionally would call `refreshLocation()` ->
+        // `requestForegroundPermissionsAsync()` and pop the OS location dialog
+        // immediately, before onboarding's own priming step ever gets a chance
+        // to explain why first. Requesting for the first time must only ever
+        // happen from an explicit user action (onboarding's priming step, or
+        // manually tapping the location pill) — never a passive mount effect on
+        // an undetermined permission.
+        const stored: AppLocation | null = raw ? JSON.parse(raw) : null;
+        if (stored?.isManual) return;
+        const { status: permStatus } = await getLocationPermissionState();
+        if (permStatus === 'granted') await refreshLocation();
       } catch {
         // ignore
+      } finally {
+        setHasRestored(true);
       }
-      // If the stored location was manual, respect it; otherwise refresh from GPS.
-      const raw = await AsyncStorage.getItem(STORAGE_KEY).catch(() => null);
-      const stored: AppLocation | null = raw ? JSON.parse(raw) : null;
-      if (!stored?.isManual) refreshLocation();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -262,5 +294,5 @@ export function useLocation() {
     location?.city ??
     (status === 'denied' ? 'Location off' : status === 'loading' ? 'Locating' : 'Loading');
 
-  return { location, cityName, status, refreshLocation, setLocationByQuery, setLocationByPlace };
+  return { location, cityName, status, hasRestored, refreshLocation, setLocationByQuery, setLocationByPlace };
 }

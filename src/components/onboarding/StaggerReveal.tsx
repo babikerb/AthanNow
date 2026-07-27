@@ -14,7 +14,7 @@ interface Props {
 }
 
 /**
- * Onboarding's single entrance-motion primitive (plan §4.5): fade + translateY(16),
+ * Onboarding's single entrance-motion primitive: fade + translateY(16),
  * staggered ~90ms apart, `duration.slower` (600ms) for the first element decaying
  * to `duration.base` (220ms) for the last — mirrors bbabiker.com's `${i * 60}ms`
  * stagger pattern scaled up slightly for a full-screen context.

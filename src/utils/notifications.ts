@@ -35,13 +35,6 @@ export function configureNotificationHandler() {
   });
 }
 
-export async function requestNotificationPermission(): Promise<boolean> {
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status === 'granted') return true;
-  const req = await Notifications.requestPermissionsAsync();
-  return req.status === 'granted';
-}
-
 /** Result of an `expo-notifications` permission check or request, surfaced
  *  verbatim (not collapsed to a boolean) so callers can implement the
  *  three-state ask/granted/permanently-denied flow (plan §4.2a). */
@@ -117,12 +110,10 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
             );
           }
           // The athan itself, exactly at prayer time (with the adhan sound if enabled).
-          // Copy register matches the Settings footer's "Reminders are time
-          // sensitive..." line — short, plain, present-tense, no forced warmth.
           await schedule(
             {
               title: `${PRAYER_LABELS[key]}`,
-              body: `${PRAYER_LABELS[key]} time has begun.`,
+              body: `It's time to offer ${PRAYER_LABELS[key]} prayer.`,
               sound: notifications.athanSound ? 'adhan.wav' : undefined,
               interruptionLevel: 'timeSensitive',
             },

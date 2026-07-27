@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
@@ -9,9 +8,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookmarkSheet } from '../components/BookmarkSheet';
 import { MushafImageReader } from '../components/MushafImageReader';
+import { MushafTapHint } from '../components/MushafTapHint';
 import { SurahPickerSheet } from '../components/SurahPickerSheet';
 import { useImmersive } from '../context/ImmersiveContext';
-import { useOnboardingTarget } from '../context/OnboardingContext';
+import { useOnboarding, useOnboardingTarget } from '../context/OnboardingContext';
 import { useTheme } from '../context/ThemeContext';
 import { getSurah } from '../data/surahs';
 import { pageForSurah, surahForPage, TOTAL_PAGES } from '../data/surahPages';
@@ -23,6 +23,9 @@ import { shadow } from '../theme/shadow';
 import { fetchMushafPage, pageForVerse } from '../utils/mushaf';
 
 const LAST_PAGE_KEY = 'athannow.quran.lastpage.v1';
+// Same one-time-flag convention as the guided tour's `athan_tour_done_v1`
+// (OnboardingContext.tsx) — presence of any value means "never show again."
+const TAP_HINT_KEY = 'athannow.quran.taphint.v1';
 
 // Floating circle size — matches the header's GlassCircleButton (AppHeader.tsx,
 // CIRCLE = 44) so the immersive-mode bookmark/search controls read as the same
@@ -100,6 +103,36 @@ export default function QuranScreen() {
   const titleTarget = useOnboardingTarget('quran-title');
   const bookmarkTarget = useOnboardingTarget('quran-bookmark');
 
+  // First-run tap hint: the tap-to-hide-controls gesture has no visible
+  // affordance otherwise. Shown once, gated on the persisted flag above.
+  // Suppressed while the guided tour is running — the tour's own
+  // `quran-title` step already spells out this exact gesture in its body
+  // copy, so showing both at once would be redundant clutter on top of the
+  // tour's dimmed overlay.
+  const { active: tourActive } = useOnboarding();
+  const [showTapHint, setShowTapHint] = useState(false);
+  useEffect(() => {
+    if (!restored || tourActive) return;
+    let cancelled = false;
+    AsyncStorage.getItem(TAP_HINT_KEY)
+      .then((seen) => {
+        if (cancelled || seen) return;
+        // Small delay so it doesn't flash in before the page image has settled.
+        setTimeout(() => !cancelled && setShowTapHint(true), 550);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [restored, tourActive]);
+
+  // Marks the hint permanently seen — called both when its own auto-hide
+  // timer elapses and immediately on the user's first real tap.
+  const markTapHintSeen = useCallback(() => {
+    setShowTapHint(false);
+    AsyncStorage.setItem(TAP_HINT_KEY, '1').catch(() => {});
+  }, []);
+
   useEffect(() => {
     setTabBarHidden(immersive);
     Animated.timing(chrome, {
@@ -132,6 +165,10 @@ export default function QuranScreen() {
     if (Date.now() - t < 250 && moved < 12) {
       Haptics.selectionAsync();
       setImmersive((v) => !v);
+      // The user just demonstrated they know the gesture — retire the hint
+      // immediately (idempotent if it was already hidden/seen).
+      setShowTapHint(false);
+      AsyncStorage.setItem(TAP_HINT_KEY, '1').catch(() => {});
     }
   }, []);
 
@@ -284,6 +321,8 @@ export default function QuranScreen() {
         </GlassCircle>
       </Animated.View>
 
+      <MushafTapHint visible={showTapHint} colors={colors} onHidden={markTapHintSeen} />
+
       <SurahPickerSheet
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
@@ -303,19 +342,29 @@ export default function QuranScreen() {
   );
 }
 
-function GlassCircle({ scheme, colors, children }: { scheme: 'light' | 'dark'; colors: any; children: React.ReactNode }) {
+// Matches AppHeader's flat tinted-surface treatment exactly (see that file's
+// header-redesign notes) — one elevation language app-wide instead of a
+// second, unrelated glass material just for this screen's floating controls.
+const CIRCLE_FILL: Record<'light' | 'dark', string> = {
+  dark: 'rgba(255,255,255,0.10)',
+  light: 'rgba(17,17,19,0.05)',
+};
+const CIRCLE_BORDER: Record<'light' | 'dark', string> = {
+  dark: 'rgba(255,255,255,0.16)',
+  light: 'rgba(17,17,19,0.10)',
+};
+
+function GlassCircle({ scheme, children }: { scheme: 'light' | 'dark'; colors: any; children: React.ReactNode }) {
   // The shadow lives on this outer, non-clipping wrapper — a shadow and
   // `overflow: 'hidden'` on the same node clip each other away on iOS, so the
-  // circle's own rounded-corner clipping has to happen on an inner node.
+  // circle's own rounded-corner clipping has to happen on an inner node. Kept
+  // (unlike the header, which is flat everywhere) because these controls float
+  // over unpredictable photographic page-image content, not flat app chrome.
   return (
     <View style={styles.circleShadow}>
-      {isLiquidGlassSupported ? (
-        <LiquidGlassView interactive colorScheme={scheme} style={styles.circle}>
-          {children}
-        </LiquidGlassView>
-      ) : (
-        <View style={[styles.circle, styles.circleFallback, { borderColor: colors.separator }]}>{children}</View>
-      )}
+      <View style={[styles.circle, { backgroundColor: CIRCLE_FILL[scheme], borderColor: CIRCLE_BORDER[scheme], borderWidth: StyleSheet.hairlineWidth }]}>
+        {children}
+      </View>
     </View>
   );
 }
@@ -345,7 +394,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  circleFallback: { backgroundColor: 'rgba(127,127,127,0.12)', borderWidth: StyleSheet.hairlineWidth },
   circleHit: { width: CIRCLE, height: CIRCLE, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 40 },
 });

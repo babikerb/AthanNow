@@ -5,7 +5,6 @@ import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Linking,
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,7 +27,6 @@ import { useTheme } from '../context/ThemeContext';
 import { useLocation } from '../hooks/useLocation';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
-import { OnboardingFlow } from './onboarding/OnboardingFlow';
 import { ACCENT, ERROR } from '../theme/colors';
 import { iconSize } from '../theme/icons';
 import { PRESSED_OPACITY } from '../theme/motion';
@@ -69,7 +67,6 @@ export default function SettingsScreen() {
   useFocusedStatusBar(scheme === 'dark' ? 'light' : 'dark');
   const [methodSheetOpen, setMethodSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
-  const [replayOpen, setReplayOpen] = useState(false);
 
   const tap = () => Haptics.selectionAsync();
 
@@ -268,26 +265,22 @@ export default function SettingsScreen() {
             }}
             colors={colors}
           />
-          {/* Replaces "Reset all data" as the only way to re-see onboarding
-              (plan §4.3) — Reset stays for its actual purpose (wiping data),
-              decoupled from tour replay. */}
-          <NavRow
-            icon="sparkles"
-            label="Show product tour again"
-            value=""
-            onPress={() => {
-              tap();
-              onboarding.start();
-            }}
-            colors={colors}
-          />
+          {/* Replaces "Reset all data" as the only way to re-see onboarding —
+              Reset stays for its actual purpose (wiping data), decoupled
+              from replaying the walkthrough. The merged onboarding flow
+              (`OnboardingOverlay`, always mounted inside `MainTabs`) is a
+              single entry point now, so this is a single row too — it used
+              to be two ("Show product tour again" for the coach-mark pass,
+              "Replay welcome tour" for the six-screen flow) because those
+              were genuinely two separate systems; now `start('replay')`
+              re-activates the one combined experience end to end. */}
           <NavRow
             icon="arrow.clockwise"
-            label="Replay welcome tour"
+            label="Replay onboarding"
             value=""
             onPress={() => {
               tap();
-              setReplayOpen(true);
+              onboarding.start('replay');
             }}
             colors={colors}
             last={!versionLabel}
@@ -303,19 +296,6 @@ export default function SettingsScreen() {
 
         <View style={{ height: 40 }} />
       </View>
-
-      {/* Non-destructive replay of the six-screen welcome flow (plan §4.3) —
-          does not touch `onboardingComplete` or re-fire OS permission
-          prompts that are already granted; screens 2/4 run the same
-          three-state permission check on every visit. */}
-      <Modal
-        visible={replayOpen}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setReplayOpen(false)}
-      >
-        <OnboardingFlow mode="replay" onRequestClose={() => setReplayOpen(false)} />
-      </Modal>
 
       {/* Calculation method picker sheet — grouped into "Recommended for your
           region" (computed from the location the app already has, falling

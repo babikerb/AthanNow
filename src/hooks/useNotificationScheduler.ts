@@ -4,7 +4,7 @@ import { Settings, SettingsContextValue } from '../context/SettingsContext';
 import { AppLocation } from './useLocation';
 import {
   cancelAllNotifications,
-  requestNotificationPermission,
+  getNotificationPermissionState,
   rescheduleNotifications,
 } from '../utils/notifications';
 
@@ -47,8 +47,13 @@ export function useNotificationScheduler(location: AppLocation | null, settings:
           await cancelAllNotifications();
           return;
         }
-        const granted = await requestNotificationPermission();
-        if (!granted) return;
+        // Check-only, never prompt from here: with the merged onboarding flow
+        // rendering the real tab screens (and this hook) from app launch, a
+        // prompting call here would pop the OS notification dialog before
+        // onboarding's own priming step runs. Requesting must only happen from
+        // that explicit priming step; this effect just schedules once granted.
+        const { status } = await getNotificationPermissionState();
+        if (status !== 'granted') return;
         await rescheduleNotifications(location, settings);
       })
       .catch(() => {});
