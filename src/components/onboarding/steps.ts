@@ -49,7 +49,7 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
     kind: 'info',
     tab: 'Quran',
     title: 'Read the Quran',
-    body: "Tap to browse surahs or search by name, page, or verse. Tap the page itself to hide the controls for a distraction free read. Bookmark your place with a tap, then press and hold the bookmark icon to see everything you've saved.",
+    body: "Tap Search to browse surahs or look up a verse, page, or even an English word. Tap the bookmark icon to save your place, and tap Bookmarks any time to see everything you've saved.",
   },
   {
     kind: 'info',
