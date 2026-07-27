@@ -24,7 +24,7 @@ configureNotificationHandler();
 // Screens
 import AthanScreen from './src/screens/AthanScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
-import OnboardingScreen from './src/screens/OnboardingScreen';
+import { OnboardingFlow } from './src/screens/onboarding/OnboardingFlow';
 import QiblaScreen from './src/screens/QiblaScreen';
 import QuranScreen from './src/screens/QuranScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -94,11 +94,25 @@ function MainTabs() {
 
 function Root() {
   const { ready, onboardingComplete } = useSettings();
-  const [fontsLoaded] = useFonts({ AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf') });
+  const [fontsLoaded] = useFonts({
+    AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf'),
+    // TODO(fonts): install `@expo-google-fonts/fraunces` (or add a static
+    // Fraunces-SemiBold.ttf to assets/fonts) and uncomment the two lines
+    // below to load the second headline typeface used by `type.hero` (see
+    // src/theme/typography.ts's HEADLINE_FONT_FAMILY). Reserved for exactly
+    // three moments: the onboarding wordmark, the Athan countdown, and the
+    // Qibla degree readout. Until this is wired, `fontFamily:
+    // 'Fraunces-SemiBold'` silently falls back to the system font at its
+    // numeric fontWeight (800) — correct default RN behavior, so nothing
+    // else needs to change once this is uncommented.
+    //
+    // import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+    // ...then add: 'Fraunces-SemiBold': Fraunces_600SemiBold,
+  });
 
   // Hold on a neutral surface until persisted settings + the mushaf font load.
   if (!ready || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#0B0B0D' }} />;
-  if (!onboardingComplete) return <OnboardingScreen />;
+  if (!onboardingComplete) return <OnboardingFlow mode="initial" />;
   return <MainTabs />;
 }
 

@@ -17,7 +17,25 @@ export type Palette = {
   surfaceElevated: string;
   textPrimary: string;
   textSecondary: string;
+  /**
+   * @deprecated Fails AA contrast (4.5:1) in both themes against every
+   * background it's paired with (light ~2.40-2.47:1, dark ~3.27-3.30:1).
+   * Do not use for new real-text call sites — use `textSecondary` for
+   * de-emphasized real text, or `textQuaternary` for decorative-only
+   * glyphs. Existing real-text usages are being migrated off this field in
+   * a later pass; it stays defined until that migration is complete.
+   */
   textTertiary: string;
+  /**
+   * Decorative glyphs only — e.g. a disclosure chevron sitting right next to
+   * the value it's pointing at — never real `<Text>` content. Same alpha
+   * value as the legacy `textTertiary` (0.38 light / 0.36 dark), which fails
+   * AA for body text; that's acceptable here specifically because these
+   * pixels don't carry information on their own (the adjacent text/value
+   * does). If you're tempted to put a string in this color, use
+   * `textSecondary` instead.
+   */
+  textQuaternary: string;
   separator: string;
   accent: string;
 };
@@ -30,6 +48,7 @@ export const lightPalette: Palette = {
   textPrimary: '#111113',
   textSecondary: 'rgba(17, 17, 19, 0.60)',
   textTertiary: 'rgba(17, 17, 19, 0.38)',
+  textQuaternary: 'rgba(17, 17, 19, 0.38)',
   separator: 'rgba(17, 17, 19, 0.10)',
   accent: ACCENT,
 };
@@ -42,9 +61,56 @@ export const darkPalette: Palette = {
   textPrimary: '#FFFFFF',
   textSecondary: 'rgba(255, 255, 255, 0.62)',
   textTertiary: 'rgba(255, 255, 255, 0.36)',
+  textQuaternary: 'rgba(255, 255, 255, 0.36)',
   separator: 'rgba(255, 255, 255, 0.10)',
   accent: ACCENT,
 };
+
+// Explicit, documented exception: these three surfaces intentionally ignore
+// the light/dark theme system because they are "always night sky" / "always
+// instrument panel" interfaces by product design, not an oversight. Every
+// permanently-dark surface in the app (Athan, Onboarding, Qibla) must
+// reference this single constant — no screen may hardcode its own near-black.
+export const NIGHT_BG = '#070d18';
+
+// Shared state colors, previously duplicated ad hoc per screen (Qibla's
+// "aligned" green, Settings'/LocationSheet's destructive/error red).
+export const STATE_SUCCESS = '#34C759';
+export const ERROR = '#E5484D';
+
+/**
+ * Sky-text tokens — verified against the *scrimmed* Dhuhr sky background
+ * specifically (the binding worst case across all prayer gradients, once
+ * `AmbientGradient`'s scrim is applied). Replaces the three unrelated ad hoc
+ * translucent-white values previously hand-picked per label on the Athan
+ * screen (subline 0.55, hijri 0.38, past-row 0.32) with two fixed tokens.
+ */
+export const skyTextPrimary = '#FFFFFF';
+export const skyTextSecondary = 'rgba(255,255,255,0.82)';
+
+/**
+ * Reading-surface palette for the Quran mushaf reader — a deliberate product
+ * decision (a reading surface should feel like paper/e-ink, not the app
+ * chrome), kept distinct from the light/dark `Palette` above by design, not
+ * by accident. Named and exported here so there is one place to edit it
+ * instead of it being buried inline in a screen file.
+ */
+export const readingPalette = {
+  dark: {
+    background: '#0F0F10',
+    surface: '#0F0F10',
+    textPrimary: '#ECECEC',
+    textSecondary: 'rgba(255,255,255,0.6)',
+    textTertiary: 'rgba(255,255,255,0.4)',
+  },
+  light: {
+    background: '#F7F3EA',
+    surface: '#F7F3EA',
+    textPrimary: '#1B1B1B',
+    textSecondary: 'rgba(0,0,0,0.6)',
+    textTertiary: 'rgba(0,0,0,0.42)',
+  },
+} as const;
 
 /**
  * Atmospheric gradients keyed to each prayer stage (ported from Jamaa).

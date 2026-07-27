@@ -24,7 +24,18 @@ import { useLocation } from '../hooks/useLocation';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
-import { blendGradients, gradientShiftMinutes, prayerStatusBarLight } from '../theme/colors';
+import {
+  blendGradients,
+  gradientShiftMinutes,
+  prayerStatusBarLight,
+  skyTextPrimary,
+  skyTextSecondary,
+} from '../theme/colors';
+import { iconSize } from '../theme/icons';
+import { PRESSED_OPACITY } from '../theme/motion';
+import { radii } from '../theme/radii';
+import { spacing } from '../theme/spacing';
+import { HEADLINE_FONT_FAMILY, type } from '../theme/typography';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
@@ -121,12 +132,35 @@ export default function AthanScreen() {
     return blendGradients(cur, nextCols, skyProgress);
   }, [prayerData, prayerGradients, skyProgress]);
 
+  // Darkening scrim under the hero text (plan §1.5): Dhuhr's gradient (`#8eb2c4`)
+  // is far lighter than every other stage's, so it alone needs a strong scrim to
+  // keep white hero text at AA contrast; every other stage is already dark enough
+  // that a flat, mild scrim suffices.
+  const scrimBottomOpacity = prayerData?.currentPrayer === 'dhuhr' ? 0.35 : 0.15;
+
+  // Countdown accessibility label, rounded to the minute (not raw seconds) so
+  // VoiceOver doesn't get a per-second announcement storm from the 1s countdown
+  // re-render. `minutesToNext` is plain arithmetic re-evaluated every render, but
+  // the label string itself is only recomputed when the rounded minute value (or
+  // the next-prayer name) actually changes.
+  const minutesToNext = prayerData
+    ? Math.max(0, Math.round((prayerData.nextPrayerTime.getTime() - currentTime.getTime()) / 60000))
+    : 0;
+  const countdownLabel = useMemo(() => {
+    if (!prayerData) return '';
+    const h = Math.floor(minutesToNext / 60);
+    const m = minutesToNext % 60;
+    const hourPart = h > 0 ? `${h} hour${h === 1 ? '' : 's'} ` : '';
+    return `${hourPart}${m} minute${m === 1 ? '' : 's'} until ${prayerData.nextPrayer}`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minutesToNext, prayerData?.nextPrayer]);
+
   if (!prayerData) {
     return (
       <View style={[styles.container, styles.centered]}>
         <AmbientGradient colors={prayerGradients.isha} />
         <Text style={{ color: 'rgba(255,255,255,0.6)' }}>Syncing prayer times</Text>
-        <TouchableOpacity style={styles.retryPill} onPress={openLocation} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.retryPill} onPress={openLocation} activeOpacity={PRESSED_OPACITY}>
           <Text style={styles.retryText}>Set location</Text>
         </TouchableOpacity>
         {locationSheet}
@@ -140,7 +174,7 @@ export default function AthanScreen() {
 
   return (
     <View style={styles.container}>
-      <AmbientGradient colors={skyColors} />
+      <AmbientGradient colors={skyColors} scrimBottomOpacity={scrimBottomOpacity} />
       {/* Start the celestial arc below the glass header pill so the sun/moon
           never renders behind it (header ≈ inset + 58pt tall). */}
       <SkyScene
@@ -153,10 +187,17 @@ export default function AthanScreen() {
       {/* --- HEADER (location pill) — clears the Dynamic Island --- */}
       <View ref={locTarget.ref} onLayout={locTarget.onLayout} collapsable={false}>
         <HeaderBar>
-          <GlassPill flex onPress={openLocation}>
-            <SymbolView name="location.fill" size={12} tintColor="rgba(255,255,255,0.9)" />
+          <GlassPill
+            flex
+            onPress={openLocation}
+            accessibilityLabel={`Location, ${cityName}, double tap to change`}
+          >
+            <SymbolView name="location.fill" size={iconSize.xs} tintColor="rgba(255,255,255,0.9)" />
             <Text style={styles.locationText} numberOfLines={1}>{cityName}</Text>
-            <SymbolView name="chevron.down" size={10} tintColor="rgba(255,255,255,0.6)" />
+            {/* Bumped from a near-invisible 10px/0.6-opacity chevron (plan §3.3): this is
+                the only affordance that the pill is tappable, and wrong city = every time
+                on screen is wrong, so it needs to read clearly, not just technically exist. */}
+            <SymbolView name="chevron.down" size={iconSize.sm} tintColor="rgba(255,255,255,0.85)" />
           </GlassPill>
         </HeaderBar>
       </View>
@@ -171,7 +212,9 @@ export default function AthanScreen() {
             <Text style={styles.heroPrayerName}>{displayPrayer.toUpperCase()}</Text>
             <Text style={styles.heroArabicAccent}>{celestial.arabicName}</Text>
           </View>
-          <Text style={styles.countdownText}>{formatCountdown(currentTime, nextPrayerTime)}</Text>
+          <Text style={styles.countdownText} accessibilityLabel={countdownLabel}>
+            {formatCountdown(currentTime, nextPrayerTime)}
+          </Text>
           <Text style={styles.sublineText}>
             until · {nextPrayer} {formatClock(nextPrayerTime, use24Hour, tz)}
           </Text>
@@ -190,7 +233,17 @@ export default function AthanScreen() {
 
             return (
               <View key={row.id} style={styles.row}>
-                <Text style={[styles.rowLabel, rowStyle]}>{row.label}</Text>
+                <View style={styles.rowLabelWrap}>
+                  {isPast && (
+                    <SymbolView
+                      name="checkmark"
+                      size={iconSize.xs}
+                      tintColor={skyTextSecondary}
+                      style={styles.pastCheckmark}
+                    />
+                  )}
+                  <Text style={[styles.rowLabel, rowStyle]}>{row.label}</Text>
+                </View>
                 <Text style={[styles.rowTime, rowStyle]}>{formatClock(row.time, use24Hour, tz)}</Text>
               </View>
             );
@@ -222,37 +275,48 @@ const styles = StyleSheet.create({
   centered: { justifyContent: 'center', alignItems: 'center', gap: 16 },
   retryPill: {
     backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 20,
+    // paddingHorizontal 18 doesn't land exactly on the spacing grid; kept as
+    // token +/- 2 rather than snapping to a token that would visibly tighten
+    // or loosen the pill (same precedent as AppHeader.tsx's `bar` style).
+    paddingHorizontal: spacing.md + 2,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.lg,
   },
   retryText: { color: '#FFF', fontSize: 14, fontWeight: '600' },
   locationText: { color: '#FFF', fontSize: 13, fontWeight: '500', letterSpacing: 0.3, flexShrink: 1 },
-  skyStrip: { width: '100%', position: 'relative', overflow: 'hidden' },
-  celestialBody: { position: 'absolute', width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
-  heroContainer: { alignItems: 'center', marginTop: -10 },
-  heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12 },
-  heroPrayerName: { color: '#FFF', fontSize: 20, fontWeight: '500', letterSpacing: 0.5 },
+  // marginTop -10 sits exactly between the xs (8) and sm (12) tokens and
+  // doesn't land cleanly on either; kept as token +/- 2 rather than snapping
+  // to a value that would visibly shift the hero block (same precedent as
+  // AppHeader.tsx's `bar` style).
+  heroContainer: { alignItems: 'center', marginTop: -(spacing.sm - 2) },
+  heroRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm },
+  heroPrayerName: { color: skyTextPrimary, ...type.title3 } as TextStyle,
   heroArabicAccent: { fontSize: 16, color: 'rgba(255, 255, 255, 0.7)', fontWeight: '400' },
-  countdownText: { color: '#FFF', fontSize: 44, fontWeight: '700', letterSpacing: -0.5, marginVertical: 4 },
-  sublineText: { color: 'rgba(255, 255, 255, 0.55)', fontSize: 12 },
-  listContainer: { paddingHorizontal: 32, maxHeight: SCREEN_HEIGHT * 0.4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
-  rowLabel: { fontSize: 15, letterSpacing: 0.2 },
-  rowTime: { fontSize: 15, fontVariant: ['tabular-nums'] },
+  // Countdown is one of the three reserved Fraunces-SemiBold headline moments
+  // app-wide (plan §1.1) — a numeric hero moment, not a generic large number.
+  countdownText: {
+    color: skyTextPrimary,
+    ...type.hero,
+    fontFamily: HEADLINE_FONT_FAMILY,
+    marginVertical: spacing.xxs,
+  } as TextStyle,
+  sublineText: { color: skyTextSecondary, ...type.caption } as TextStyle,
+  listContainer: { paddingHorizontal: spacing.xxl, maxHeight: SCREEN_HEIGHT * 0.4 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm },
+  rowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxs },
+  pastCheckmark: { marginTop: 1 },
+  rowLabel: { ...type.body } as TextStyle,
+  rowTime: { ...type.body, fontVariant: ['tabular-nums'] } as TextStyle,
   currentRowText: { color: '#FFF', fontWeight: '700' },
   futureRowText: { color: '#FFF', fontWeight: '400' },
-  pastRowText: { color: '#FFF', opacity: 0.32 },
-  pastSunriseRowText: { color: '#FFF', opacity: 0.32, fontStyle: 'italic' },
-  dateContainer: { alignItems: 'center', marginBottom: 16, gap: 3 },
+  // Past rows are conveyed by color AND the leading checkmark glyph above (§2.5:
+  // never state-by-color/opacity-alone) rather than by a degraded opacity.
+  pastRowText: { color: skyTextSecondary },
+  pastSunriseRowText: { color: skyTextSecondary, fontStyle: 'italic' },
+  // gap 3 doesn't land exactly on the spacing grid; kept as token - 1 rather
+  // than snapping to xxs (4), which would visibly loosen this tight date
+  // stack (same precedent as AppHeader.tsx's `bar` style).
+  dateContainer: { alignItems: 'center', marginBottom: spacing.md, gap: spacing.xxs - 1 },
   gregorianText: { color: 'rgba(255, 255, 255, 0.65)', fontSize: 13, marginBottom: 2 },
-  hijriText: { color: 'rgba(255, 255, 255, 0.38)', fontSize: 12 },
-  debugPill: {
-    marginTop: 8,
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  debugText: { color: 'rgba(255,255,255,0.3)', fontSize: 10, fontWeight: '500' },
+  hijriText: { color: skyTextSecondary, ...type.caption } as TextStyle,
 });

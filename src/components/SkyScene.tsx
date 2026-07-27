@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 
+import { useReducedMotion } from '../hooks/useReducedMotion';
+
 const { width: W, height: H } = Dimensions.get('screen');
 
 type Period = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
@@ -75,8 +77,16 @@ const ISHA_STARS: StarDef[] = [
 const STARS_FOR: Partial<Record<Period, StarDef[]>> = { fajr: FAJR_STARS, maghrib: MAGHRIB_STARS, isha: ISHA_STARS };
 
 function TwinklingStarField({ stars }: { stars: StarDef[] }) {
+  const reducedMotion = useReducedMotion();
   const anims = useRef(stars.map((s) => new Animated.Value(s.op))).current;
   useEffect(() => {
+    if (reducedMotion) {
+      // Settle every star at a fixed mid-brightness between its twinkle trough
+      // (op * 0.1) and peak (op) — still visible and not animating, rather
+      // than fully off or looking broken/dimmed.
+      anims.forEach((anim, i) => anim.setValue(stars[i].op * 0.55));
+      return;
+    }
     const handles = anims.map((anim, i) => {
       const half = 900 + ((i * 373) % 1300);
       const loop = Animated.loop(
@@ -89,7 +99,7 @@ function TwinklingStarField({ stars }: { stars: StarDef[] }) {
       return { loop, t };
     });
     return () => handles.forEach(({ loop, t }) => { clearTimeout(t); loop.stop(); });
-  }, [anims, stars]);
+  }, [anims, stars, reducedMotion]);
 
   return (
     <>
@@ -108,8 +118,15 @@ const RAY_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
  * deliberately slow (several seconds) so the sky feels alive, not busy.
  */
 function useSlowPulse(half: number) {
+  const reducedMotion = useReducedMotion();
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (reducedMotion) {
+      // Settle at the peak (not the trough) so the glow reads as steady-and-lit
+      // rather than dimmed/broken when motion is reduced.
+      v.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(v, { toValue: 1, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
@@ -118,7 +135,7 @@ function useSlowPulse(half: number) {
     );
     loop.start();
     return () => loop.stop();
-  }, [v, half]);
+  }, [v, half, reducedMotion]);
   return v;
 }
 

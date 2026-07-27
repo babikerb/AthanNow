@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, useWindowDimensions, View, ViewToken } from 'react-native';
 
 import { getSurah } from '../data/surahs';
@@ -60,12 +60,12 @@ function PageImage({ page, imgWidth, imgHeight, colors, dark, resize }: { page: 
       />
       {state === 'loading' && (
         <View style={styles.overlay} pointerEvents="none">
-          <ActivityIndicator color={colors.textTertiary} />
+          <ActivityIndicator color={colors.textQuaternary} />
         </View>
       )}
       {state === 'error' && (
         <View style={styles.overlay}>
-          <SymbolView name="wifi.slash" size={30} tintColor={colors.textTertiary} />
+          <SymbolView name="wifi.slash" size={30} tintColor={colors.textQuaternary} />
           <Text style={[styles.msg, { color: colors.textSecondary }]}>Couldn't load page {page}.</Text>
           <Pressable onPress={() => setState('loading')} style={[styles.retry, { borderColor: colors.separator }]}>
             <Text style={[styles.retryText, { color: colors.textPrimary }]}>Retry</Text>
@@ -128,17 +128,17 @@ function MushafPage({
 
         {/* Top margin: surah · juz */}
         <View style={styles.topBar} pointerEvents="none">
-          <Text style={[styles.cornerText, styles.cornerLeft, { color: colors.textTertiary }]} numberOfLines={1}>
+          <Text style={[styles.cornerText, styles.cornerLeft, { color: colors.textSecondary }]} numberOfLines={1}>
             {surah}
           </Text>
-          <Text style={[styles.cornerText, styles.cornerRight, { color: colors.textTertiary }]} numberOfLines={1}>
+          <Text style={[styles.cornerText, styles.cornerRight, { color: colors.textSecondary }]} numberOfLines={1}>
             Juz {juz}
           </Text>
         </View>
 
         {/* Bottom margin: hizb quarter · page-number pill */}
         <View style={styles.bottomBar} pointerEvents="none">
-          <Text style={[styles.cornerText, styles.cornerLeft, { color: colors.textTertiary }]} numberOfLines={1}>
+          <Text style={[styles.cornerText, styles.cornerLeft, { color: colors.textSecondary }]} numberOfLines={1}>
             {meta ? `${meta.quarter}/4` : ''}
           </Text>
           <View style={[styles.pagePill, { borderColor: colors.separator }]}>
@@ -176,7 +176,7 @@ export function MushafImageReader({ initialPage, topInset, bottomInset, colors, 
       <View>
         <PageImage page={item} imgWidth={width} imgHeight={imgH} colors={colors} dark={dark} resize="contain" />
         <View style={[styles.caption, { borderTopColor: colors.separator }]}>
-          <Text style={[styles.captionText, { color: colors.textTertiary }]} numberOfLines={1}>
+          <Text style={[styles.captionText, { color: colors.textSecondary }]} numberOfLines={1}>
             {pageLabel(item)}   ·   {item}
           </Text>
         </View>

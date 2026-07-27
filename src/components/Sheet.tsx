@@ -1,15 +1,17 @@
 import React from 'react';
 import {
   Modal,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SymbolView } from 'expo-symbols';
 
+import { IconButton } from './IconButton';
 import { useTheme } from '../context/ThemeContext';
+import { iconSize } from '../theme/icons';
+import { spacing } from '../theme/spacing';
+import { type } from '../theme/typography';
 
 interface SheetProps {
   visible: boolean;
@@ -45,13 +47,14 @@ export function Sheet({ visible, onClose, title, headerRight, children }: SheetP
           </Text>
           <View style={styles.headerRight}>
             {headerRight}
-            <Pressable onPress={onClose} hitSlop={12} style={styles.closeButton}>
-              <SymbolView
-                name="xmark.circle.fill"
-                size={28}
-                tintColor={colors.textTertiary}
-              />
-            </Pressable>
+            <IconButton
+              name="xmark.circle.fill"
+              onPress={onClose}
+              accessibilityLabel="Close"
+              size={iconSize.xl}
+              tintColor={colors.textQuaternary}
+              style={styles.closeButton}
+            />
           </View>
         </View>
         <View style={styles.body}>{children}</View>
@@ -62,18 +65,21 @@ export function Sheet({ visible, onClose, title, headerRight, children }: SheetP
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  grabberWrap: { alignItems: 'center', paddingTop: 8 },
+  grabberWrap: { alignItems: 'center', paddingTop: spacing.xs },
   grabber: { width: 36, height: 5, borderRadius: 3 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.lg,
+    // 10 sits exactly between the xs/sm tokens; kept as-is rather than
+    // visibly tightening or loosening this header row.
     paddingTop: 10,
-    paddingBottom: 12,
+    paddingBottom: spacing.sm,
   },
-  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.4, flex: 1 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  closeButton: { marginLeft: 4 },
+  // Sheet titles collapse into `type.title2` (was 26/800/-0.4, title2 is 24/800/-0.4).
+  title: { ...type.title2, flex: 1 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  closeButton: { marginLeft: spacing.xxs },
   body: { flex: 1 },
 });

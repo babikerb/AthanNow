@@ -4,13 +4,16 @@ import { PrayerKey, Settings } from '../context/SettingsContext';
 import { getPrayerTimes } from './prayerEngine';
 
 /** How many days ahead to schedule. Prayer times shift daily, so we use exact
- *  DATE triggers and refresh this window whenever the app opens or settings change. */
-const DAYS_AHEAD = 7;
+ *  DATE triggers and refresh this window whenever the app opens or settings change.
+ *  Exported so Settings' notification-transparency footer (plan §3.7) can state
+ *  the real scheduling window instead of a hardcoded guess. */
+export const DAYS_AHEAD = 7;
 
 /** iOS keeps at most 64 pending local notifications and silently drops the rest.
  *  We schedule chronologically and stop before that ceiling so the SOONEST
- *  prayers always get both their reminder and their athan. */
-const MAX_PENDING = 60;
+ *  prayers always get both their reminder and their athan. Exported for the
+ *  same reason as `DAYS_AHEAD` above. */
+export const MAX_PENDING = 60;
 
 const PRAYER_LABELS: Record<PrayerKey, string> = {
   fajr: 'Fajr',
@@ -37,6 +40,27 @@ export async function requestNotificationPermission(): Promise<boolean> {
   if (status === 'granted') return true;
   const req = await Notifications.requestPermissionsAsync();
   return req.status === 'granted';
+}
+
+/** Result of an `expo-notifications` permission check or request, surfaced
+ *  verbatim (not collapsed to a boolean) so callers can implement the
+ *  three-state ask/granted/permanently-denied flow (plan §4.2a). */
+export interface NotificationPermissionState {
+  status: Notifications.PermissionStatus;
+  canAskAgain: boolean;
+}
+
+/** Checks the current notification permission without prompting. */
+export async function getNotificationPermissionState(): Promise<NotificationPermissionState> {
+  const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+  return { status, canAskAgain };
+}
+
+/** Prompts for notification permission (shows the OS dialog only when the
+ *  permission hasn't been permanently denied) and returns the result. */
+export async function requestNotificationPermissionState(): Promise<NotificationPermissionState> {
+  const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
+  return { status, canAskAgain };
 }
 
 interface Coords {
@@ -93,10 +117,12 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
             );
           }
           // The athan itself, exactly at prayer time (with the adhan sound if enabled).
+          // Copy register matches the Settings footer's "Reminders are time
+          // sensitive..." line — short, plain, present-tense, no forced warmth.
           await schedule(
             {
               title: `${PRAYER_LABELS[key]}`,
-              body: `It's time for ${PRAYER_LABELS[key]} prayer.`,
+              body: `${PRAYER_LABELS[key]} time has begun.`,
               sound: notifications.athanSound ? 'adhan.wav' : undefined,
               interruptionLevel: 'timeSensitive',
             },
@@ -113,7 +139,7 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
             );
           }
           await schedule(
-            { title: 'Sunrise', body: 'The sun has risen. Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
+            { title: 'Sunrise', body: 'Sunrise has begun — Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
             time,
           );
         }

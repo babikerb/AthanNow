@@ -8,9 +8,9 @@ import { useOnboardingTarget } from '../context/OnboardingContext';
 import { useLocation } from '../hooks/useLocation';
 import { useQibla } from '../hooks/useQibla';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
-import { ACCENT } from '../theme/colors';
+import { ACCENT, ERROR, NIGHT_BG } from '../theme/colors';
+import { HEADLINE_FONT_FAMILY, type } from '../theme/typography';
 
-const BG = '#000000';
 const ALIGNED = '#34C759';
 const NORTH = '#FF453A';
 
@@ -229,7 +229,10 @@ export default function QiblaScreen() {
 
             <View style={styles.infoBlock}>
               {error ? (
-                <Text style={styles.errorText}>Enable location to find the Qibla direction</Text>
+                <View style={styles.errorState}>
+                  <SymbolView name="location.slash" size={40} tintColor={ERROR} />
+                  <Text style={styles.errorText}>Enable location to find the Qibla direction</Text>
+                </View>
               ) : compassUnavailable ? (
                 <Text style={styles.calibrateText}>
                   Compass isn’t available on this device.{'\n'}Point the top of the device North — the Qibla is {qibla.toleranceDeg >= 30 ? 'any direction here' : `${toCardinal(qibla.qiblaBearing)}, ${Math.round(qibla.qiblaBearing)}° from North`}.
@@ -239,7 +242,14 @@ export default function QiblaScreen() {
               ) : qibla.toleranceDeg >= 30 ? (
                 <Text style={styles.calibrateText}>Every direction faces the Qibla here</Text>
               ) : (
-                !!cityName && <Text style={styles.cityText}>{cityName}</Text>
+                !!cityName && (
+                  <>
+                    <Text style={styles.cityText}>{cityName}</Text>
+                    {qibla.hasLocation && (
+                      <Text style={styles.distanceText}>{qibla.distanceKm.toLocaleString()} km to the Kaaba</Text>
+                    )}
+                  </>
+                )
               )}
             </View>
           </>
@@ -250,7 +260,7 @@ export default function QiblaScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: BG },
+  container: { flex: 1, backgroundColor: NIGHT_BG },
   body: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 44 },
 
   dialWrap: { width: DIAL + 24, height: DIAL + 24, alignItems: 'center', justifyContent: 'center' },
@@ -295,11 +305,13 @@ const styles = StyleSheet.create({
   },
   kaabaImg: { width: 22, height: 22, tintColor: '#FFFFFF' },
   readout: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  readoutDeg: { color: '#FFFFFF', fontSize: 52, fontWeight: '200', letterSpacing: -1.5, fontVariant: ['tabular-nums'] },
+  readoutDeg: { ...type.hero, color: '#FFFFFF', fontFamily: HEADLINE_FONT_FAMILY, fontVariant: ['tabular-nums'] },
   readoutCard: { color: 'rgba(255,255,255,0.5)', fontSize: 17, fontWeight: '500', letterSpacing: 3, marginTop: -2 },
 
   infoBlock: { alignItems: 'center', minHeight: 60, gap: 10 },
-  cityText: { color: '#FFFFFF', fontSize: 22, fontWeight: '300', letterSpacing: 0.2 },
+  errorState: { alignItems: 'center', justifyContent: 'center', gap: 12 },
+  cityText: { ...type.title3, color: '#FFFFFF' },
+  distanceText: { ...type.caption, color: 'rgba(255,255,255,0.5)' },
   calibrateText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, letterSpacing: 0.3, textAlign: 'center', paddingHorizontal: 40 },
-  errorText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, textAlign: 'center', paddingHorizontal: 40 },
+  errorText: { color: ERROR, fontSize: 14, textAlign: 'center', paddingHorizontal: 40 },
 });

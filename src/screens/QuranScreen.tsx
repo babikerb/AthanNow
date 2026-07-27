@@ -4,44 +4,58 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, GestureResponderEvent, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, GestureResponderEvent, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookmarkSheet } from '../components/BookmarkSheet';
 import { MushafImageReader } from '../components/MushafImageReader';
-import { QuranReader, ReaderSection } from '../components/QuranReader';
 import { SurahPickerSheet } from '../components/SurahPickerSheet';
 import { useImmersive } from '../context/ImmersiveContext';
 import { useOnboardingTarget } from '../context/OnboardingContext';
-import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
 import { getSurah } from '../data/surahs';
 import { pageForSurah, surahForPage, TOTAL_PAGES } from '../data/surahPages';
 import { Bookmark, useBookmarks } from '../hooks/useBookmarks';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
-import { ACCENT } from '../theme/colors';
-import { fetchChapterVerses } from '../utils/quran';
+import { readingPalette } from '../theme/colors';
+import { duration, easing } from '../theme/motion';
+import { shadow } from '../theme/shadow';
 import { fetchMushafPage, pageForVerse } from '../utils/mushaf';
 
-const LAST_SURAH = 114;
 const LAST_PAGE_KEY = 'athannow.quran.lastpage.v1';
+
+// Floating circle size — matches the header's GlassCircleButton (AppHeader.tsx,
+// CIRCLE = 44) so the immersive-mode bookmark/search controls read as the same
+// "primary control" grammar as the rest of the app, not a smaller one-off.
+const CIRCLE = 44;
+
+// Dead-code decision (UI revamp plan §3.5 / §5 Phase 4 item 6): this screen
+// used to also support a `QuranReader`/`SurahHeader` flowing-text reading
+// mode, gated behind `isMushaf`. That path was never wired to any UI toggle
+// — `isMushaf` was hardcoded `true` below and the `loadSelected` chapter-text
+// fetch path was explicitly voided — so both components shipped imported but
+// unreachable. Decision: deleted (`QuranReader.tsx`, `SurahHeader.tsx`, and
+// the dead `loadSelected`/section-loading state) rather than left as inert
+// code, since shipping unreachable files is worse than a documented future
+// opportunity. Note for later: `SurahHeader`'s ornamental medallion band was
+// genuinely well-designed and is a good candidate to resurrect behind a real
+// "reading mode" Settings toggle in a future pass — it was out of scope here
+// without a designer/QA loop to safely design and wire that toggle.
 
 export default function QuranScreen() {
   const { colors, scheme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { bookmarks, isBookmarked, toggleBookmark, removeBookmark } = useBookmarks();
+  const { bookmarks, toggleBookmark, removeBookmark } = useBookmarks();
 
   // Quran is always the printed-page mushaf with horizontal page turning.
   const isMushaf = true;
 
-  // Neutral reading palette — pure dark or warm paper, never the app's purple.
-  const pageColors = useMemo(
-    () =>
-      scheme === 'dark'
-        ? { ...colors, background: '#0F0F10', surface: '#0F0F10', textPrimary: '#ECECEC', textSecondary: 'rgba(255,255,255,0.6)', textTertiary: 'rgba(255,255,255,0.4)' }
-        : { ...colors, background: '#F7F3EA', surface: '#F7F3EA', textPrimary: '#1B1B1B', textSecondary: 'rgba(0,0,0,0.6)', textTertiary: 'rgba(0,0,0,0.42)' },
-    [colors, scheme],
-  );
+  // Neutral reading palette — pure dark or warm paper. This is a deliberate
+  // product decision (a reading surface should feel like paper/e-ink) and is
+  // intentionally independent of the app's chrome/accent, not an accident —
+  // sourced from the shared `readingPalette` token (theme/colors.ts) instead
+  // of being computed inline here.
+  const pageColors = useMemo(() => ({ ...colors, ...readingPalette[scheme] }), [colors, scheme]);
 
   useFocusedStatusBar(scheme === 'dark' ? 'light' : 'dark');
 
@@ -75,10 +89,6 @@ export default function QuranScreen() {
     if (restored) AsyncStorage.setItem(LAST_PAGE_KEY, String(currentPage)).catch(() => {});
   }, [currentPage, restored]);
 
-  const [sections, setSections] = useState<ReaderSection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
 
@@ -94,7 +104,8 @@ export default function QuranScreen() {
     setTabBarHidden(immersive);
     Animated.timing(chrome, {
       toValue: immersive ? 0 : 1,
-      duration: 220,
+      duration: duration.base,
+      easing: easing.standard,
       useNativeDriver: true,
     }).start();
   }, [immersive, setTabBarHidden, chrome]);
@@ -124,51 +135,6 @@ export default function QuranScreen() {
     }
   }, []);
 
-  const sectionsRef = useRef<ReaderSection[]>([]);
-  sectionsRef.current = sections;
-  const loadingMoreRef = useRef(false);
-
-  const loadSelected = useCallback((id: number) => {
-    setLoading(true);
-    setError(false);
-    setSections([]);
-    let cancelled = false;
-    fetchChapterVerses(id)
-      .then((v) => {
-        if (cancelled) return;
-        const s = getSurah(id);
-        if (s) setSections([{ surah: s, verses: v }]);
-      })
-      .catch(() => !cancelled && setError(true))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Both reading modes now render the printed page images, so no chapter text is
-  // fetched for display. (loadSelected is retained for potential future use.)
-  void loadSelected;
-
-  const onRequestMore = useCallback(() => {
-    if (loadingMoreRef.current) return;
-    const cur = sectionsRef.current;
-    if (cur.length === 0) return;
-    const lastId = cur[cur.length - 1].surah.id;
-    if (lastId >= LAST_SURAH) return;
-    const nextId = lastId + 1;
-    loadingMoreRef.current = true;
-    fetchChapterVerses(nextId)
-      .then((v) => {
-        const s = getSurah(nextId);
-        if (s) setSections((p) => (p.some((x) => x.surah.id === nextId) ? p : [...p, { surah: s, verses: v }]));
-      })
-      .catch(() => {})
-      .finally(() => {
-        loadingMoreRef.current = false;
-      });
-  }, []);
-
   const onMushafPageChange = useCallback((p: number) => {
     setCurrentPage(p);
     setVisibleSurahId(surahForPage(p));
@@ -193,14 +159,6 @@ export default function QuranScreen() {
     }
     setSelectedSurahId(surahId);
   }, []);
-
-  // Bookmark a specific ayah (used by mushaf long-press); stores the current page.
-  const bookmarkVerse = useCallback(
-    (surahId: number, ayah: number) => {
-      toggleBookmark(surahId, ayah, getSurah(surahId)?.transliteration ?? '', currentPage);
-    },
-    [toggleBookmark, currentPage],
-  );
 
   // Jump straight to a page number (from the general search).
   const goToPage = useCallback((page: number) => {
@@ -274,12 +232,20 @@ export default function QuranScreen() {
         {renderBody()}
       </View>
 
-      {/* Floating glass controls — no solid header bar. Fade out in immersive mode. */}
+      {/* Floating glass controls — no solid header bar. Fade out in immersive mode.
+          These sit directly over unpredictable photographic page-image content
+          (unlike flat app chrome elsewhere), so they get shadow.floating for
+          legibility, and are sized to match the header's GlassCircleButton
+          convention (44x44) instead of being the smallest primary controls
+          in the app. */}
       <Animated.View
         pointerEvents={immersive ? 'none' : 'box-none'}
         style={[styles.floating, { paddingTop: insets.top + 6, opacity: chrome }]}
       >
-        {/* Left: bookmark (tap sets, long-press opens manager) */}
+        {/* Left: bookmark (tap sets, long-press opens manager). Not migrated to
+            IconButton — this Pressable needs a forwarded ref/onLayout for the
+            onboarding spotlight target and an onLongPress, neither of which
+            IconButton's prop surface supports. */}
         <GlassCircle scheme={scheme} colors={colors}>
           <Pressable
             ref={bookmarkTarget.ref}
@@ -288,13 +254,17 @@ export default function QuranScreen() {
             onPress={quickBookmark}
             onLongPress={() => setBookmarkOpen(true)}
             hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={currentlyBookmarked ? 'Remove bookmark' : 'Bookmark this page'}
             style={styles.circleHit}
           >
             <SymbolView name={currentlyBookmarked ? 'bookmark.fill' : 'bookmark'} size={19} tintColor={colors.textPrimary} />
           </Pressable>
         </GlassCircle>
 
-        {/* Right: surah browser / search (surah + Juz are now baked into the page) */}
+        {/* Right: surah browser / search (surah + Juz are now baked into the page).
+            Same reason as above — not migrated to IconButton (forwarded ref/onLayout
+            for the onboarding spotlight target). */}
         <GlassCircle scheme={scheme} colors={colors}>
           <Pressable
             ref={titleTarget.ref}
@@ -305,6 +275,8 @@ export default function QuranScreen() {
               setPickerOpen(true);
             }}
             hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Search and browse surahs"
             style={styles.circleHit}
           >
             <SymbolView name="magnifyingglass" size={19} tintColor={colors.textPrimary} />
@@ -332,14 +304,20 @@ export default function QuranScreen() {
 }
 
 function GlassCircle({ scheme, colors, children }: { scheme: 'light' | 'dark'; colors: any; children: React.ReactNode }) {
-  if (isLiquidGlassSupported) {
-    return (
-      <LiquidGlassView interactive colorScheme={scheme} style={styles.circle}>
-        {children}
-      </LiquidGlassView>
-    );
-  }
-  return <View style={[styles.circle, styles.circleFallback, { borderColor: colors.separator }]}>{children}</View>;
+  // The shadow lives on this outer, non-clipping wrapper — a shadow and
+  // `overflow: 'hidden'` on the same node clip each other away on iOS, so the
+  // circle's own rounded-corner clipping has to happen on an inner node.
+  return (
+    <View style={styles.circleShadow}>
+      {isLiquidGlassSupported ? (
+        <LiquidGlassView interactive colorScheme={scheme} style={styles.circle}>
+          {children}
+        </LiquidGlassView>
+      ) : (
+        <View style={[styles.circle, styles.circleFallback, { borderColor: colors.separator }]}>{children}</View>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -358,11 +336,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  circle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  circleShadow: { borderRadius: CIRCLE / 2, ...shadow.floating },
+  circle: {
+    width: CIRCLE,
+    height: CIRCLE,
+    borderRadius: CIRCLE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
   circleFallback: { backgroundColor: 'rgba(127,127,127,0.12)', borderWidth: StyleSheet.hairlineWidth },
-  circleHit: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  circleHit: { width: CIRCLE, height: CIRCLE, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 40 },
-  errorText: { fontSize: 15, textAlign: 'center', lineHeight: 21 },
-  retry: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
-  retryText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
 });

@@ -1,11 +1,16 @@
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { PlaceSuggestion, searchPlaces } from '../hooks/useLocation';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useTheme } from '../context/ThemeContext';
 import { ACCENT, ACCENT_BORDER, ACCENT_SOFT } from '../theme/colors';
+import { iconSize } from '../theme/icons';
+import { duration, easing, PRESSED_OPACITY } from '../theme/motion';
+import { radii } from '../theme/radii';
+import { type } from '../theme/typography';
 import { Sheet } from './Sheet';
 
 interface LocationSheetProps {
@@ -25,6 +30,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [searching, setSearching] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   // Debounced autocomplete: fetch named place suggestions as the user types.
   useEffect(() => {
@@ -48,6 +54,28 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
       clearTimeout(t);
     };
   }, [query]);
+
+  // Fade the suggestion box in the moment it pops into existence, so it
+  // doesn't feel jumpy (plan §3.8) — instant if reduced motion is on.
+  const suggestVisible = query.trim().length >= 2;
+  const suggestFade = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+  const wasSuggestVisible = useRef(false);
+  useEffect(() => {
+    if (suggestVisible && !wasSuggestVisible.current) {
+      if (reducedMotion) {
+        suggestFade.setValue(1);
+      } else {
+        suggestFade.setValue(0);
+        Animated.timing(suggestFade, {
+          toValue: 1,
+          duration: duration.fast,
+          easing: easing.standard,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+    wasSuggestVisible.current = suggestVisible;
+  }, [suggestVisible, reducedMotion, suggestFade]);
 
   const pick = (place: PlaceSuggestion) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -87,13 +115,13 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
         {/* Current location hero card */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.separator }]}>
           <View style={[styles.iconBadge, { backgroundColor: ACCENT_SOFT, borderColor: ACCENT_BORDER }]}>
-            <SymbolView name="location.fill" size={24} tintColor={ACCENT} />
+            <SymbolView name="location.fill" size={iconSize.lg} tintColor={ACCENT} />
           </View>
-          <Text style={[styles.cardCaption, { color: colors.textTertiary }]}>CURRENT LOCATION</Text>
+          <Text style={[styles.cardCaption, { color: colors.textSecondary }]}>CURRENT LOCATION</Text>
           <Text style={[styles.city, { color: colors.textPrimary }]} numberOfLines={1}>
             {cityName}
           </Text>
-          <Text style={[styles.citySub, { color: colors.textTertiary }]}>
+          <Text style={[styles.citySub, { color: colors.textSecondary }]}>
             {isManual ? 'Manually selected' : 'Using your device location'}
           </Text>
           {loading && <ActivityIndicator color={ACCENT} style={{ marginTop: 10 }} />}
@@ -103,11 +131,11 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
 
         {/* Search field */}
         <View style={[styles.searchRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.separator }]}>
-          <SymbolView name="magnifyingglass" size={18} tintColor={colors.textTertiary} />
+          <SymbolView name="magnifyingglass" size={18} tintColor={colors.textQuaternary} />
           <TextInput
             style={[styles.input, { color: colors.textPrimary }]}
             placeholder="Search a city"
-            placeholderTextColor={colors.textTertiary}
+            placeholderTextColor={colors.textSecondary}
             value={query}
             onChangeText={(t) => {
               setQuery(t);
@@ -118,65 +146,78 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
             autoCorrect={false}
           />
           {query.length > 0 && (
-            <Pressable onPress={submit} hitSlop={8}>
+            <Pressable
+              onPress={submit}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Search"
+            >
               <SymbolView name="arrow.up.circle.fill" size={24} tintColor={ACCENT} />
             </Pressable>
           )}
         </View>
         {error && <Text style={styles.error}>{error}</Text>}
 
-        {/* Live suggestions while typing */}
-        {query.trim().length >= 2 && (
-          <View style={[styles.suggestBox, { backgroundColor: colors.surface, borderColor: colors.separator }]}>
+        {/* Live suggestions while typing — fades in on appearance instead of
+            popping (plan §3.8), gated by `useReducedMotion()`. */}
+        {suggestVisible && (
+          <Animated.View style={[styles.suggestBox, { backgroundColor: colors.surface, borderColor: colors.separator, opacity: suggestFade }]}>
             {searching && suggestions.length === 0 ? (
               <View style={styles.suggestEmpty}>
-                <ActivityIndicator color={colors.textTertiary} />
+                <ActivityIndicator color={colors.textQuaternary} />
               </View>
             ) : suggestions.length === 0 ? (
               <View style={styles.suggestEmpty}>
-                <Text style={[styles.suggestEmptyText, { color: colors.textTertiary }]}>No matches yet</Text>
+                <Text style={[styles.suggestEmptyText, { color: colors.textSecondary }]}>No matches yet</Text>
               </View>
             ) : (
               <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
-                {suggestions.map((p, i) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => pick(p)}
-                    style={({ pressed }) => [
-                      styles.suggestRow,
-                      i < suggestions.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
-                      pressed && { backgroundColor: ACCENT_SOFT },
-                    ]}
-                  >
-                    <SymbolView name="mappin.circle.fill" size={20} tintColor={ACCENT} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.suggestName, { color: colors.textPrimary }]} numberOfLines={1}>
-                        {p.name}
-                      </Text>
-                      {(p.admin1 || p.country) && (
-                        <Text style={[styles.suggestSub, { color: colors.textTertiary }]} numberOfLines={1}>
-                          {[p.admin1, p.country].filter(Boolean).join(', ')}
+                {suggestions.map((p, i) => {
+                  const region = [p.admin1, p.country].filter(Boolean).join(', ');
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => pick(p)}
+                      accessibilityRole="button"
+                      accessibilityLabel={region ? `Select ${p.name}, ${region}` : `Select ${p.name}`}
+                      style={({ pressed }) => [
+                        styles.suggestRow,
+                        i < suggestions.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
+                        pressed && { backgroundColor: ACCENT_SOFT },
+                      ]}
+                    >
+                      <SymbolView name="mappin.circle.fill" size={20} tintColor={ACCENT} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.suggestName, { color: colors.textPrimary }]} numberOfLines={1}>
+                          {p.name}
                         </Text>
-                      )}
-                    </View>
-                  </Pressable>
-                ))}
+                        {region ? (
+                          <Text style={[styles.suggestSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                            {region}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
             )}
-          </View>
+          </Animated.View>
         )}
 
         {/* Use current location */}
         <Pressable
           onPress={refresh}
+          accessibilityRole="button"
+          accessibilityLabel="Use current location"
           style={({ pressed }) => [
             styles.useCurrent,
-            { backgroundColor: colors.surfaceElevated, borderColor: colors.separator, opacity: pressed ? 0.6 : 1 },
+            { backgroundColor: colors.surfaceElevated, borderColor: colors.separator, opacity: pressed ? PRESSED_OPACITY : 1 },
           ]}
         >
           <SymbolView name="location.circle.fill" size={22} tintColor={ACCENT} />
           <Text style={[styles.useCurrentText, { color: colors.textPrimary }]}>Use current location</Text>
-          <SymbolView name="chevron.right" size={14} tintColor={colors.textTertiary} />
+          <SymbolView name="chevron.right" size={14} tintColor={colors.textQuaternary} />
         </Pressable>
       </View>
     </Sheet>
@@ -186,16 +227,16 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
 const styles = StyleSheet.create({
   body: { padding: 20, gap: 18 },
   card: {
-    borderRadius: 22,
+    borderRadius: radii.lg,
     borderWidth: 1,
     paddingVertical: 26,
     paddingHorizontal: 20,
     alignItems: 'center',
   },
   iconBadge: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 14, borderWidth: 1 },
-  cardCaption: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 4 },
-  city: { fontSize: 24, fontWeight: '800', letterSpacing: -0.3 },
-  citySub: { fontSize: 13, marginTop: 4 },
+  cardCaption: { ...type.caption2, marginBottom: 4 },
+  city: { ...type.title2 },
+  citySub: { ...type.footnote, marginTop: 4 },
   label: { fontSize: 13, fontWeight: '700', marginLeft: 4, marginBottom: -4 },
   searchRow: {
     flexDirection: 'row',

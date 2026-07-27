@@ -5,6 +5,12 @@ import React from 'react';
 import { StyleProp, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { hitSlopFor } from '../theme/icons';
+import { PRESSED_OPACITY } from '../theme/motion';
+import { radii } from '../theme/radii';
+import { spacing } from '../theme/spacing';
+import { type } from '../theme/typography';
+
 /**
  * Shared top header, ported from the Hardwood app: a row of liquid-glass pills
  * that sits below the safe-area inset (clear of the Dynamic Island / notch).
@@ -12,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
  * screen except the Quran reader (which is full-bleed/immersive).
  */
 
+// The 44pt circle is both the header's touch-target floor and its visual
+// diameter — matches `iconSize` + `hitSlopFor`'s guaranteed minimum exactly.
 const CIRCLE = 44;
 
 type Scheme = 'light' | 'dark';
@@ -34,15 +42,24 @@ interface GlassPillProps {
   /** Grow to fill the row (the center title pill in Hardwood). */
   flex?: boolean;
   style?: StyleProp<ViewStyle>;
+  // TODO(a11y): make this required for interactive (onPress) pills once every
+  // call site supplies a label (tracked as part of the systemic icon-button
+  // a11y pass) — left optional here so existing call sites keep compiling
+  // unchanged.
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
-export function GlassPill({ children, onPress, scheme = 'dark', flex, style }: GlassPillProps) {
+export function GlassPill({ children, onPress, scheme = 'dark', flex, style, accessibilityLabel, accessibilityHint }: GlassPillProps) {
   const glass = isLiquidGlassSupported;
   const Wrapper: any = onPress ? TouchableOpacity : View;
   return (
     <Wrapper
-      activeOpacity={0.8}
+      activeOpacity={PRESSED_OPACITY}
       onPress={onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       style={[s.pill, flex && { flex: 1 }, !glass && fallbackStyle(scheme), style]}
     >
       {glass && (
@@ -59,16 +76,29 @@ export function GlassCircleButton({
   scheme = 'dark',
   tintColor = '#FFFFFF',
   size = 18,
+  accessibilityLabel,
+  accessibilityHint,
 }: {
   icon: SFSymbol;
   onPress: () => void;
   scheme?: Scheme;
   tintColor?: string;
   size?: number;
+  /** Required — icon-only buttons have no visible text for VoiceOver to read. */
+  accessibilityLabel: string;
+  accessibilityHint?: string;
 }) {
   const glass = isLiquidGlassSupported;
   return (
-    <TouchableOpacity activeOpacity={0.8} onPress={onPress} hitSlop={8} style={[s.circle, !glass && fallbackStyle(scheme)]}>
+    <TouchableOpacity
+      activeOpacity={PRESSED_OPACITY}
+      onPress={onPress}
+      hitSlop={hitSlopFor(size)}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      style={[s.circle, !glass && fallbackStyle(scheme)]}
+    >
       {glass && (
         <LiquidGlassView interactive colorScheme={scheme} style={[StyleSheet.absoluteFill, { borderRadius: CIRCLE / 2 }]} />
       )}
@@ -100,19 +130,23 @@ export function HeaderSpacer() {
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingBottom: 8, gap: 10 },
+  // paddingHorizontal 14 and gap 10 don't land exactly on the spacing grid;
+  // kept as token +/- 2 rather than snapping to a token that would visibly
+  // tighten or loosen this row (same precedent as spacing.ts's own doc comment).
+  bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm + 2, paddingBottom: spacing.xs, gap: spacing.xs + 2 },
   pill: {
     height: CIRCLE,
-    borderRadius: CIRCLE / 2,
+    borderRadius: radii.pill,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: CIRCLE,
   },
-  pillInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, gap: 6 },
+  pillInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, gap: spacing.xxs + 2 },
   circle: { width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, overflow: 'hidden', flexShrink: 0 },
   circleInner: { width: CIRCLE, height: CIRCLE, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 } as TextStyle,
-  subtitle: { fontSize: 11, letterSpacing: 0.1, marginTop: 1 } as TextStyle,
+  // Header pill titles are one of `type.headline`'s named use cases (was 16/700/-0.2, headline is 17/700/-0.2).
+  title: { ...type.headline } as TextStyle,
+  subtitle: { ...type.caption2, marginTop: 1 } as TextStyle,
   spacer: { width: CIRCLE, flexShrink: 0 },
 });

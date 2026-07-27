@@ -32,9 +32,36 @@ export interface AppLocation {
   timezone: string;
   /** True when the user picked this location manually rather than via GPS. */
   isManual: boolean;
+  /**
+   * ISO 3166-1 alpha-2 country code, when known — used by onboarding's
+   * calc-method screen (plan §4.2 Screen 3) to pick a smart regional default
+   * instead of silently applying `DEFAULT_SETTINGS.calcMethod` to everyone.
+   */
+  countryCode?: string;
 }
 
 export type LocationStatus = 'idle' | 'loading' | 'ready' | 'denied' | 'error';
+
+/** Result of an `expo-location` foreground-permission check or request,
+ *  surfaced verbatim (not collapsed to a boolean) so callers can implement
+ *  the three-state ask/granted/permanently-denied flow (plan §4.2a). */
+export interface LocationPermissionState {
+  status: Location.PermissionStatus;
+  canAskAgain: boolean;
+}
+
+/** Checks the current foreground location permission without prompting. */
+export async function getLocationPermissionState(): Promise<LocationPermissionState> {
+  const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+  return { status, canAskAgain };
+}
+
+/** Prompts for foreground location permission (shows the OS dialog only when
+ *  the permission hasn't been permanently denied) and returns the result. */
+export async function requestLocationPermission(): Promise<LocationPermissionState> {
+  const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
+  return { status, canAskAgain };
+}
 
 /**
  * Fallback location used when the device has Location Services disabled (or the
@@ -48,6 +75,7 @@ const DEFAULT_LOCATION: AppLocation = {
   city: 'Mecca',
   timezone: 'Asia/Riyadh',
   isManual: false,
+  countryCode: 'SA',
 };
 
 /** Reject after `ms` so a stalled GPS read (e.g. Location Services switched off
@@ -173,6 +201,7 @@ export function useLocation() {
         city,
         timezone: timeZoneFor(loc.coords.latitude, loc.coords.longitude),
         isManual: false,
+        countryCode: geocode[0]?.isoCountryCode || undefined,
       });
     } catch {
       setStatus('error');
@@ -196,7 +225,14 @@ export function useLocation() {
         const { latitude, longitude } = results[0];
         const reverse = await Location.reverseGeocodeAsync({ latitude, longitude }).catch(() => []);
         const city = reverse[0]?.city || reverse[0]?.region || trimmed;
-        persist({ latitude, longitude, city, timezone: timeZoneFor(latitude, longitude), isManual: true });
+        persist({
+          latitude,
+          longitude,
+          city,
+          timezone: timeZoneFor(latitude, longitude),
+          isManual: true,
+          countryCode: reverse[0]?.isoCountryCode || undefined,
+        });
         return true;
       } catch {
         setStatus(location ? 'ready' : 'error');
@@ -216,6 +252,7 @@ export function useLocation() {
         city,
         timezone: p.timezone || timeZoneFor(p.latitude, p.longitude),
         isManual: true,
+        countryCode: p.countryCode,
       });
     },
     [persist],

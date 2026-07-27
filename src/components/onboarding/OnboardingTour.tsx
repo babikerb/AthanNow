@@ -17,20 +17,22 @@ interface Step {
   round?: boolean;
 }
 
+// Trimmed to 4 steps (was 6, plan §3.2): the new welcome flow (see
+// src/screens/onboarding/) now explains *why* location, calc method,
+// notifications, and the widget matter up front, so the tour's job narrows
+// to pure interaction orientation — "here's where things are," not "here's
+// why they matter."
 const STEPS: Step[] = [
   {
-    tab: 'Athan',
-    id: 'athan-countdown',
-    accent: ACCENT,
-    title: 'Your next prayer',
-    body: 'This is the countdown to your next prayer, and the exact time sits right below it.',
-  },
-  {
+    // Combines the old separate `athan-countdown` + `athan-location` steps:
+    // they're adjacent on the same screen, and onboarding's location-priming
+    // screen already covered *why* location matters, so this step only needs
+    // to point at the actionable bit (tap to change it).
     tab: 'Athan',
     id: 'athan-location',
     accent: ACCENT,
-    title: 'Set your location',
-    body: 'Tap here whenever you want to change your city. Your prayer times update on their own.',
+    title: 'Your next prayer',
+    body: 'This is the countdown to your next prayer. Tap the location above it anytime to change your city.',
     round: true,
   },
   {
@@ -41,19 +43,13 @@ const STEPS: Step[] = [
     body: 'Here are all five prayers plus sunrise. The current one is highlighted and the ones that passed fade out.',
   },
   {
+    // `quran-bookmark` is no longer its own step — bookmarking is folded
+    // into this step's body copy instead.
     tab: 'Quran',
     id: 'quran-title',
     accent: ACCENT,
     title: 'Read the Quran',
-    body: 'Tap to browse surahs or search. Tap the page itself to hide the controls and tab bar for a clean, distraction free read.',
-    round: true,
-  },
-  {
-    tab: 'Quran',
-    id: 'quran-bookmark',
-    accent: ACCENT,
-    title: 'Save your place',
-    body: 'Tap the bookmark to save the page you are on. Press and hold it to see all your saved spots.',
+    body: "Tap to browse surahs or search. Tap the page itself to hide the controls for a clean, distraction free read. Tap the bookmark icon to save your place — press and hold it to see everything you've saved.",
     round: true,
   },
   {

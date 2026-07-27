@@ -15,8 +15,6 @@ import * as Font from 'expo-font';
 const GH = 'https://cdn.jsdelivr.net/gh/MohamadHajjRabee/quran-qcf4@main';
 const BISMILLAH_FONT = 'QCF4_QBSML';
 
-export type LineType = 'word' | 'surah_header' | 'basmallah' | 'ayah';
-
 export interface MushafWord {
   code: number;
   font: string;
@@ -84,10 +82,6 @@ export async function fetchMushafPage(page: number): Promise<MushafPageData> {
 const loaded = new Set<string>();
 const inFlight = new Map<string, Promise<void>>();
 
-export function isFontLoaded(fontName: string): boolean {
-  return loaded.has(fontName);
-}
-
 export function ensureFont(fontName: string): Promise<void> {
   if (loaded.has(fontName)) return Promise.resolve();
   const existing = inFlight.get(fontName);
@@ -109,14 +103,6 @@ export async function ensurePageFonts(data: MushafPageData): Promise<void> {
   const names = new Set<string>([data.font]);
   data.lines.forEach((l) => l.words.forEach((w) => names.add(w.font)));
   await Promise.all([...names].map(ensureFont));
-}
-
-export function glyph(word: MushafWord): string {
-  try {
-    return String.fromCodePoint(word.code);
-  } catch {
-    return word.text ?? '';
-  }
 }
 
 // ---- Page meta (juz / hizb / rub' quarter) from the quran.com API ----

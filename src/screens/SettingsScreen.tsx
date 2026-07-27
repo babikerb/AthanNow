@@ -1,14 +1,14 @@
+import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
-import { SFSymbol } from 'sf-symbols-typescript';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert,
   Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from 'react-native';
@@ -17,32 +17,33 @@ const PRIVACY_URL = 'https://athannow.bbabiker.com/privacy';
 
 import { GlassPill, HeaderBar, HeaderSpacer, HeaderTitle } from '../components/AppHeader';
 import { Sheet } from '../components/Sheet';
-import { useOnboardingTarget } from '../context/OnboardingContext';
+import { NavRow, RowFrame, SegmentRow, styles as rowStyles, ToggleRow } from '../components/settings/SettingsRows';
+import { useOnboarding } from '../context/OnboardingContext';
 import {
   AsrMadhab,
-  CalcMethod,
   PrayerKey,
   useSettings,
 } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
+import { useLocation } from '../hooks/useLocation';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
-import { ACCENT } from '../theme/colors';
+import { OnboardingFlow } from './onboarding/OnboardingFlow';
+import { ACCENT, ERROR } from '../theme/colors';
+import { iconSize } from '../theme/icons';
+import { PRESSED_OPACITY } from '../theme/motion';
+import { radii } from '../theme/radii';
+import { spacing } from '../theme/spacing';
+import { type } from '../theme/typography';
+import { CALC_METHOD_WHY, CALC_METHODS, calcMethodForCountry, localeCountryCode } from '../utils/calcMethodDefaults';
+import { DAYS_AHEAD, MAX_PENDING } from '../utils/notifications';
 
-const CALC_METHODS: { key: CalcMethod; label: string }[] = [
-  { key: 'NorthAmerica', label: 'ISNA (North America)' },
-  { key: 'MuslimWorldLeague', label: 'Muslim World League' },
-  { key: 'Egyptian', label: 'Egyptian General Authority' },
-  { key: 'Karachi', label: 'University of Karachi' },
-  { key: 'UmmAlQura', label: 'Umm al-Qura (Makkah)' },
-  { key: 'Dubai', label: 'Dubai' },
-  { key: 'Qatar', label: 'Qatar' },
-  { key: 'Kuwait', label: 'Kuwait' },
-  { key: 'Singapore', label: 'Singapore' },
-  { key: 'Turkey', label: 'Turkey (Diyanet)' },
-  { key: 'Tehran', label: 'Tehran' },
-  { key: 'MoonsightingCommittee', label: 'Moonsighting Committee' },
-];
+// Same alpha steps as `ACCENT_SOFT`/`ACCENT_BORDER` (theme/colors.ts), applied
+// to the `ERROR` token for the destructive row's icon badge (plan §3.7,
+// mirrors LocationSheet's icon-badge pattern in the "this is dangerous"
+// register instead of the "this is the current place" register).
+const ERROR_SOFT = 'rgba(229, 72, 77, 0.16)';
+const ERROR_BORDER = 'rgba(229, 72, 77, 0.35)';
 
 const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 30];
 
@@ -62,11 +63,13 @@ const PRAYER_LABELS: { key: PrayerKey; label: string }[] = [
 export default function SettingsScreen() {
   const { colors, scheme } = useTheme();
   const settings = useSettings();
+  const onboarding = useOnboarding();
   const tabBarHeight = useTabBarHeight();
-  const calcTarget = useOnboardingTarget('settings-calc');
+  const { location } = useLocation();
   useFocusedStatusBar(scheme === 'dark' ? 'light' : 'dark');
   const [methodSheetOpen, setMethodSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
+  const [replayOpen, setReplayOpen] = useState(false);
 
   const tap = () => Haptics.selectionAsync();
 
@@ -89,6 +92,51 @@ export default function SettingsScreen() {
   };
 
   const methodLabel = CALC_METHODS.find((m) => m.key === settings.calcMethod)?.label ?? settings.calcMethod;
+
+  // "Recommended for your region" + "All methods" grouping (plan §3.7) —
+  // reuses the same country -> method lookup and "why" copy the onboarding
+  // calc-method screen already built (`calcMethodDefaults.ts`), so Settings
+  // doesn't invent a second explanation for the same 12 methods.
+  const recommendedCountry = location?.countryCode ?? localeCountryCode();
+  const recommendedKey = calcMethodForCountry(recommendedCountry);
+  const recommendedMethod = CALC_METHODS.find((m) => m.key === recommendedKey) ?? CALC_METHODS[0];
+  const otherMethods = useMemo(
+    () => CALC_METHODS.filter((m) => m.key !== recommendedMethod.key).sort((a, b) => a.label.localeCompare(b.label)),
+    [recommendedMethod.key],
+  );
+
+  const renderMethodOption = (m: (typeof CALC_METHODS)[number]) => {
+    const selected = m.key === settings.calcMethod;
+    return (
+      <Pressable
+        key={m.key}
+        onPress={() => {
+          tap();
+          settings.update({ calcMethod: m.key });
+          setMethodSheetOpen(false);
+        }}
+        style={({ pressed }) => [
+          styles.optionRow,
+          { borderBottomColor: colors.separator, opacity: pressed ? PRESSED_OPACITY : 1 },
+        ]}
+      >
+        <View style={styles.optionText}>
+          <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>{m.label}</Text>
+          <Text style={[styles.optionWhy, { color: colors.textSecondary }]}>{CALC_METHOD_WHY[m.key]}</Text>
+        </View>
+        {selected && <SymbolView name="checkmark" size={18} tintColor={ACCENT} />}
+      </Pressable>
+    );
+  };
+
+  // App version / build number (plan §3.7) — `Constants.expoConfig` mirrors
+  // app.json's `version`; native version/build fields were removed from
+  // expo-constants in favor of expo-application, so this stays undefined
+  // gracefully (no crash, row just omits the missing piece) rather than
+  // requiring a new dependency.
+  const appVersion = Constants.expoConfig?.version;
+  const buildNumber = Constants.expoConfig?.ios?.buildNumber ?? Constants.expoConfig?.android?.versionCode;
+  const versionLabel = appVersion ? (buildNumber ? `${appVersion} (${buildNumber})` : String(appVersion)) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -113,7 +161,6 @@ export default function SettingsScreen() {
         </Section>
 
         {/* PRAYER CALCULATION */}
-        <View ref={calcTarget.ref} onLayout={calcTarget.onLayout} collapsable={false}>
         <Section title="Prayer calculation" colors={colors}>
           <NavRow
             icon="globe"
@@ -138,7 +185,6 @@ export default function SettingsScreen() {
             last
           />
         </Section>
-        </View>
 
         {/* NOTIFICATIONS */}
         <Section title="Notifications" footer="Reminders are time sensitive, so they come through even on Focus or silent." colors={colors}>
@@ -159,11 +205,16 @@ export default function SettingsScreen() {
           ))}
         </Section>
 
-        <Section title="" footer="Each enabled prayer rings at athan time. A reminder adds an extra heads-up that many minutes before." colors={colors}>
+        <Section
+          title="Reminders"
+          footer={`Each enabled prayer rings at athan time. A reminder adds an extra heads-up that many minutes before. Notifications are scheduled ${DAYS_AHEAD} days ahead each time you open the app — if every prayer and reminder is on, the schedule can approach iOS's ${MAX_PENDING}-notification limit, so the farthest-out days in that window may not get scheduled until the next refresh.`}
+          colors={colors}
+        >
           <NavRow
             icon="timer"
             label="Reminder time"
             value={minutesLabel(settings.notifications.reminderMinutesBefore)}
+            dimmed={settings.notifications.reminderMinutesBefore === 0}
             onPress={() => {
               tap();
               setReminderSheetOpen(true);
@@ -189,9 +240,19 @@ export default function SettingsScreen() {
 
         {/* DATA */}
         <Section title="Data" colors={colors}>
-          <Pressable onPress={confirmReset} style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}>
-            <SymbolView name="trash" size={20} tintColor="#E5484D" />
-            <Text style={[styles.rowLabel, { color: '#E5484D' }]}>Reset all data</Text>
+          {/* Destructive row reads as categorically different, not just a
+              different color (plan §2.5/§3.7) — the icon sits in a tinted
+              circular badge, the same "icon badge" pattern LocationSheet uses
+              for its hero card, but in the ERROR register instead of ACCENT. */}
+          <Pressable
+            onPress={confirmReset}
+            accessibilityRole="button"
+            style={({ pressed }) => [rowStyles.row, { opacity: pressed ? PRESSED_OPACITY : 1 }]}
+          >
+            <View style={[styles.destructiveBadge, { backgroundColor: ERROR_SOFT, borderColor: ERROR_BORDER }]}>
+              <SymbolView name="trash" size={iconSize.sm} tintColor={ERROR} />
+            </View>
+            <Text style={[rowStyles.rowLabel, { color: ERROR }]}>Reset all data</Text>
           </Pressable>
         </Section>
 
@@ -206,36 +267,69 @@ export default function SettingsScreen() {
               Linking.openURL(PRIVACY_URL).catch(() => {});
             }}
             colors={colors}
-            last
           />
+          {/* Replaces "Reset all data" as the only way to re-see onboarding
+              (plan §4.3) — Reset stays for its actual purpose (wiping data),
+              decoupled from tour replay. */}
+          <NavRow
+            icon="sparkles"
+            label="Show product tour again"
+            value=""
+            onPress={() => {
+              tap();
+              onboarding.start();
+            }}
+            colors={colors}
+          />
+          <NavRow
+            icon="arrow.clockwise"
+            label="Replay welcome tour"
+            value=""
+            onPress={() => {
+              tap();
+              setReplayOpen(true);
+            }}
+            colors={colors}
+            last={!versionLabel}
+          />
+          {versionLabel && (
+            <RowFrame last colors={colors}>
+              <SymbolView name="info.circle" size={iconSize.md} tintColor={colors.textSecondary} />
+              <Text style={[rowStyles.rowLabel, { color: colors.textPrimary }]}>Version</Text>
+              <Text style={[rowStyles.rowValue, { color: colors.textSecondary }]}>{versionLabel}</Text>
+            </RowFrame>
+          )}
         </Section>
 
         <View style={{ height: 40 }} />
       </View>
 
-      {/* Calculation method picker sheet */}
+      {/* Non-destructive replay of the six-screen welcome flow (plan §4.3) —
+          does not touch `onboardingComplete` or re-fire OS permission
+          prompts that are already granted; screens 2/4 run the same
+          three-state permission check on every visit. */}
+      <Modal
+        visible={replayOpen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setReplayOpen(false)}
+      >
+        <OnboardingFlow mode="replay" onRequestClose={() => setReplayOpen(false)} />
+      </Modal>
+
+      {/* Calculation method picker sheet — grouped into "Recommended for your
+          region" (computed from the location the app already has, falling
+          back to device locale) + "All methods" alphabetically, each with
+          the same one-line "why" copy the onboarding calc-method screen uses
+          (plan §3.7, reuses `calcMethodDefaults.ts` rather than re-writing
+          the explanations here). */}
       <Sheet visible={methodSheetOpen} onClose={() => setMethodSheetOpen(false)} title="Calculation method">
         <ScrollView>
-          {CALC_METHODS.map((m) => {
-            const selected = m.key === settings.calcMethod;
-            return (
-              <Pressable
-                key={m.key}
-                onPress={() => {
-                  tap();
-                  settings.update({ calcMethod: m.key });
-                  setMethodSheetOpen(false);
-                }}
-                style={({ pressed }) => [
-                  styles.optionRow,
-                  { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 },
-                ]}
-              >
-                <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>{m.label}</Text>
-                {selected && <SymbolView name="checkmark" size={18} tintColor={ACCENT} />}
-              </Pressable>
-            );
-          })}
+          <Text style={[styles.pickerSectionTitle, { color: colors.textSecondary }]}>RECOMMENDED FOR YOUR REGION</Text>
+          {renderMethodOption(recommendedMethod)}
+
+          <Text style={[styles.pickerSectionTitle, { color: colors.textSecondary }]}>ALL METHODS</Text>
+          {otherMethods.map(renderMethodOption)}
         </ScrollView>
       </Sheet>
 
@@ -252,7 +346,7 @@ export default function SettingsScreen() {
                   settings.updateNotifications({ reminderMinutesBefore: m });
                   setReminderSheetOpen(false);
                 }}
-                style={({ pressed }) => [styles.optionRow, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
+                style={({ pressed }) => [styles.optionRow, { borderBottomColor: colors.separator, opacity: pressed ? PRESSED_OPACITY : 1 }]}
               >
                 <Text style={[styles.optionLabel, { color: colors.textPrimary }]}>{minutesLabel(m)}</Text>
                 {selected && <SymbolView name="checkmark" size={18} tintColor={ACCENT} />}
@@ -266,7 +360,10 @@ export default function SettingsScreen() {
   );
 }
 
-/* ---------- Reusable rows ---------- */
+/* ---------- Section wrapper ---------- */
+/* RowFrame/ToggleRow/NavRow/SegmentRow moved to
+   `src/components/settings/SettingsRows.tsx` (plan §3.7) — mechanical
+   extraction, behavior unchanged, so they're reusable outside Settings. */
 
 type Colors = ReturnType<typeof useTheme>['colors'];
 
@@ -285,126 +382,17 @@ function Section({
     <View style={styles.section}>
       {title ? <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{title.toUpperCase()}</Text> : null}
       <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.separator }]}>{children}</View>
-      {footer ? <Text style={[styles.sectionFooter, { color: colors.textTertiary }]}>{footer}</Text> : null}
+      {footer ? <Text style={[styles.sectionFooter, { color: colors.textSecondary }]}>{footer}</Text> : null}
     </View>
-  );
-}
-
-function RowFrame({ last, colors, children }: { last?: boolean; colors: Colors; children: React.ReactNode }) {
-  return (
-    <View style={[styles.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator }]}>
-      {children}
-    </View>
-  );
-}
-
-function ToggleRow({
-  icon,
-  label,
-  value,
-  onValueChange,
-  colors,
-  last,
-}: {
-  icon: SFSymbol;
-  label: string;
-  value: boolean;
-  onValueChange: (v: boolean) => void;
-  colors: Colors;
-  last?: boolean;
-}) {
-  return (
-    <RowFrame last={last} colors={colors}>
-      <SymbolView name={icon} size={20} tintColor={colors.textSecondary} />
-      <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>{label}</Text>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: ACCENT }} />
-    </RowFrame>
-  );
-}
-
-function NavRow({
-  icon,
-  label,
-  value,
-  onPress,
-  colors,
-  last,
-}: {
-  icon: SFSymbol;
-  label: string;
-  value: string;
-  onPress: () => void;
-  colors: Colors;
-  last?: boolean;
-}) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-      <RowFrame last={last} colors={colors}>
-        <SymbolView name={icon} size={20} tintColor={colors.textSecondary} />
-        <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>{label}</Text>
-        <Text style={[styles.rowValue, { color: colors.textTertiary }]} numberOfLines={1}>
-          {value}
-        </Text>
-        <SymbolView name="chevron.right" size={14} tintColor={colors.textTertiary} />
-      </RowFrame>
-    </Pressable>
-  );
-}
-
-function SegmentRow({
-  icon,
-  label,
-  options,
-  value,
-  onChange,
-  colors,
-  last,
-}: {
-  icon: SFSymbol;
-  label: string;
-  options: { key: string; label: string }[];
-  value: string;
-  onChange: (v: string) => void;
-  colors: Colors;
-  last?: boolean;
-}) {
-  return (
-    <RowFrame last={last} colors={colors}>
-      <SymbolView name={icon} size={20} tintColor={colors.textSecondary} />
-      <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>{label}</Text>
-      <View style={[styles.segment, { backgroundColor: colors.background }]}>
-        {options.map((o) => {
-          const active = o.key === value;
-          return (
-            <Pressable
-              key={o.key}
-              onPress={() => {
-                Haptics.selectionAsync();
-                onChange(o.key);
-              }}
-              style={[styles.segmentItem, active && { backgroundColor: ACCENT }]}
-            >
-              <Text style={[styles.segmentText, { color: active ? '#FFF' : colors.textSecondary }]}>{o.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-    </RowFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingTop: 8 },
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, marginBottom: 8, marginLeft: 8 },
-  sectionFooter: { fontSize: 12, marginTop: 8, marginLeft: 8, lineHeight: 16 },
-  group: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 13, minHeight: 50 },
-  rowLabel: { fontSize: 16, flex: 1 },
-  rowValue: { fontSize: 15, maxWidth: 150, textAlign: 'right' },
-  segment: { flexDirection: 'row', borderRadius: 9, padding: 2, gap: 2 },
-  segmentItem: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 7 },
-  segmentText: { fontSize: 13, fontWeight: '600' },
+  content: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
+  section: { marginBottom: spacing.xl },
+  sectionTitle: { ...type.caption2, marginBottom: spacing.xs, marginLeft: spacing.xs },
+  sectionFooter: { ...type.caption, marginTop: spacing.xs, marginLeft: spacing.xs },
+  group: { borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -413,5 +401,16 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  optionLabel: { fontSize: 16 },
+  optionText: { flex: 1, marginRight: spacing.sm },
+  optionLabel: { ...type.body },
+  optionWhy: { ...type.footnote, marginTop: 2 },
+  pickerSectionTitle: { ...type.caption2, marginTop: spacing.md, marginBottom: spacing.xs, marginLeft: spacing.lg },
+  destructiveBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
