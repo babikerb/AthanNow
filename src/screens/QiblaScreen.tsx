@@ -1,15 +1,16 @@
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, Animated, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { GlassPill, HeaderBar, HeaderSpacer, HeaderTitle } from '../components/AppHeader';
-import { useOnboardingTarget } from '../context/OnboardingContext';
 import { useLocation } from '../hooks/useLocation';
 import { useQibla } from '../hooks/useQibla';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { ACCENT, ERROR, NIGHT_BG } from '../theme/colors';
+import { spacing } from '../theme/spacing';
 import { HEADLINE_FONT_FAMILY, type } from '../theme/typography';
+import { formatDistance } from '../utils/units';
 
 const ALIGNED = '#34C759';
 const NORTH = '#FF453A';
@@ -59,7 +60,6 @@ function Compass({
   const dialSpin = toDeg(headingAnim);
   // Keep every labelled mark upright as the dial turns.
   const counters = useRef(MARKS.map(({ deg }) => toDeg(Animated.subtract(new Animated.Value(-deg), headingAnim)))).current;
-  const kaabaCounter = useRef(toDeg(Animated.subtract(new Animated.Value(-qiblaBearing), headingAnim))).current;
 
   const qiblaColor = isAligned ? ALIGNED : ACCENT;
 
@@ -136,7 +136,8 @@ function Compass({
             </View>
           ))}
 
-          {/* Qibla / Kaaba marker riding the rim at the Qibla bearing */}
+          {/* Qibla marker riding the rim at the Qibla bearing. A plain dot,
+              not an image of the Kaaba, out of respect for the sacred site. */}
           {hasLocation && (
             <View
               style={{
@@ -150,9 +151,7 @@ function Compass({
                 transform: [{ rotate: `${qiblaBearing}deg` }, { translateY: -(R - 30) }],
               }}
             >
-              <Animated.View style={[styles.kaabaDisc, { borderColor: qiblaColor, transform: [{ rotate: kaabaCounter }] }]}>
-                <Image source={require('../../assets/kaaba.png')} style={styles.kaabaImg} />
-              </Animated.View>
+              <View style={[styles.qiblaDot, { backgroundColor: qiblaColor }, isAligned && styles.qiblaDotAligned]} />
             </View>
           )}
         </Animated.View>
@@ -182,7 +181,6 @@ function Compass({
 
 export default function QiblaScreen() {
   const { cityName, status, location } = useLocation();
-  const compassTarget = useOnboardingTarget('qibla-compass');
   useFocusedStatusBar('light');
   const latitude = location?.latitude ?? null;
   const longitude = location?.longitude ?? null;
@@ -200,32 +198,29 @@ export default function QiblaScreen() {
     wasAligned.current = qibla.isAligned;
   }, [qibla.isAligned]);
 
-  return (
-    <View style={styles.container}>
-      <HeaderBar>
-        <HeaderSpacer />
-        <GlassPill flex scheme="dark">
-          <HeaderTitle title="Qibla" color="#FFFFFF" subColor="rgba(255,255,255,0.6)" />
-        </GlassPill>
-        <HeaderSpacer />
-      </HeaderBar>
+  // No header on this screen at all — a "Qibla" title bar was purely
+  // decorative (no functional control, unlike Athan's location pill), and
+  // the compass is the entire point of the screen, so it gets the space back
+  // instead. Safe-area insets are applied directly here now that there's no
+  // HeaderBar to provide top clearance from the notch/Dynamic Island.
+  const insets = useSafeAreaInsets();
 
+  return (
+    <View style={[styles.container, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.md }]}>
       <View style={styles.body}>
         {loading ? (
           <ActivityIndicator color="#FFFFFF" size="large" />
         ) : (
           <>
-            <View ref={compassTarget.ref} onLayout={compassTarget.onLayout} collapsable={false}>
-              <Compass
-                headingAnim={qibla.headingAnim}
-                heading={qibla.heading}
-                qiblaBearing={qibla.qiblaBearing}
-                isAligned={qibla.isAligned}
-                hasLocation={qibla.hasLocation}
-                calibrating={calibrating}
-                unavailable={compassUnavailable}
-              />
-            </View>
+            <Compass
+              headingAnim={qibla.headingAnim}
+              heading={qibla.heading}
+              qiblaBearing={qibla.qiblaBearing}
+              isAligned={qibla.isAligned}
+              hasLocation={qibla.hasLocation}
+              calibrating={calibrating}
+              unavailable={compassUnavailable}
+            />
 
             <View style={styles.infoBlock}>
               {error ? (
@@ -235,7 +230,7 @@ export default function QiblaScreen() {
                 </View>
               ) : compassUnavailable ? (
                 <Text style={styles.calibrateText}>
-                  Compass isn’t available on this device.{'\n'}Point the top of the device North — the Qibla is {qibla.toleranceDeg >= 30 ? 'any direction here' : `${toCardinal(qibla.qiblaBearing)}, ${Math.round(qibla.qiblaBearing)}° from North`}.
+                  Compass isn’t available on this device.{'\n'}Point the top of the device North, the Qibla is {qibla.toleranceDeg >= 30 ? 'any direction here' : `${toCardinal(qibla.qiblaBearing)}, ${Math.round(qibla.qiblaBearing)}° from North`}.
                 </Text>
               ) : calibrating ? (
                 <Text style={styles.calibrateText}>Wave your phone in a figure 8 to calibrate</Text>
@@ -246,7 +241,7 @@ export default function QiblaScreen() {
                   <>
                     <Text style={styles.cityText}>{cityName}</Text>
                     {qibla.hasLocation && (
-                      <Text style={styles.distanceText}>{qibla.distanceKm.toLocaleString()} km to the Kaaba</Text>
+                      <Text style={styles.distanceText}>{formatDistance(qibla.distanceKm, location?.countryCode)} to the Kaaba</Text>
                     )}
                   </>
                 )
@@ -294,17 +289,20 @@ const styles = StyleSheet.create({
   markLetter: { color: 'rgba(255,255,255,0.85)', fontSize: 18, fontWeight: '700' },
   markNorth: { color: NORTH, fontWeight: '800' },
   markNumber: { color: 'rgba(255,255,255,0.45)', fontSize: 12, fontWeight: '500', fontVariant: ['tabular-nums'] },
-  kaabaDisc: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  qiblaDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 2,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: 'rgba(0,0,0,0.4)',
   },
-  kaabaImg: { width: 22, height: 22, tintColor: '#FFFFFF' },
-  readout: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  qiblaDotAligned: {
+    shadowColor: ALIGNED,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  readout: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   readoutDeg: { ...type.hero, color: '#FFFFFF', fontFamily: HEADLINE_FONT_FAMILY, fontVariant: ['tabular-nums'] },
   readoutCard: { color: 'rgba(255,255,255,0.5)', fontSize: 17, fontWeight: '500', letterSpacing: 3, marginTop: -2 },
 

@@ -9,6 +9,7 @@ import {
 
 import { IconButton } from './IconButton';
 import { useTheme } from '../context/ThemeContext';
+import { Palette } from '../theme/colors';
 import { iconSize } from '../theme/icons';
 import { spacing } from '../theme/spacing';
 import { type } from '../theme/typography';
@@ -20,6 +21,9 @@ interface SheetProps {
   /** Optional trailing header action (e.g. a "Done" or refresh control). */
   headerRight?: React.ReactNode;
   children: React.ReactNode;
+  /** Overrides the app's default (dark) palette — used by the Quran tab's
+   *  sheets, which stay on the forced-light reading palette instead. */
+  palette?: Palette;
 }
 
 /**
@@ -27,8 +31,9 @@ interface SheetProps {
  * Used app-wide for popups/modals so content sheets get the system slide-up,
  * swipe-to-dismiss card while still hosting arbitrary RN content.
  */
-export function Sheet({ visible, onClose, title, headerRight, children }: SheetProps) {
-  const { colors } = useTheme();
+export function Sheet({ visible, onClose, title, headerRight, children, palette }: SheetProps) {
+  const { colors: themeColors } = useTheme();
+  const colors = palette ?? themeColors;
 
   return (
     <Modal

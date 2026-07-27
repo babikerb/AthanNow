@@ -2,7 +2,6 @@ import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text } from 'react-native';
 
-import { OBRect } from '../../../context/OnboardingContext';
 import { getLocationPermissionState, requestLocationPermission } from '../../../hooks/useLocation';
 import { skyTextSecondary } from '../../../theme/colors';
 import { spacing } from '../../../theme/spacing';
@@ -27,11 +26,11 @@ interface Copy {
 const COPY: Record<Kind, Copy> = {
   location: {
     headline: 'Find your prayer times',
-    ask: "AthanNow uses your location to calculate accurate prayer times for exactly where you are. It's used on-device only — nothing is sent anywhere.",
+    ask: "AthanNow uses your location to calculate accurate prayer times for exactly where you are. It's used on-device only, nothing is sent anywhere.",
     granted: 'Location is already enabled.',
     deniedPermanent:
-      "Location is turned off for AthanNow. Enable it in Settings to get prayer times for your exact location — or continue and we'll use Mecca's times for now.",
-    declined: "No problem — we'll start you off with Mecca's prayer times. Search any city anytime from the location pill.",
+      "Location is turned off for AthanNow. Enable it in Settings to get prayer times for your exact location, or continue and we'll use Mecca's times for now.",
+    declined: "No problem, we'll start you off with Mecca's prayer times. Search any city anytime from the location pill.",
     allowLabel: 'Allow Location',
   },
   notifications: {
@@ -39,8 +38,8 @@ const COPY: Record<Kind, Copy> = {
     ask: 'AthanNow can notify you at each prayer time, with an optional reminder beforehand. You choose which prayers and how far ahead in Settings.',
     granted: 'Notifications are already enabled.',
     deniedPermanent:
-      'Notifications are turned off for AthanNow. Enable them in Settings to get athan alerts — or continue without them for now.',
-    declined: 'You can still see every prayer time in the app. Turn on notifications anytime from Settings → Notifications.',
+      'Notifications are turned off for AthanNow. Enable them in Settings to get athan alerts, or continue without them for now.',
+    declined: 'You can still see every prayer time in the app. Turn on notifications anytime from Settings, then Notifications.',
     allowLabel: 'Enable Notifications',
   },
 };
@@ -49,10 +48,7 @@ interface Props {
   index: number;
   total: number;
   permission: Kind;
-  target: OBRect | null;
-  hasTarget: boolean;
-  round?: boolean;
-  /** Location only — kicks off the real GPS fetch in the background once
+  /** Location only, kicks off the real GPS fetch in the background once
    *  granted; not awaited (a stalled GPS read must never freeze onboarding). */
   refreshLocation?: () => Promise<void>;
   onNext: () => void;
@@ -69,7 +65,7 @@ interface Props {
  * denied the first time sees "Open Settings" here, never a silent re-ask
  * that will never surface a dialog.
  */
-export function PermissionStep({ index, total, permission, target, hasTarget, round, refreshLocation, onNext, onClose }: Props) {
+export function PermissionStep({ index, total, permission, refreshLocation, onNext, onClose }: Props) {
   const gradient = useMemo(() => onboardingGradient(), []);
   const copy = COPY[permission];
   const [permState, setPermState] = useState<PermissionUIState>('checking');
@@ -140,9 +136,6 @@ export function PermissionStep({ index, total, permission, target, hasTarget, ro
       index={index}
       total={total}
       gradient={gradient}
-      target={target}
-      hasTarget={hasTarget}
-      round={round}
       onClose={onClose}
       content={
         <>

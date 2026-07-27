@@ -6,10 +6,11 @@ import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, T
 import { PlaceSuggestion, searchPlaces } from '../hooks/useLocation';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useTheme } from '../context/ThemeContext';
-import { ACCENT, ACCENT_BORDER, ACCENT_SOFT } from '../theme/colors';
+import { ACCENT, ACCENT_BORDER, ACCENT_SOFT, ERROR } from '../theme/colors';
 import { iconSize } from '../theme/icons';
 import { duration, easing, PRESSED_OPACITY } from '../theme/motion';
 import { radii } from '../theme/radii';
+import { spacing } from '../theme/spacing';
 import { type } from '../theme/typography';
 import { Sheet } from './Sheet';
 
@@ -124,10 +125,12 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
           <Text style={[styles.citySub, { color: colors.textSecondary }]}>
             {isManual ? 'Manually selected' : 'Using your device location'}
           </Text>
-          {loading && <ActivityIndicator color={ACCENT} style={{ marginTop: 10 }} />}
+          {loading && <ActivityIndicator color={ACCENT} style={{ marginTop: spacing.sm }} />}
         </View>
 
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Change location</Text>
+        {/* Same uppercase-tracked micro-label treatment Settings' section
+            titles use, not a one-off bold-13px style local to this sheet. */}
+        <Text style={[styles.label, { color: colors.textSecondary }]}>CHANGE LOCATION</Text>
 
         {/* Search field */}
         <View style={[styles.searchRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.separator }]}>
@@ -224,45 +227,52 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
   );
 }
 
+// Token migration (per explicit feedback this sheet should look like the
+// rest of the app, not a one-off): every literal below used to be a bespoke
+// number invented for this file alone. Now sourced from the same
+// type/spacing/radii scales every other redesigned screen uses. `radii.sm`
+// for the compact controls (search row, suggestion box, "use current
+// location" row) is literally that token's own documented use case
+// (radii.ts: "compact controls (search rows, segment container)").
 const styles = StyleSheet.create({
-  body: { padding: 20, gap: 18 },
+  body: { padding: spacing.lg, gap: spacing.lg },
   card: {
     borderRadius: radii.lg,
     borderWidth: 1,
-    paddingVertical: 26,
-    paddingHorizontal: 20,
+    paddingVertical: spacing.xl + 2,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
   },
-  iconBadge: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 14, borderWidth: 1 },
-  cardCaption: { ...type.caption2, marginBottom: 4 },
-  city: { ...type.title2 },
-  citySub: { ...type.footnote, marginTop: 4 },
-  label: { fontSize: 13, fontWeight: '700', marginLeft: 4, marginBottom: -4 },
+  iconBadge: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm + 2, borderWidth: 1 },
+  cardCaption: { ...type.caption2, marginBottom: spacing.xxs } as any,
+  city: { ...type.title2 } as any,
+  citySub: { ...type.footnote, marginTop: spacing.xxs } as any,
+  label: { ...type.caption2, marginLeft: spacing.xxs, marginBottom: -spacing.xxs } as any,
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
+    gap: spacing.xs + 2,
+    borderRadius: radii.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
+    paddingHorizontal: spacing.sm + 2,
     height: 50,
   },
-  input: { flex: 1, fontSize: 16 },
-  error: { color: '#E5484D', fontSize: 13, marginTop: -8, marginLeft: 4 },
-  suggestBox: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginTop: -4 },
-  suggestEmpty: { padding: 18, alignItems: 'center' },
-  suggestEmptyText: { fontSize: 14 },
-  suggestRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
-  suggestName: { fontSize: 16, fontWeight: '600' },
-  suggestSub: { fontSize: 13, marginTop: 1 },
+  input: { flex: 1, ...type.body } as any,
+  error: { ...type.footnote, color: ERROR, marginTop: -spacing.xs, marginLeft: spacing.xxs } as any,
+  suggestBox: { borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginTop: -spacing.xxs },
+  suggestEmpty: { padding: spacing.lg, alignItems: 'center' },
+  suggestEmptyText: { ...type.footnote } as any,
+  suggestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.sm },
+  suggestName: { ...type.bodyEmph } as any,
+  suggestSub: { ...type.footnote, marginTop: 1 } as any,
   useCurrent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    borderRadius: 14,
+    gap: spacing.sm,
+    borderRadius: radii.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    paddingVertical: 15,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   } as any,
-  useCurrentText: { flex: 1, fontSize: 16, fontWeight: '600' },
+  useCurrentText: { flex: 1, ...type.bodyEmph } as any,
 });

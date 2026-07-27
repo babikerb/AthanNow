@@ -10,6 +10,18 @@
 export const ACCENT = '#315C46';
 export const ACCENT_SOFT = 'rgba(49, 92, 70, 0.16)';
 export const ACCENT_BORDER = 'rgba(49, 92, 70, 0.35)';
+/**
+ * Same hue as `ACCENT`, lightened and slightly more saturated — for the one
+ * context where the base accent's real problem shows up: `ACCENT` is a dark,
+ * fairly desaturated green, and against a near-black surface (the tab bar's
+ * `barTintColor`) that reads as low-contrast dark-on-dark, not as a legible
+ * "this tab is active" signal. This isn't a second brand color — it's the
+ * same green pushed brighter specifically for dark backdrops, the same idea
+ * as an iOS system color having a light and dark variant of one hue. Use
+ * this instead of `ACCENT` wherever a green needs to sit on a dark surface
+ * and actually be seen (currently: the tab bar's active tint).
+ */
+export const ACCENT_ON_DARK = '#4FAE86';
 
 export type Palette = {
   background: string;
@@ -18,42 +30,29 @@ export type Palette = {
   textPrimary: string;
   textSecondary: string;
   /**
-   * @deprecated Fails AA contrast (4.5:1) in both themes against every
-   * background it's paired with (light ~2.40-2.47:1, dark ~3.27-3.30:1).
-   * Do not use for new real-text call sites — use `textSecondary` for
-   * de-emphasized real text, or `textQuaternary` for decorative-only
-   * glyphs. Existing real-text usages are being migrated off this field in
-   * a later pass; it stays defined until that migration is complete.
+   * @deprecated Fails AA contrast (4.5:1) against the background it's paired
+   * with (~3.27-3.30:1). Do not use for new real-text call sites — use
+   * `textSecondary` for de-emphasized real text, or `textQuaternary` for
+   * decorative-only glyphs. Existing real-text usages are being migrated off
+   * this field in a later pass; it stays defined until that migration is
+   * complete.
    */
   textTertiary: string;
   /**
    * Decorative glyphs only — e.g. a disclosure chevron sitting right next to
    * the value it's pointing at — never real `<Text>` content. Same alpha
-   * value as the legacy `textTertiary` (0.38 light / 0.36 dark), which fails
-   * AA for body text; that's acceptable here specifically because these
-   * pixels don't carry information on their own (the adjacent text/value
-   * does). If you're tempted to put a string in this color, use
-   * `textSecondary` instead.
+   * value as the legacy `textTertiary` (0.36), which fails AA for body text;
+   * that's acceptable here specifically because these pixels don't carry
+   * information on their own (the adjacent text/value does). If you're
+   * tempted to put a string in this color, use `textSecondary` instead.
    */
   textQuaternary: string;
   separator: string;
   accent: string;
 };
 
-// Neutral light theme — true greys, no purple tint. Accent supplies the only color.
-export const lightPalette: Palette = {
-  background: '#F2F2F4',
-  surface: '#FFFFFF',
-  surfaceElevated: '#FFFFFF',
-  textPrimary: '#111113',
-  textSecondary: 'rgba(17, 17, 19, 0.60)',
-  textTertiary: 'rgba(17, 17, 19, 0.38)',
-  textQuaternary: 'rgba(17, 17, 19, 0.38)',
-  separator: 'rgba(17, 17, 19, 0.10)',
-  accent: ACCENT,
-};
-
-// Neutral dark theme — near-black greys, no purple tint.
+// The app is dark-mode only by design (no system-theme following) — near-
+// black greys, no purple tint.
 export const darkPalette: Palette = {
   background: '#0B0B0D',
   surface: '#161618',
@@ -89,28 +88,25 @@ export const skyTextPrimary = '#FFFFFF';
 export const skyTextSecondary = 'rgba(255,255,255,0.82)';
 
 /**
- * Reading-surface palette for the Quran mushaf reader — a deliberate product
- * decision (a reading surface should feel like paper/e-ink, not the app
- * chrome), kept distinct from the light/dark `Palette` above by design, not
- * by accident. Named and exported here so there is one place to edit it
- * instead of it being buried inline in a screen file.
+ * Reading-surface palette for the Quran mushaf reader — forced light,
+ * independent of the rest of the app's forced-dark chrome palette above.
+ * Warm ivory paper + soft warm-brown ink (not pure black), so a full page of
+ * Arabic text doesn't read as stark/harsh the way white-on-black (or even
+ * near-black-on-white) would. Full `Palette` shape (not a partial subset) so
+ * it can be threaded into `Sheet`/`BookmarkSheet`/`SurahPickerSheet` too,
+ * keeping the whole Quran tab on one consistent light surface.
  */
-export const readingPalette = {
-  dark: {
-    background: '#0F0F10',
-    surface: '#0F0F10',
-    textPrimary: '#ECECEC',
-    textSecondary: 'rgba(255,255,255,0.6)',
-    textTertiary: 'rgba(255,255,255,0.4)',
-  },
-  light: {
-    background: '#F7F3EA',
-    surface: '#F7F3EA',
-    textPrimary: '#1B1B1B',
-    textSecondary: 'rgba(0,0,0,0.6)',
-    textTertiary: 'rgba(0,0,0,0.42)',
-  },
-} as const;
+export const readingPalette: Palette = {
+  background: '#F6F1E5',
+  surface: '#F6F1E5',
+  surfaceElevated: '#EFE7D6',
+  textPrimary: '#3A3128',
+  textSecondary: 'rgba(58, 49, 40, 0.64)',
+  textTertiary: 'rgba(58, 49, 40, 0.42)',
+  textQuaternary: 'rgba(58, 49, 40, 0.32)',
+  separator: 'rgba(58, 49, 40, 0.14)',
+  accent: ACCENT,
+};
 
 /**
  * Atmospheric gradients keyed to each prayer stage (ported from Jamaa).

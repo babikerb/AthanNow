@@ -7,20 +7,19 @@ import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Providers
-import { ImmersiveProvider, useImmersive } from './src/context/ImmersiveContext';
 import { OnboardingProvider } from './src/context/OnboardingContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { OnboardingOverlay } from './src/components/onboarding/OnboardingOverlay';
 import { navigationRef } from './src/navigation/navigationRef';
-import { ACCENT } from './src/theme/colors';
+import { ACCENT_ON_DARK } from './src/theme/colors';
 
-// `colors.ts`'s ACCENT_SOFT (16% opacity) is tuned to sit on light surfaces
-// (icon badges, etc.) — nearly invisible against the tab bar's near-black
-// `barTintColor`. This is the same accent tinted stronger specifically for
-// that dark backdrop, so the Android indicator pill actually reads as a
-// visible highlight rather than disappearing into the bar.
-const TAB_INDICATOR_COLOR = 'rgba(49, 92, 70, 0.55)';
+// Translucent version of `ACCENT_ON_DARK` (see colors.ts's doc comment on
+// that token) for the Android Material indicator pill's fill — the plain
+// `ACCENT` was a real contrast problem here (a dark, desaturated green
+// against the tab bar's near-black background reads as barely-there
+// dark-on-dark), not just a stylistic preference.
+const TAB_INDICATOR_COLOR = 'rgba(79, 174, 134, 0.35)';
 // Side-effect import: defines the background-refresh task at module scope so the
 // headless JS runtime can find it.
 import { registerBackgroundRefresh } from './src/utils/backgroundRefresh';
@@ -39,33 +38,19 @@ import SettingsScreen from './src/screens/SettingsScreen';
 const Tab = createNativeBottomTabNavigator();
 
 function MainTabs() {
-  // The Quran reader can request a full-bleed immersive mode that hides the bar.
-  const { tabBarHidden } = useImmersive();
   return (
     <View style={{ flex: 1 }}>
       <NavigationContainer ref={navigationRef}>
         <Tab.Navigator
         {...({
-          tabBarHidden,
-          // Kept fully native (not a custom-rendered tab bar) specifically so
-          // this stays Liquid Glass on iOS 26+, which already renders its own
-          // soft glass pill behind the selected tab automatically — that's
-          // the actual "highlight when active" effect, and it only exists
-          // while the tab bar stays native. `activeIndicatorColor` is this
-          // same idea's Android-native equivalent (Material 3's pill
-          // indicator) — the library exposes it directly, no custom tab bar
-          // needed there either. Pre-iOS-26 devices fall back to a plain tint
-          // change with no pill, which is a platform limitation of staying
-          // native rather than something fixable from here.
+          // Reverted from a custom-rendered tab bar (tried, for a Crumbl-
+          // style abstract highlight) back to fully native, per explicit
+          // preference. `activeIndicatorColor` is the native Android
+          // Material 3 pill indicator; iOS 26+ renders its own Liquid Glass
+          // pill automatically when the bar stays native.
           activeIndicatorColor: TAB_INDICATOR_COLOR,
         } as any)}
-        // Now that the pill (native on iOS 26+, activeIndicatorColor on
-        // Android) gives the active icon a locally-contrasting backdrop
-        // separate from whatever screen content sits behind the bar, the
-        // brand accent reads clearly here in a way it wouldn't directly
-        // against the bar's raw background — see AppHeader's header redesign
-        // notes for why a flat accent tint was avoided *without* a pill.
-        tabBarActiveTintColor={ACCENT}
+        tabBarActiveTintColor={ACCENT_ON_DARK}
         screenOptions={{
           // Explicitly use the native background bar color property
           barTintColor: '#0B0B0D',
@@ -157,12 +142,10 @@ export default function App() {
     <SafeAreaProvider>
       <SettingsProvider>
         <ThemeProvider>
-          <ImmersiveProvider>
-            <OnboardingProvider>
-              <StatusBar style="light" />
-              <Root />
-            </OnboardingProvider>
-          </ImmersiveProvider>
+          <OnboardingProvider>
+            <StatusBar style="light" />
+            <Root />
+          </OnboardingProvider>
         </ThemeProvider>
       </SettingsProvider>
     </SafeAreaProvider>

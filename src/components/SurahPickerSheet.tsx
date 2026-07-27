@@ -1,16 +1,12 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, TextStyle, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
 import { getSurah, Surah, SURAHS } from '../data/surahs';
 import { TOTAL_PAGES } from '../data/surahPages';
-import { ACCENT, ACCENT_SOFT, QURAN_FONT } from '../theme/colors';
-import { PRESSED_OPACITY } from '../theme/motion';
-import { radii } from '../theme/radii';
-import { spacing } from '../theme/spacing';
-import { type } from '../theme/typography';
-import { AyahHit, searchAyat } from '../utils/quran';
+import { ACCENT, ACCENT_SOFT, Palette, QURAN_FONT } from '../theme/colors';
+import { AyahHit, searchAyat, searchTranslation } from '../utils/quran';
 import { Sheet } from './Sheet';
 
 interface SurahPickerSheetProps {
@@ -22,10 +18,14 @@ interface SurahPickerSheetProps {
   onSelectVerse?: (verseKey: string) => void;
   /** Jump to a 1-based mushaf page number. */
   onSelectPage?: (page: number) => void;
+  /** Overrides the app's default (dark) palette — the Quran tab stays on the
+   *  forced-light reading palette instead. */
+  palette?: Palette;
 }
 
-export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, onSelectVerse, onSelectPage }: SurahPickerSheetProps) {
-  const { colors } = useTheme();
+export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, onSelectVerse, onSelectPage, palette }: SurahPickerSheetProps) {
+  const { colors: themeColors } = useTheme();
+  const colors = palette ?? themeColors;
   const [query, setQuery] = useState('');
 
   // Detect a verse reference like "2:286" or "2.286".
@@ -86,6 +86,31 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
     );
   }, [query]);
 
+  // English word/meaning search (debounced) — only once nothing else matches
+  // (no verse/page ref, no surah-name hit), so a surah search like "light"
+  // (An-Nur's translation) still wins over ayah results.
+  const wantsTranslationSearch = !isArabic && !verseRef && !pageRef && filtered.length === 0 && query.trim().length >= 3;
+  const [translationHits, setTranslationHits] = useState<AyahHit[]>([]);
+  const [searchingEn, setSearchingEn] = useState(false);
+  useEffect(() => {
+    if (!wantsTranslationSearch) {
+      setTranslationHits([]);
+      setSearchingEn(false);
+      return;
+    }
+    setSearchingEn(true);
+    let cancelled = false;
+    const t = setTimeout(() => {
+      searchTranslation(query)
+        .then((h) => !cancelled && (setTranslationHits(h), setSearchingEn(false)))
+        .catch(() => !cancelled && (setTranslationHits([]), setSearchingEn(false)));
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [query, wantsTranslationSearch]);
+
   const renderItem = ({ item }: { item: Surah }) => {
     const selected = item.id === currentSurahId;
     return (
@@ -94,14 +119,14 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
           onSelect(item.id);
           onClose();
         }}
-        style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? PRESSED_OPACITY : 1 }]}
+        style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
       >
         <View style={[styles.numberBadge, { backgroundColor: selected ? ACCENT : ACCENT_SOFT }]}>
           <Text style={[styles.numberText, { color: selected ? '#FFF' : ACCENT }]}>{item.id}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: colors.textPrimary }]}>{item.transliteration}</Text>
-          <Text style={[styles.sub, { color: colors.textSecondary }]}>
+          <Text style={[styles.sub, { color: colors.textTertiary }]}>
             {item.translation} · {item.totalVerses} ayat
           </Text>
         </View>
@@ -111,29 +136,27 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Go to">
+    <Sheet visible={visible} onClose={onClose} title="Go to" palette={colors}>
       <View style={[styles.searchRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.separator }]}>
-        <SymbolView name="magnifyingglass" size={18} tintColor={colors.textQuaternary} />
+        <SymbolView name="magnifyingglass" size={18} tintColor={colors.textTertiary} />
         <TextInput
           style={[styles.input, { color: colors.textPrimary }]}
-          placeholder="Surah, ayah, or page"
-          placeholderTextColor={colors.textSecondary}
+          placeholder="Surah, ayah, page, or a word like 'mercy'"
+          placeholderTextColor={colors.textTertiary}
           value={query}
           onChangeText={setQuery}
           autoCorrect={false}
           keyboardType="default"
+          keyboardAppearance="light"
         />
       </View>
-      {/* The combined search accepts several syntaxes with no visual cue otherwise —
-          surah name, "S:A" verse jump, "page N", or Arabic full text. */}
-      <Text style={[styles.hint, { color: colors.textSecondary }]}>Try: 2:255, page 50, or a surah name</Text>
       {verseRef && onSelectVerse && (
         <Pressable
           onPress={() => {
             onSelectVerse(verseRef.key);
             onClose();
           }}
-          style={({ pressed }) => [styles.gotoRow, { backgroundColor: ACCENT_SOFT, opacity: pressed ? PRESSED_OPACITY : 1 }]}
+          style={({ pressed }) => [styles.gotoRow, { backgroundColor: ACCENT_SOFT, opacity: pressed ? 0.6 : 1 }]}
         >
           <SymbolView name="arrow.right.circle.fill" size={22} tintColor={ACCENT} />
           <Text style={[styles.gotoText, { color: colors.textPrimary }]}>
@@ -147,7 +170,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
             onSelectPage(pageRef);
             onClose();
           }}
-          style={({ pressed }) => [styles.gotoRow, { backgroundColor: ACCENT_SOFT, opacity: pressed ? PRESSED_OPACITY : 1 }]}
+          style={({ pressed }) => [styles.gotoRow, { backgroundColor: ACCENT_SOFT, opacity: pressed ? 0.6 : 1 }]}
         >
           <SymbolView name="book.pages.fill" size={22} tintColor={ACCENT} />
           <Text style={[styles.gotoText, { color: colors.textPrimary }]}>Go to page {pageRef}</Text>
@@ -160,13 +183,14 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
           </View>
         ) : ayahHits.length === 0 ? (
           <View style={styles.searchState}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No ayat match that text.</Text>
+            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No ayat match that text.</Text>
           </View>
         ) : (
           <FlatList
             data={ayahHits}
             keyExtractor={(a) => a.key}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             contentContainerStyle={{ paddingBottom: 40 }}
             renderItem={({ item }) => (
               <Pressable
@@ -174,13 +198,49 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
                   onSelectVerse?.(item.key);
                   onClose();
                 }}
-                style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? PRESSED_OPACITY : 1 }]}
+                style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.ayahText, { color: colors.textPrimary }]} numberOfLines={2}>
                     {item.text}
                   </Text>
-                  <Text style={[styles.sub, { color: colors.textSecondary }]}>
+                  <Text style={[styles.sub, { color: colors.textTertiary }]}>
+                    {item.surahName} · {item.surahId}:{item.ayah}
+                  </Text>
+                </View>
+              </Pressable>
+            )}
+          />
+        )
+      ) : wantsTranslationSearch ? (
+        searchingEn && translationHits.length === 0 ? (
+          <View style={styles.searchState}>
+            <ActivityIndicator color={ACCENT} />
+          </View>
+        ) : translationHits.length === 0 ? (
+          <View style={styles.searchState}>
+            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No ayat match that word.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={translationHits}
+            keyExtractor={(a) => a.key}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={{ paddingBottom: 40 }}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => {
+                  onSelectVerse?.(item.key);
+                  onClose();
+                }}
+                style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.translationText, { color: colors.textPrimary }]} numberOfLines={2}>
+                    {item.translation}
+                  </Text>
+                  <Text style={[styles.sub, { color: colors.textTertiary }]}>
                     {item.surahName} · {item.surahId}:{item.ayah}
                   </Text>
                 </View>
@@ -194,6 +254,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
           keyExtractor={(s) => String(s.id)}
           renderItem={renderItem}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingBottom: 40 }}
         />
       )}
@@ -206,38 +267,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    // radii.sm's role is explicitly "compact controls (search rows, segment
-    // container)" — this row is the reference case for that token.
-    borderRadius: radii.sm,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: 16,
     height: 50,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xs,
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 14,
   },
-  input: { flex: 1, ...type.body } as TextStyle,
-  // Single-line hint for the multi-mode search syntax (surah name / "S:A" /
-  // "page N" / Arabic full text), otherwise completely undiscoverable.
-  hint: { ...type.footnote, marginHorizontal: spacing.md, marginBottom: spacing.md } as TextStyle,
-  gotoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 14,
-    borderRadius: radii.sm,
-  },
-  gotoText: { ...type.bodyEmph } as TextStyle,
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: spacing.lg, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
+  input: { flex: 1, fontSize: 16 },
+  gotoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 14 },
+  gotoText: { fontSize: 16, fontWeight: '600' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
   numberBadge: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   numberText: { fontSize: 14, fontWeight: '700' },
-  name: { ...type.bodyEmph } as TextStyle,
-  sub: { ...type.footnote, marginTop: 2 } as TextStyle,
+  name: { fontSize: 16, fontWeight: '600' },
+  sub: { fontSize: 13, marginTop: 2 },
   arabic: { fontSize: 20, writingDirection: 'rtl' },
   ayahText: { fontSize: 19, lineHeight: 32, fontFamily: QURAN_FONT, writingDirection: 'rtl', textAlign: 'right' },
+  translationText: { fontSize: 15, lineHeight: 21 },
   searchState: { paddingTop: 30, alignItems: 'center', gap: 10 },
   emptyText: { fontSize: 14 },
 });

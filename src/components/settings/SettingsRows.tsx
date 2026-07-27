@@ -64,6 +64,7 @@ export function NavRow({
   colors,
   last,
   dimmed,
+  chevron = 'chevron.right',
 }: {
   icon: SFSymbol;
   label: string;
@@ -78,6 +79,10 @@ export function NavRow({
    *  `textSecondary` regardless, so this is what actually changes the row's
    *  weight when the feature is off. */
   dimmed?: boolean;
+  /** Override the trailing glyph — defaults to a disclosure chevron (implies
+   *  "navigates somewhere"). Pass `chevron.down`/`chevron.up` for a row that
+   *  expands/collapses in place instead, so the affordance reads correctly. */
+  chevron?: SFSymbol;
 }) {
   return (
     <Pressable
@@ -91,7 +96,7 @@ export function NavRow({
         <Text style={[styles.rowValue, { color: colors.textSecondary }]} numberOfLines={1}>
           {value}
         </Text>
-        <SymbolView name="chevron.right" size={14} tintColor={colors.textQuaternary} />
+        <SymbolView name={chevron} size={14} tintColor={colors.textQuaternary} />
       </RowFrame>
     </Pressable>
   );

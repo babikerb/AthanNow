@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
-import { OBRect } from '../../../context/OnboardingContext';
 import { skyTextSecondary } from '../../../theme/colors';
 import { spacing } from '../../../theme/spacing';
 import { type } from '../../../theme/typography';
@@ -14,22 +13,21 @@ interface Props {
   total: number;
   title: string;
   body: string;
-  target: OBRect | null;
-  round?: boolean;
   onNext: () => void;
   onSkip: () => void;
   onClose?: () => void;
 }
 
 /**
- * Pure real-UI highlight step — the direct continuation of the former
- * standalone coach-mark tour (`OnboardingTour`/`Spotlight`), now living
- * inline in the merged flow instead of firing separately after the user was
- * already dropped into the app. "Skip" jumps straight to the closing step
- * rather than abandoning the flow entirely, so a skipped tour still ends on
- * a normal summary instead of leaving the user mid-overlay.
+ * A short descriptive popup introducing part of the app, a dimmed real tab
+ * in the background for atmosphere, plain centered card with copy on top.
+ * Replaces the former `SpotlightStep`, which also cut a highlight hole
+ * around a real, measured UI element, dropped per explicit feedback (the
+ * cross-tab measurement it needed kept causing layout bugs and read as
+ * glitchy). "Skip" jumps straight to the closing step rather than
+ * abandoning the flow, so a skipped tour still ends on a normal summary.
  */
-export function SpotlightStep({ index, total, title, body, target, round, onNext, onSkip, onClose }: Props) {
+export function InfoStep({ index, total, title, body, onNext, onSkip, onClose }: Props) {
   const gradient = useMemo(() => onboardingGradient(), []);
 
   return (
@@ -37,9 +35,6 @@ export function SpotlightStep({ index, total, title, body, target, round, onNext
       index={index}
       total={total}
       gradient={gradient}
-      target={target}
-      hasTarget
-      round={round}
       onClose={onClose}
       content={
         <>

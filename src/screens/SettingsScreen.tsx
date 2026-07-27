@@ -9,12 +9,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextStyle,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PRIVACY_URL = 'https://athannow.bbabiker.com/privacy';
 
-import { GlassPill, HeaderBar, HeaderSpacer, HeaderTitle } from '../components/AppHeader';
+import { SafeAreaScrim } from '../components/FloatingControl';
 import { Sheet } from '../components/Sheet';
 import { NavRow, RowFrame, SegmentRow, styles as rowStyles, ToggleRow } from '../components/settings/SettingsRows';
 import { useOnboarding } from '../context/OnboardingContext';
@@ -34,7 +36,6 @@ import { radii } from '../theme/radii';
 import { spacing } from '../theme/spacing';
 import { type } from '../theme/typography';
 import { CALC_METHOD_WHY, CALC_METHODS, calcMethodForCountry, localeCountryCode } from '../utils/calcMethodDefaults';
-import { DAYS_AHEAD, MAX_PENDING } from '../utils/notifications';
 
 // Same alpha steps as `ACCENT_SOFT`/`ACCENT_BORDER` (theme/colors.ts), applied
 // to the `ERROR` token for the destructive row's icon badge (plan §3.7,
@@ -59,14 +60,20 @@ const PRAYER_LABELS: { key: PrayerKey; label: string }[] = [
 ];
 
 export default function SettingsScreen() {
-  const { colors, scheme } = useTheme();
+  const { colors } = useTheme();
   const settings = useSettings();
   const onboarding = useOnboarding();
   const tabBarHeight = useTabBarHeight();
   const { location } = useLocation();
-  useFocusedStatusBar(scheme === 'dark' ? 'light' : 'dark');
+  useFocusedStatusBar('light');
   const [methodSheetOpen, setMethodSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
+  // Collapsed by default (per-prayer redesign): six near-identical toggle
+  // rows shown at once, right at the top of the screen, was the single
+  // biggest contributor to Settings feeling "intimidating" — nothing about
+  // the underlying six independent per-prayer settings changed, they're just
+  // hidden behind one summary row until a user actually wants to fine-tune.
+  const [notifExpanded, setNotifExpanded] = useState(false);
 
   const tap = () => Haptics.selectionAsync();
 
@@ -89,6 +96,8 @@ export default function SettingsScreen() {
   };
 
   const methodLabel = CALC_METHODS.find((m) => m.key === settings.calcMethod)?.label ?? settings.calcMethod;
+  const enabledCount = Object.values(settings.notifications.athanEnabled).filter(Boolean).length;
+  const totalPrayerCount = PRAYER_LABELS.length;
 
   // "Recommended for your region" + "All methods" grouping (plan §3.7) —
   // reuses the same country -> method lookup and "why" copy the onboarding
@@ -134,18 +143,21 @@ export default function SettingsScreen() {
   const appVersion = Constants.expoConfig?.version;
   const buildNumber = Constants.expoConfig?.ios?.buildNumber ?? Constants.expoConfig?.android?.versionCode;
   const versionLabel = appVersion ? (buildNumber ? `${appVersion} (${buildNumber})` : String(appVersion)) : null;
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <HeaderBar>
-        <HeaderSpacer />
-        <GlassPill flex scheme={scheme}>
-          <HeaderTitle title="Settings" color={colors.textPrimary} subColor={colors.textSecondary} />
-        </GlassPill>
-        <HeaderSpacer />
-      </HeaderBar>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingTop: 8, paddingBottom: tabBarHeight + 16 }} showsVerticalScrollIndicator={false}>
+      {/* No header bar (per the app-wide redesign: no chrome unless a screen
+          needs a real control) — just a large scrolling title, like iOS's
+          native large-title pattern, so there's still orientation without a
+          fixed bar spending permanent vertical space on it. */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: insets.top + spacing.sm, paddingBottom: tabBarHeight + spacing.md }}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
+        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>Settings</Text>
         {/* TIME & APPEARANCE */}
         <Section title="Time" colors={colors}>
           <ToggleRow
@@ -183,28 +195,42 @@ export default function SettingsScreen() {
           />
         </Section>
 
-        {/* NOTIFICATIONS */}
-        <Section title="Notifications" footer="Reminders are time sensitive, so they come through even on Focus or silent." colors={colors}>
-          {PRAYER_LABELS.map((p, i) => (
-            <ToggleRow
-              key={p.key}
-              icon={p.key === 'sunrise' ? 'sunrise' : 'bell'}
-              label={p.key === 'sunrise' ? 'Sunrise' : `${p.label} athan`}
-              value={settings.notifications.athanEnabled[p.key]}
-              onValueChange={(v) =>
-                settings.updateNotifications({
-                  athanEnabled: { ...settings.notifications.athanEnabled, [p.key]: v },
-                })
-              }
-              colors={colors}
-              last={i === PRAYER_LABELS.length - 1}
-            />
-          ))}
+        {/* NOTIFICATIONS — collapsed to one summary row by default; expands
+            in place to the six per-prayer toggles only when tapped. */}
+        <Section title="Notifications" description="Reminders are time sensitive, so they come through even on Focus or silent." colors={colors}>
+          <NavRow
+            icon="bell"
+            label="Prayer notifications"
+            value={`${enabledCount} of ${totalPrayerCount} on`}
+            chevron={notifExpanded ? 'chevron.up' : 'chevron.down'}
+            onPress={() => {
+              tap();
+              setNotifExpanded((v) => !v);
+            }}
+            colors={colors}
+            last={!notifExpanded}
+          />
+          {notifExpanded &&
+            PRAYER_LABELS.map((p, i) => (
+              <ToggleRow
+                key={p.key}
+                icon={p.key === 'sunrise' ? 'sunrise' : 'bell'}
+                label={p.key === 'sunrise' ? 'Sunrise' : `${p.label} athan`}
+                value={settings.notifications.athanEnabled[p.key]}
+                onValueChange={(v) =>
+                  settings.updateNotifications({
+                    athanEnabled: { ...settings.notifications.athanEnabled, [p.key]: v },
+                  })
+                }
+                colors={colors}
+                last={i === PRAYER_LABELS.length - 1}
+              />
+            ))}
         </Section>
 
         <Section
           title="Reminders"
-          footer={`Each enabled prayer rings at athan time. A reminder adds an extra heads-up that many minutes before. Notifications are scheduled ${DAYS_AHEAD} days ahead each time you open the app — if every prayer and reminder is on, the schedule can approach iOS's ${MAX_PENDING}-notification limit, so the farthest-out days in that window may not get scheduled until the next refresh.`}
+          description="A reminder gives you an extra heads-up before each athan."
           colors={colors}
         >
           <NavRow
@@ -235,25 +261,7 @@ export default function SettingsScreen() {
           />
         </Section>
 
-        {/* DATA */}
-        <Section title="Data" colors={colors}>
-          {/* Destructive row reads as categorically different, not just a
-              different color (plan §2.5/§3.7) — the icon sits in a tinted
-              circular badge, the same "icon badge" pattern LocationSheet uses
-              for its hero card, but in the ERROR register instead of ACCENT. */}
-          <Pressable
-            onPress={confirmReset}
-            accessibilityRole="button"
-            style={({ pressed }) => [rowStyles.row, { opacity: pressed ? PRESSED_OPACITY : 1 }]}
-          >
-            <View style={[styles.destructiveBadge, { backgroundColor: ERROR_SOFT, borderColor: ERROR_BORDER }]}>
-              <SymbolView name="trash" size={iconSize.sm} tintColor={ERROR} />
-            </View>
-            <Text style={[rowStyles.rowLabel, { color: ERROR }]}>Reset all data</Text>
-          </Pressable>
-        </Section>
-
-        {/* ABOUT */}
+        {/* ABOUT (Reset folded in here, last — see note below) */}
         <Section title="About" colors={colors}>
           <NavRow
             icon="hand.raised"
@@ -283,15 +291,32 @@ export default function SettingsScreen() {
               onboarding.start('replay');
             }}
             colors={colors}
-            last={!versionLabel}
           />
           {versionLabel && (
-            <RowFrame last colors={colors}>
+            <RowFrame colors={colors}>
               <SymbolView name="info.circle" size={iconSize.md} tintColor={colors.textSecondary} />
               <Text style={[rowStyles.rowLabel, { color: colors.textPrimary }]}>Version</Text>
               <Text style={[rowStyles.rowValue, { color: colors.textSecondary }]}>{versionLabel}</Text>
             </RowFrame>
           )}
+          {/* Reset moved in here (was its own titled/bordered "Data" section)
+              per the "less intimidating" redesign — a single destructive
+              action doesn't need the same section-level visual weight as
+              five other groups of real settings; it's still marked as
+              categorically different via the icon badge below, just not via
+              an entire section of its own competing for attention. Last
+              item in the whole screen, easiest thing to *not* run into by
+              accident while scrolling past everything else. */}
+          <Pressable
+            onPress={confirmReset}
+            accessibilityRole="button"
+            style={({ pressed }) => [rowStyles.row, { opacity: pressed ? PRESSED_OPACITY : 1 }]}
+          >
+            <View style={[styles.destructiveBadge, { backgroundColor: ERROR_SOFT, borderColor: ERROR_BORDER }]}>
+              <SymbolView name="trash" size={iconSize.sm} tintColor={ERROR} />
+            </View>
+            <Text style={[rowStyles.rowLabel, { color: ERROR }]}>Reset all data</Text>
+          </Pressable>
         </Section>
 
         <View style={{ height: 40 }} />
@@ -336,6 +361,10 @@ export default function SettingsScreen() {
         </ScrollView>
       </Sheet>
       </ScrollView>
+
+      {/* Guaranteed opaque backing behind the status bar — same reasoning as
+          Calendar's scrim (see FloatingControl.tsx's doc comment). */}
+      <SafeAreaScrim color={colors.background} />
     </View>
   );
 }
@@ -349,29 +378,33 @@ type Colors = ReturnType<typeof useTheme>['colors'];
 
 function Section({
   title,
-  footer,
+  description,
   colors,
   children,
 }: {
   title: string;
-  footer?: string;
+  /** Sits right below the header, above the actual rows, instead of as a
+   *  trailing footnote after everything, so you read the explanation before
+   *  you hit the controls it's explaining, not after. */
+  description?: string;
   colors: Colors;
   children: React.ReactNode;
 }) {
   return (
     <View style={styles.section}>
       {title ? <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{title.toUpperCase()}</Text> : null}
+      {description ? <Text style={[styles.sectionDescription, { color: colors.textSecondary }]}>{description}</Text> : null}
       <View style={[styles.group, { backgroundColor: colors.surface, borderColor: colors.separator }]}>{children}</View>
-      {footer ? <Text style={[styles.sectionFooter, { color: colors.textSecondary }]}>{footer}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.md, paddingTop: spacing.xs },
+  screenTitle: { ...type.title1, marginBottom: spacing.md, marginLeft: spacing.xs } as TextStyle,
   section: { marginBottom: spacing.xl },
   sectionTitle: { ...type.caption2, marginBottom: spacing.xs, marginLeft: spacing.xs },
-  sectionFooter: { ...type.caption, marginTop: spacing.xs, marginLeft: spacing.xs },
+  sectionDescription: { ...type.caption, marginBottom: spacing.sm, marginLeft: spacing.xs },
   group: { borderRadius: radii.md, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   optionRow: {
     flexDirection: 'row',

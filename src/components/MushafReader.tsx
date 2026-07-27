@@ -1,0 +1,162 @@
+import { SymbolView } from 'expo-symbols';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, useWindowDimensions, View, ViewToken } from 'react-native';
+
+import { Palette } from '../theme/colors';
+import { fetchMushafPage, MushafPageData } from '../utils/mushaf';
+import { fetchChapterWordMap } from '../utils/quran';
+import { TOTAL_PAGES } from '../data/surahPages';
+import { MushafPage } from './MushafPage';
+
+interface MushafReaderProps {
+  /** 1-based page to open on. */
+  initialPage: number;
+  topInset: number;
+  bottomInset: number;
+  colors: Palette;
+  dark: boolean;
+  onPageChange: (page: number) => void;
+  isBookmarked: (surahId: number, ayah: number) => boolean;
+  onBookmarkVerse: (surahId: number, ayah: number) => void;
+}
+
+const PAGES = Array.from({ length: TOTAL_PAGES }, (_, i) => i + 1);
+const viewabilityConfig = { itemVisiblePercentThreshold: 60 };
+
+/** Loads one page's layout JSON, then renders the exact line layout. */
+function PageHost({
+  page,
+  width,
+  pageHeight,
+  topInset,
+  bottomInset,
+  colors,
+  dark,
+  isBookmarked,
+  onBookmarkVerse,
+}: {
+  page: number;
+  width: number;
+  pageHeight: number;
+  topInset: number;
+  bottomInset: number;
+  colors: Palette;
+  dark: boolean;
+  isBookmarked: (surahId: number, ayah: number) => boolean;
+  onBookmarkVerse: (surahId: number, ayah: number) => void;
+}) {
+  const [data, setData] = useState<MushafPageData | null>(null);
+  const [words, setWords] = useState<Record<string, string[]>>({});
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setData(null);
+    setWords({});
+    setError(false);
+    fetchMushafPage(page)
+      .then(async (d) => {
+        if (cancelled) return;
+        setData(d);
+        // Pull full Uthmani word text (with waqf marks) for every surah on the page.
+        const chapterIds = new Set<number>();
+        d.lines.forEach((l) => l.words.forEach((w) => w.verse_key && chapterIds.add(Number(w.verse_key.split(':')[0]))));
+        const maps = await Promise.all([...chapterIds].map((id) => fetchChapterWordMap(id).catch(() => ({}))));
+        if (cancelled) return;
+        setWords(Object.assign({}, ...maps));
+      })
+      .catch(() => !cancelled && setError(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
+
+  return (
+    <View style={{ width, paddingTop: topInset, paddingBottom: bottomInset }}>
+      {error ? (
+        <View style={[styles.center, { height: pageHeight }]}>
+          <SymbolView name="wifi.slash" size={32} tintColor={colors.textTertiary} />
+          <Text style={[styles.msg, { color: colors.textSecondary }]}>Couldn't load page {page}.</Text>
+        </View>
+      ) : !data ? (
+        <View style={[styles.center, { height: pageHeight }]}>
+          <ActivityIndicator color={colors.textTertiary} />
+        </View>
+      ) : (
+        <MushafPage
+          data={data}
+          words={words}
+          width={width}
+          height={pageHeight}
+          colors={colors}
+          dark={dark}
+          isBookmarked={isBookmarked}
+          onBookmarkVerse={onBookmarkVerse}
+        />
+      )}
+    </View>
+  );
+}
+
+export function MushafReader({ initialPage, topInset, bottomInset, colors, dark, onPageChange, isBookmarked, onBookmarkVerse }: MushafReaderProps) {
+  const { width, height } = useWindowDimensions();
+  const pageHeight = height - topInset - bottomInset; // header + page number are baked into the page
+  const listRef = useRef<FlatList<number>>(null);
+
+  useEffect(() => {
+    const index = Math.min(Math.max(initialPage - 1, 0), TOTAL_PAGES - 1);
+    listRef.current?.scrollToIndex({ index, animated: false });
+  }, [initialPage]);
+
+  const onPageChangeRef = useRef(onPageChange);
+  onPageChangeRef.current = onPageChange;
+  const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const p = viewableItems[0]?.item as number | undefined;
+    if (p) onPageChangeRef.current(p);
+  }).current;
+
+  const renderItem = useCallback(
+    ({ item }: { item: number }) => (
+      <PageHost
+        page={item}
+        width={width}
+        pageHeight={pageHeight}
+        topInset={topInset}
+        bottomInset={bottomInset}
+        colors={colors}
+        dark={dark}
+        isBookmarked={isBookmarked}
+        onBookmarkVerse={onBookmarkVerse}
+      />
+    ),
+    [width, pageHeight, topInset, bottomInset, colors, dark, isBookmarked, onBookmarkVerse],
+  );
+
+  const getItemLayout = useCallback((_: unknown, index: number) => ({ length: width, offset: width * index, index }), [width]);
+
+  return (
+    <FlatList
+      ref={listRef}
+      data={PAGES}
+      keyExtractor={(p) => String(p)}
+      horizontal
+      pagingEnabled
+      inverted
+      showsHorizontalScrollIndicator={false}
+      initialScrollIndex={Math.min(Math.max(initialPage - 1, 0), TOTAL_PAGES - 1)}
+      getItemLayout={getItemLayout}
+      windowSize={3}
+      maxToRenderPerBatch={2}
+      initialNumToRender={1}
+      viewabilityConfig={viewabilityConfig}
+      onViewableItemsChanged={onViewable}
+      renderItem={renderItem}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  center: { alignItems: 'center', justifyContent: 'center', gap: 12 },
+  msg: { fontSize: 14 },
+  pageNumber: { position: 'absolute', bottom: 6, alignSelf: 'center', fontSize: 11, fontVariant: ['tabular-nums'] },
+});

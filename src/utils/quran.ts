@@ -1,5 +1,66 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/**
+ * Verse data comes from the quran-json CDN (jsDelivr) which serves Uthmani
+ * Arabic text with no auth required. Chapters are cached on-device after first
+ * fetch so reading works offline thereafter.
+ */
+
+export interface Verse {
+  id: number; // ayah number within the surah
+  text: string; // Uthmani Arabic
+  transliteration: string;
+}
+
+const CDN = (chapterId: number) =>
+  `https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/chapters/${chapterId}.json`;
+
+const cacheKey = (chapterId: number) => `athannow.quran.chapter.${chapterId}.v1`;
+const memory = new Map<number, Verse[]>();
+
+export async function fetchChapterVerses(chapterId: number): Promise<Verse[]> {
+  if (memory.has(chapterId)) return memory.get(chapterId)!;
+
+  // Try on-device cache first.
+  try {
+    const cached = await AsyncStorage.getItem(cacheKey(chapterId));
+    if (cached) {
+      const verses: Verse[] = JSON.parse(cached);
+      memory.set(chapterId, verses);
+      return verses;
+    }
+  } catch {
+    // ignore cache read errors
+  }
+
+  const res = await fetch(CDN(chapterId));
+  if (!res.ok) throw new Error(`Failed to load surah ${chapterId}`);
+  const json = (await res.json()) as { verses: Verse[] };
+  const verses = json.verses;
+
+  memory.set(chapterId, verses);
+  AsyncStorage.setItem(cacheKey(chapterId), JSON.stringify(verses)).catch(() => {});
+  return verses;
+}
+
+/**
+ * Word lookup for the mushaf: `verseKey` -> array of words (split from the full
+ * Uthmani text, which includes waqf marks). Lets the qcf4 page layout render the
+ * richer quran-json orthography. Cached via fetchChapterVerses.
+ */
+const wordMapMemory = new Map<number, Record<string, string[]>>();
+
+export async function fetchChapterWordMap(chapterId: number): Promise<Record<string, string[]>> {
+  if (wordMapMemory.has(chapterId)) return wordMapMemory.get(chapterId)!;
+  const verses = await fetchChapterVerses(chapterId);
+  const map: Record<string, string[]> = {};
+  for (const v of verses) {
+    map[`${chapterId}:${v.id}`] = v.text.trim().split(/\s+/);
+  }
+  wordMapMemory.set(chapterId, map);
+  return map;
+}
+
 /* ------------------------------------------------------------------ *
  * Full-text Arabic ayah search.
  * Loads the whole mushaf once (same quran-json CDN, ~1.5 MB, cached), builds a
@@ -12,13 +73,17 @@ export interface AyahHit {
   key: string;
   text: string;
   surahName: string;
+  translation?: string;
 }
 
-const ALL_CDN = 'https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/quran.json';
-const ALL_KEY = 'athannow.quran.all.v1';
+// `quran_en.json` (not the plain `quran.json`) — same Uthmani Arabic text, plus
+// an English `translation` field per verse, needed for the word/meaning search.
+const ALL_CDN = 'https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/quran_en.json';
+const ALL_KEY = 'athannow.quran.all.v2';
 
 interface IndexedAyah extends AyahHit {
   norm: string;
+  normEn: string;
 }
 let ayahIndex: IndexedAyah[] | null = null;
 let indexPromise: Promise<IndexedAyah[]> | null = null;
@@ -61,7 +126,9 @@ async function buildIndex(): Promise<IndexedAyah[]> {
           key: `${ch.id}:${v.id}`,
           text: v.text,
           surahName: ch.transliteration,
+          translation: v.translation,
           norm: normalizeArabic(v.text),
+          normEn: (v.translation ?? '').toLowerCase(),
         });
       }
     }
@@ -71,16 +138,34 @@ async function buildIndex(): Promise<IndexedAyah[]> {
   return indexPromise;
 }
 
-export async function searchAyat(query: string, limit = 25): Promise<AyahHit[]> {
+export async function searchAyat(query: string): Promise<AyahHit[]> {
   const q = normalizeArabic(query);
   if (q.length < 2) return [];
   const index = await buildIndex();
   const hits: AyahHit[] = [];
   for (const a of index) {
-    if (a.norm.includes(q)) {
-      hits.push({ surahId: a.surahId, ayah: a.ayah, key: a.key, text: a.text, surahName: a.surahName });
-      if (hits.length >= limit) break;
-    }
+    if (a.norm.includes(q)) hits.push({ surahId: a.surahId, ayah: a.ayah, key: a.key, text: a.text, surahName: a.surahName });
   }
   return hits;
+}
+
+/** English word/meaning search over each ayah's translation text. */
+export async function searchTranslation(query: string): Promise<AyahHit[]> {
+  const q = query.trim().toLowerCase();
+  if (q.length < 3) return [];
+  const index = await buildIndex();
+  const hits: AyahHit[] = [];
+  for (const a of index) {
+    if (a.normEn.includes(q)) hits.push({ surahId: a.surahId, ayah: a.ayah, key: a.key, text: a.text, surahName: a.surahName, translation: a.translation });
+  }
+  return hits;
+}
+
+/** Eastern-Arabic numeral rendering for ayah-end markers. */
+export function toArabicNumber(n: number): string {
+  const map = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  return String(n)
+    .split('')
+    .map((d) => map[Number(d)] ?? d)
+    .join('');
 }

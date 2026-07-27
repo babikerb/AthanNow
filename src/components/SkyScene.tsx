@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, Mask, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Mask, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
@@ -9,15 +9,10 @@ const { width: W, height: H } = Dimensions.get('screen');
 type Period = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
 
 interface Props {
+  /** Which stage to show — the sky switches directly, no cross-fade/blend
+   *  toward the next stage as its time approaches (removed per explicit
+   *  feedback; each stage renders discretely). */
   prayer: Period;
-  /** The upcoming prayer period, used to cross-fade the sky during transitions. */
-  nextPrayer?: Period;
-  /**
-   * How far we are into the transition toward `nextPrayer` (0..1). At 0 only the
-   * current scene shows; as it rises the current celestial body fades out and the
-   * next one fades in, so e.g. the Fajr moon dissolves into the sunrise sun.
-   */
-  progress?: number;
   /** Absolute Y where the sky strip starts (below the location pill). */
   skyAreaY: number;
 }
@@ -80,6 +75,77 @@ const ISHA_STARS: StarDef[] = [
   { lf: 0.93, tf: 0.17, r: 1.0, op: 0.68 },
 ];
 const STARS_FOR: Partial<Record<Period, StarDef[]>> = { fajr: FAJR_STARS, maghrib: MAGHRIB_STARS, isha: ISHA_STARS };
+
+// Static (no animation, matching the app's established motion restraint —
+// stillness reads as premium here, not a missed opportunity for more
+// movement) daytime atmosphere: a couple of soft, low-opacity clouds and a
+// couple of small hand-drawn-style birds, gated to the bright daytime
+// stages only (dhuhr/asr for clouds; dhuhr/asr/sunrise for birds — fajr/
+// maghrib/isha are night/dusk scenes with stars, clouds and birds wouldn't
+// read there). Kept deliberately sparse (2 of each, at most) — restraint
+// over decoration, same as everywhere else in this app.
+interface CloudDef { lf: number; tf: number; scale: number; op: number }
+interface BirdDef { lf: number; tf: number; scale: number; flip?: boolean }
+
+const DHUHR_CLOUDS: CloudDef[] = [
+  { lf: 0.16, tf: 0.09, scale: 1, op: 0.5 },
+  { lf: 0.74, tf: 0.13, scale: 0.7, op: 0.36 },
+];
+const ASR_CLOUDS: CloudDef[] = [{ lf: 0.2, tf: 0.11, scale: 0.8, op: 0.32 }];
+const CLOUDS_FOR: Partial<Record<Period, CloudDef[]>> = { dhuhr: DHUHR_CLOUDS, asr: ASR_CLOUDS };
+
+const DHUHR_BIRDS: BirdDef[] = [
+  { lf: 0.4, tf: 0.07, scale: 1 },
+  { lf: 0.47, tf: 0.095, scale: 0.65, flip: true },
+];
+const ASR_BIRDS: BirdDef[] = [{ lf: 0.58, tf: 0.08, scale: 0.85 }];
+const SUNRISE_BIRDS: BirdDef[] = [{ lf: 0.72, tf: 0.085, scale: 0.9 }];
+const BIRDS_FOR: Partial<Record<Period, BirdDef[]>> = { dhuhr: DHUHR_BIRDS, asr: ASR_BIRDS, sunrise: SUNRISE_BIRDS };
+
+/** A soft 4-blob cloud silhouette — three overlapping "puffs" plus a base
+ *  to fill the underside, all one flat low-opacity white fill. Intentionally
+ *  simple flat shapes (not a gradient/blur) to match the app's icon-language
+ *  restraint elsewhere, not a photoreal cloud. */
+function Cloud({ def }: { def: CloudDef }) {
+  const s = def.scale;
+  const left = def.lf * W;
+  const top = def.tf * H;
+  return (
+    <View style={{ position: 'absolute', left, top, opacity: def.op, width: 64 * s, height: 30 * s }} pointerEvents="none">
+      <View style={{ position: 'absolute', left: 6 * s, top: 6 * s, width: 22 * s, height: 22 * s, borderRadius: 11 * s, backgroundColor: '#FFFFFF' }} />
+      <View style={{ position: 'absolute', left: 22 * s, top: 0, width: 26 * s, height: 26 * s, borderRadius: 13 * s, backgroundColor: '#FFFFFF' }} />
+      <View style={{ position: 'absolute', left: 40 * s, top: 8 * s, width: 20 * s, height: 20 * s, borderRadius: 10 * s, backgroundColor: '#FFFFFF' }} />
+      <View style={{ position: 'absolute', left: 4 * s, top: 16 * s, width: 56 * s, height: 12 * s, borderRadius: 6 * s, backgroundColor: '#FFFFFF' }} />
+    </View>
+  );
+}
+
+/** The classic minimalist "flying bird" doodle — two connected shallow
+ *  curves (a wide, gentle "M"), stroke only, no fill. Exactly the "2
+ *  curves" shorthand for a bird silhouette, drawn once, never animated. */
+function Bird({ def }: { def: BirdDef }) {
+  const s = def.scale;
+  const w = 15 * s;
+  const h = 5.5 * s;
+  const left = def.lf * W;
+  const top = def.tf * H;
+  return (
+    <Svg
+      width={w * 2}
+      height={h * 1.7}
+      style={{ position: 'absolute', left, top, transform: def.flip ? [{ scaleX: -1 }] : undefined }}
+      pointerEvents="none"
+    >
+      <Path
+        d={`M0 ${h} Q ${w / 2} 0 ${w} ${h} Q ${w * 1.5} 0 ${w * 2} ${h}`}
+        stroke="rgba(40,38,44,0.4)"
+        strokeWidth={1.4 * s}
+        fill="none"
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
 
 function TwinklingStarField({ stars }: { stars: StarDef[] }) {
   const reducedMotion = useReducedMotion();
@@ -276,47 +342,27 @@ function SunriseSun({ x, y }: { x: number; y: number }) {
   );
 }
 
-/**
- * One full celestial scene (stars + sun/moon) for a single period, drawn at an
- * explicit position. The position is supplied by the parent so that during a
- * transition both the outgoing and incoming scenes share the same interpolated
- * spot — the body reads as one object moving/morphing, never two at once.
- */
-function PrayerScene({ prayer, pos, opacity }: { prayer: Period; pos: { x: number; y: number }; opacity: number }) {
-  const { x, y } = pos;
+export default function SkyScene({ prayer, skyAreaY }: Props) {
+  const arc = useMemo(() => getArc(skyAreaY), [skyAreaY]);
+  const { cx, cy, a, b } = arc;
+  const pos = arcXY(cx, cy, a, b, DEG[prayer]);
   const stars = STARS_FOR[prayer];
   const body = BODY[prayer];
-  return (
-    <View style={[StyleSheet.absoluteFill, { opacity }]}>
-      {stars && <TwinklingStarField key={prayer} stars={stars} />}
-      {body === 'sunrise' ? (
-        <SunriseSun x={x} y={y} />
-      ) : body === 'sun' ? (
-        <ActiveSun x={x} y={y} prayer={prayer} />
-      ) : (
-        <ActiveMoon x={x} y={y} prayer={prayer} />
-      )}
-    </View>
-  );
-}
-
-export default function SkyScene({ prayer, nextPrayer, progress = 0, skyAreaY }: Props) {
-  const arc = useMemo(() => getArc(skyAreaY), [skyAreaY]);
-
-  // Clamp and only treat it as a transition when there's a distinct next period.
-  const t = nextPrayer && nextPrayer !== prayer ? Math.max(0, Math.min(1, progress)) : 0;
-
-  // A single shared position that slides from the current body's spot toward the
-  // next one's as the transition progresses. Both scenes render here, so the body
-  // travels (and sun<->moon dissolves in place) instead of two appearing at once.
-  const { cx, cy, a, b } = arc;
-  const deg = DEG[prayer] + (((nextPrayer ? DEG[nextPrayer] : DEG[prayer]) - DEG[prayer]) * t);
-  const pos = arcXY(cx, cy, a, b, deg);
+  const clouds = CLOUDS_FOR[prayer];
+  const birds = BIRDS_FOR[prayer];
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <PrayerScene prayer={prayer} pos={pos} opacity={1 - t} />
-      {t > 0 && nextPrayer && <PrayerScene prayer={nextPrayer} pos={pos} opacity={t} />}
+      {stars && <TwinklingStarField key={prayer} stars={stars} />}
+      {clouds && clouds.map((c, i) => <Cloud key={`cloud-${i}`} def={c} />)}
+      {birds && birds.map((b, i) => <Bird key={`bird-${i}`} def={b} />)}
+      {body === 'sunrise' ? (
+        <SunriseSun x={pos.x} y={pos.y} />
+      ) : body === 'sun' ? (
+        <ActiveSun x={pos.x} y={pos.y} prayer={prayer} />
+      ) : (
+        <ActiveMoon x={pos.x} y={pos.y} prayer={prayer} />
+      )}
     </View>
   );
 }

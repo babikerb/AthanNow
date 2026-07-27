@@ -130,7 +130,7 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
             );
           }
           await schedule(
-            { title: 'Sunrise', body: 'Sunrise has begun — Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
+            { title: 'Sunrise', body: 'Sunrise has begun, Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
             time,
           );
         }
