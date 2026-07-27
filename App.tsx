@@ -1,10 +1,18 @@
 import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+// Keep the native splash (icon on its exact background color, see
+// app.json's `expo-splash-screen` config) on screen until settings + fonts
+// are actually ready, instead of letting it auto-hide the instant the first
+// JS frame draws — which would otherwise reveal the neutral loading `View`
+// below for a beat, a visible color swap right after the splash.
+SplashScreen.preventAutoHideAsync();
 
 // Providers
 import { OnboardingProvider } from './src/context/OnboardingContext';
@@ -121,8 +129,15 @@ function Root() {
     // ...then add: 'Fraunces-SemiBold': Fraunces_600SemiBold,
   });
 
-  // Hold on a neutral surface until persisted settings + the mushaf font load.
-  if (!ready || !fontsLoaded) return <View style={{ flex: 1, backgroundColor: '#0B0B0D' }} />;
+  const appReady = ready && fontsLoaded;
+  useEffect(() => {
+    if (appReady) SplashScreen.hideAsync();
+  }, [appReady]);
+
+  // Hold on the same background color as the native splash (not the app's
+  // usual near-black) until persisted settings + the mushaf font load, so the
+  // transition from native splash to this view is invisible.
+  if (!appReady) return <View style={{ flex: 1, backgroundColor: '#194834' }} />;
   // `MainTabs` always renders now — the merged onboarding flow
   // (`OnboardingOverlay`, mounted inside it) overlays the real tab screens
   // itself instead of preceding them with a separate full-screen flow, so it

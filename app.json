@@ -53,7 +53,16 @@
           }
         }
       ],
-      "expo-background-task"
+      "expo-background-task",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "imageWidth": 400,
+          "resizeMode": "contain",
+          "backgroundColor": "#194834"
+        }
+      ]
     ],
     "extra": {
       "eas": {

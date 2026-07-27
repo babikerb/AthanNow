@@ -22,6 +22,7 @@
     "expo-haptics": "^56.0.3",
     "expo-location": "~56.0.17",
     "expo-notifications": "~56.0.17",
+    "expo-splash-screen": "~56.0.14",
     "expo-status-bar": "~56.0.4",
     "expo-symbols": "~56.0.6",
     "expo-task-manager": "~56.0.19",
