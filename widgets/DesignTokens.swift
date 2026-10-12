@@ -50,6 +50,19 @@ enum DTColor {
   static let scrimBase = dtDynamic(dark: 0x000000FF, light: 0x000000FF, darkHC: 0x000000FF, lightHC: 0x000000FF)
 }
 
+/// Fixed night-sky colours (dark-scheme values, independent of the system appearance). Widgets sit on the sky ramp,
+/// so they read these instead of the dynamic DTColor set.
+enum DTNight {
+  static let skyText = dtColor(0xF2EDF6FF)
+  static let skyTextSecondary = dtColor(0xF2EDF6D1)
+  static let skyHairline = dtColor(0xF2EDF629)
+  static let skyWash = dtColor(0xF2EDF614)
+  static let accent = dtColor(0xE8B07AFF)
+  static let accentText = dtColor(0xE8B07AFF)
+  static let onAccent = dtColor(0x17121FFF)
+  static let danger = dtColor(0xE08A8AFF)
+}
+
 enum DTSky {
   static let fajr: [Color] = [dtColor(0x101125FF), dtColor(0x121228FF), dtColor(0x14142CFF), dtColor(0x171631FF), dtColor(0x1B1835FF), dtColor(0x1F1B3AFF), dtColor(0x231E3FFF), dtColor(0x282144FF), dtColor(0x2E2448FF), dtColor(0x34264BFF), dtColor(0x3A284DFF), dtColor(0x41294EFF), dtColor(0x472B4FFF), dtColor(0x4D2E51FF), dtColor(0x533154FF), dtColor(0x5A3456FF), dtColor(0x603758FF), dtColor(0x693C59FF), dtColor(0x72415BFF), dtColor(0x79455CFF), dtColor(0x79465AFF), dtColor(0x704155FF), dtColor(0x61394EFF), dtColor(0x513045FF), dtColor(0x43293DFF), dtColor(0x372337FF), dtColor(0x2C1E31FF), dtColor(0x221829FF), dtColor(0x181322FF)]
   static let sunrise: [Color] = [dtColor(0x13192DFF), dtColor(0x171C32FF), dtColor(0x1C203AFF), dtColor(0x232442FF), dtColor(0x2B294BFF), dtColor(0x342D52FF), dtColor(0x3E325AFF), dtColor(0x493662FF), dtColor(0x553B68FF), dtColor(0x613F6DFF), dtColor(0x6E4571FF), dtColor(0x7A4A73FF), dtColor(0x854E73FF), dtColor(0x8F5171FF), dtColor(0x97536DFF), dtColor(0x9E5566FF), dtColor(0xA3575FFF), dtColor(0xA95D55FF), dtColor(0xAE6449FF), dtColor(0xAD6A40FF), dtColor(0xA66A3AFF), dtColor(0x996236FF), dtColor(0x865333FF), dtColor(0x714331FF), dtColor(0x5E362FFF), dtColor(0x4E2B32FF), dtColor(0x3B2230FF), dtColor(0x291A2BFF), dtColor(0x181322FF)]
@@ -58,6 +71,9 @@ enum DTSky {
   static let maghrib: [Color] = [dtColor(0x0A081BFF), dtColor(0x0B091DFF), dtColor(0x0E0920FF), dtColor(0x110A24FF), dtColor(0x140B27FF), dtColor(0x170C29FF), dtColor(0x1B0D2BFF), dtColor(0x200E2DFF), dtColor(0x260F2FFF), dtColor(0x2D1131FF), dtColor(0x351233FF), dtColor(0x3E1434FF), dtColor(0x471635FF), dtColor(0x501935FF), dtColor(0x5A1D36FF), dtColor(0x632236FF), dtColor(0x6D2736FF), dtColor(0x782D35FF), dtColor(0x863534FF), dtColor(0x8F3C31FF), dtColor(0x903E2FFF), dtColor(0x85392BFF), dtColor(0x722F27FF), dtColor(0x5C2523FF), dtColor(0x4B1D22FF), dtColor(0x3E1A28FF), dtColor(0x31182AFF), dtColor(0x241528FF), dtColor(0x181322FF)]
   static let isha: [Color] = [dtColor(0x0C0B1AFF), dtColor(0x0D0B1BFF), dtColor(0x0E0C1CFF), dtColor(0x0F0D1DFF), dtColor(0x100E1EFF), dtColor(0x110E1FFF), dtColor(0x120F20FF), dtColor(0x131021FF), dtColor(0x141122FF), dtColor(0x151123FF), dtColor(0x161224FF), dtColor(0x171325FF), dtColor(0x181425FF), dtColor(0x191526FF), dtColor(0x1A1527FF), dtColor(0x1C1628FF), dtColor(0x1D1729FF), dtColor(0x1E182AFF), dtColor(0x1F192CFF), dtColor(0x20192DFF), dtColor(0x211A2DFF), dtColor(0x20192DFF), dtColor(0x1F192BFF), dtColor(0x1E182AFF), dtColor(0x1D1728FF), dtColor(0x1C1626FF), dtColor(0x1B1525FF), dtColor(0x191423FF), dtColor(0x181322FF)]
   static let shiftMinutes: [String: Double] = ["fajr": 35, "sunrise": 20, "dhuhr": 50, "asr": 95, "maghrib": 45, "isha": 75]
+  /// Bottom scrim opacity per stage (top is 0.05); validated against sky-text contrast.
+  static let scrimBottom: [String: Double] = ["fajr": 0.15, "sunrise": 0.36, "dhuhr": 0.38, "asr": 0.26, "maghrib": 0.2, "isha": 0.1]
+  static func scrim(_ stage: String) -> Double { scrimBottom[stage] ?? 0.15 }
   static func stops(_ stage: String) -> [Color] {
     switch stage {
     case "fajr": return fajr
@@ -90,9 +106,11 @@ enum DTRadius {
 }
 
 enum DTFont {
-  /// Fraunces SemiBold (bundled with the widget in Phase 8; falls back to the system font until then).
-  static func display(_ size: CGFloat, relativeTo style: Font.TextStyle = .largeTitle) -> Font {
-    .custom("Fraunces-SemiBold", size: size, relativeTo: style)
+  /// Display numerals. The app uses Fraunces SemiBold; the widget extension cannot bundle a plain .ttf with the current
+  /// widget plugin (only .xcassets reach the Resources phase), so it uses the system serif (New York), the closest
+  /// system match in tone. See NATIVE_CHANGES.md for the upgrade path.
+  static func display(_ size: CGFloat) -> Font {
+    .system(size: size, weight: .semibold, design: .serif)
   }
   static func text(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
     .system(size: size, weight: weight)

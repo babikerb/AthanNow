@@ -14,3 +14,4 @@
 - Iter 13: sheet styling cleanup; legacy type/radii derive from tokens.
 - Iter 14: onboarding on tokens, legacy accent/error constants removed, zero hex literals outside tokens.
 - Iter 15: in-app widgets (src/widgets) small/medium/large as WidgetKit reference; onboarding preview uses them.
+- Iter 16: WidgetKit widgets restyled to match in-app widgets (system serif numerals; Fraunces not bundleable).

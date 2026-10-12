@@ -23,8 +23,8 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
   - [x] 6f Settings (+appearance toggle)  - [x] 6g Onboarding  - [x] 6h Sheets  - [x] 6i Not-Found/empty/error/skeleton (Not-Found skipped: see note)
 - [x] 7. IN-APP WIDGETS (`src/widgets`)
 - [ ] 8. NATIVE iOS PARITY
-  - [ ] 8a widget small  - [ ] 8b medium  - [ ] 8c large  - [ ] 8d accessories  - [ ] 8e tinted/clear/StandBy
-  - [ ] 8f launch screen  - [ ] 8g app icon (propose)  - [ ] 8h tab bar tint  - [ ] 8i widget fonts (logged)  - [ ] 8j Live Activity proposal (doc only)
+  - [x] 8a widget small  - [x] 8b medium  - [x] 8c large  - [x] 8d accessories (copy only; system-tinted by design)  - [x] 8e tinted/clear/StandBy (widgetAccentable on tick/rule/background via containerBackground; no StandBy-specific layout)
+  - [ ] 8f launch screen  - [ ] 8g app icon (propose)  - [ ] 8h tab bar tint  - [x] 8i widget fonts (decision: system serif, logged; upgrade path in NATIVE_CHANGES #7)  - [ ] 8j Live Activity proposal (doc only)
 - [ ] 9. DESIGN DECISION ROUND
 - [ ] 10. FINAL full-panel scoring → FINAL SUMMARY
 
@@ -35,6 +35,9 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- 8 (Swift) is NOT compiled locally: the macOS CI workflow (workflow_dispatch `iOS Build`) must be run before trusting it. Reviewer acting as compiler found no errors; protected contract byte-identical to baseline.
+- 8 SHOULD (open): Medium/Large hero sizes 30/48 vs reference 32/52 (system serif is wider than Fraunces; keep unless CI render shows room); ProgressView track colour is the system default (cannot set a hairline track in .linear style without a custom bar); verify Text(date, style: .timer) alignment and 13pt Medium rows (6x18+5x5=133 of 138pt) on a real device/Xcode canvas.
+- 8 TODO remaining: 8f launch screen (app.json splash backgroundColor already ink; splash image still old green icon), 8g app icon (propose only: needs art), 8h tab bar tint (done in Phase 5), 8j Live Activity proposal (docs). Then Phase 9 decision round.
 - 6i note: NO Not-Found screen: the navigator is a fixed set of five native tabs with no linking config, so no unmatched route is reachable (adding one would be dead UI). Remaining spinners (Quran restore, mushaf page image load, location suggestions, surah search) are short-lived system indicators; Quran/mushaf sit on the paper palette where the dark-scheme Skeleton does not apply. EmptyState/ErrorState exist in design for future use (Calendar/Home empty branches were dead code and removed).
 - Phase 8 (Swift) MUST mirror src/widgets: sizes 170/364x170/382 @393pt (and 158/338x158/354 @390pt: WidgetKit supplies real size, use proportions), radius via containerBackground, padding 16, Fraunces numeral (bundle font + UIAppFonts, logged), next-prayer emphasis (bold + 3pt apricot tick), passed rows dimmed, apricot only on progress rule + tick, dense sky ramp from DTSky, scrim; tinted/clear modes via widgetAccentable/containerBackground; countdown = Text(date, style: .timer) with fixed frame; progress rule = ProgressView(timerInterval:) or stepped. Interactive press/long-press menus are NOT possible for in-app reference previews and WidgetKit widgets are non-interactive (App Intents out of scope).
 - 6g follow-ups: hero steps (Intro/Outro) not scrollable (verify at AX Dynamic Type); card scroll has no visible hint (bounces off, indicator off) so on small phones the CalcMethod list may hide Continue; SkyScene sun glow/rays/radial halos are the most 'AI sunset' element left (art, kept: scene concept preserved); consider skyWash for ProgressBar track; import order (colorTokens above react) lint nit.
@@ -128,3 +131,6 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - 6i: documented Not-Found as unreachable; sheet error/empty copy tuned.
 - src/widgets: model.ts (useWidgetModel: gated on restored location, heavy day compute memoised, 1s tick only for countdown/progress/flags), WidgetFrame (exact iOS sizes, radius 22, padding 16, sky ramp + stage scrim, mount fade), Small/Medium/Large widgets (Fraunces numeral countdown, next-prayer tick, apricot progress rule, tabular times, fixed geometry), onboarding WidgetPreview now renders the real Medium widget at thumbnail scale. Header comment lists what WidgetKit cannot do.
 - Panel: art 7, native-parity 5, anti-ai 8, HIG 6 -> fixed: 393pt sizes, medium column overflow (133 of 138pt), emphasis switched to NEXT (parity with Swift), passed rows dimmed (.62), model perf, rule animation once, reserved rule height, allowFontScaling off, preview gating. Not re-scored.
+### Iter 16 - Phase 8a-8e,8i native widgets
+- widgets/AthanWidget.swift presentation rewrite mirroring src/widgets (DTSky ramp + scrim, DTNight colours, system-serif tabular countdown, next-prayer tick, apricot progress rule via ProgressView(timerInterval:), Arabic names on Large, sentence-case accessory copy, text shadow removed). Protected data/timeline/widget-config code unchanged (verified). Generator added DTNight, DTSky.scrim, serif DTFont.display. Fraunces cannot be bundled with the current plugin (only .xcassets reach Resources): system serif used, logged (NATIVE_CHANGES #5-7).
+- Panel: native-safety PASS, parity 8/10, no MUST-FIX; SHOULD-FIX applied (timer alignment, reserved rule height, Large gap, Medium row size).
