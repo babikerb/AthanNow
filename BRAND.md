@@ -73,7 +73,7 @@ Every data surface defines: skeleton (surface2 → surface3 low-contrast shimmer
 
 ### Home Dynamic Type budget
 Fixed-budget zones keep `NO_SCROLL_FONT_CAP` 1.3. Countdown: `numberOfLines={1}` + `adjustsFontSizeToFit` (min scale .6). Degradation order when height is short (SE, large type): (1) drop Arabic prayer names, (2) hide progress rule, (3) drop Hijri subline, (4) row height shrinks to a 36pt minimum. Past rows: muted time text + VoiceOver "passed" (not opacity alone).
-**Home hierarchy:** countdown (hero) › next-prayer name + "at 3:42 PM" (title3/subhead) › list. Accent on Home = progress rule + current-row marker only.
+**Home hierarchy:** countdown (hero) › next-prayer name + "at 3:42 PM" (title3/subhead) › list. Accent on Home = progress rule + the **next** prayer's row marker (3pt tick + skyWash). **The apricot row marker means "next prayer" on every surface** (Home, Calendar, in-app widgets, WidgetKit); the "Now · <prayer>" eyebrow names the current prayer; passed rows (including the current one) are dimmed. After Isha nothing is marked in the app (tomorrow's Fajr is not in today's list; WidgetKit's rolling list does mark it). Between midnight and Fajr the eyebrow reads "Overnight".
 **Settings appearance note** (one line): "Home and Qibla always show the night sky; Appearance changes everything else."
 **Tabs: decided** native `react-native-bottom-tabs`, token-styled; labels over the Dhuhr sky verified ≥4.5:1 in Phase 5.
 

@@ -80,7 +80,10 @@ const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod
       hijri: getHijriDate(date),
       important: importantDateFor(date),
       // Only meaningful for today: which prayer is next right now.
-      nextId: offset === 0 ? pt.nextPrayer?.toLowerCase?.() ?? pt.currentPrayer : undefined,
+      nextId:
+        offset === 0 && pt.nextPrayer && ((byId[pt.nextPrayer.toLowerCase()]?.time as Date | undefined)?.getTime() ?? 0) > Date.now()
+          ? pt.nextPrayer.toLowerCase()
+          : undefined,
       rows: PRAYER_META.map((m) => ({ ...m, label: byId[m.id]?.label ?? m.id, time: byId[m.id]?.time as Date })),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

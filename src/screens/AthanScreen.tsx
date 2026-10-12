@@ -184,6 +184,11 @@ export default function AthanScreen() {
 
   const { currentPrayer, nextPrayer, nextPrayerTime, listRows } = prayerData;
   const displayPrayer = currentPrayer;
+  // Index of the marked (next) row, or -1 (after Isha, tomorrow's Fajr is not in today's list).
+  const nextIdx = listRows.findIndex((r) => r.id === nextPrayer.toLowerCase() && r.time > currentTime);
+  // Between midnight and Fajr the current stage is still 'isha' but today's Isha row is in the future: call it overnight.
+  const currentStart = listRows.find((r) => r.id === currentPrayer)?.time;
+  const stageLabel = currentStart && currentStart > currentTime ? 'Overnight' : `Now · ${displayPrayer}`;
 
   // Short screens / large Dynamic Type degrade in the order BRAND.md specifies:
   // Arabic names, then the progress rule, then the Hijri line; rows shrink to a 36pt minimum last.
@@ -232,10 +237,10 @@ export default function AthanScreen() {
         <View
           style={styles.hero}
           accessible
-          accessibilityLabel={`${displayPrayer} now. ${countdownLabel} at ${formatClock(nextPrayerTime, use24Hour, tz)}`}
+          accessibilityLabel={`${stageLabel}. ${countdownLabel} at ${formatClock(nextPrayerTime, use24Hour, tz)}`}
         >
           <Text variant="caption2" color="skyTextSecondary" eyebrow maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
-            {`Now · ${displayPrayer}`}
+            {stageLabel}
           </Text>
           <Text
             variant="hero"
@@ -263,20 +268,23 @@ export default function AthanScreen() {
         {/* Prayer list: rows flow directly on the sky. The current prayer carries the only warm marker. */}
         <View>
           {listRows.map((row, i) => {
-            const isCurrent = row.id === currentPrayer;
-            const isPast = row.time < currentTime && !isCurrent;
+            // One meaning for the apricot marker across Home, Calendar and the widgets: the NEXT prayer. (After Isha the
+            // next prayer is tomorrow's Fajr, whose row is not in today's list, so nothing is marked.) The hero eyebrow
+            // says which prayer is current; passed rows, including the current one, are dimmed.
+            const isNext = i === nextIdx;
+            const isPast = row.time <= currentTime;
             const isSunrise = row.id === 'sunrise';
             const isLast = i === listRows.length - 1;
             const rowIcon = PRAYER_LIST_ICONS[row.id];
             const rowArabic = getCelestialConfig(row.id).arabicName;
             const time = formatClock(row.time, use24Hour, tz);
             const color = isPast ? 'skyTextSecondary' : 'skyText';
-            const weight = isCurrent ? ({ fontWeight: '600' } as const) : null;
+            const weight = isNext ? ({ fontWeight: '600' } as const) : null;
             return (
               <React.Fragment key={row.id}>
                 <View
                   accessible
-                  accessibilityLabel={`${row.label}, ${time}${isCurrent ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
+                  accessibilityLabel={`${row.label}, ${time}${isNext ? ', next prayer' : ''}${row.id === currentPrayer && !(currentStart && currentStart > currentTime) ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
                   style={{
                     minHeight: rowMin,
                     flexDirection: 'row',
@@ -288,8 +296,8 @@ export default function AthanScreen() {
                     overflow: 'hidden',
                   }}
                 >
-                  {isCurrent && <View style={[StyleSheet.absoluteFill, { backgroundColor: dt.c.skyWash }]} />}
-                  {isCurrent && <View style={[styles.marker, { backgroundColor: dt.c.accent }]} />}
+                  {isNext && <View style={[StyleSheet.absoluteFill, { backgroundColor: dt.c.skyWash }]} />}
+                  {isNext && <View style={[styles.marker, { backgroundColor: dt.c.accent }]} />}
                   <View style={styles.rowLabelWrap}>
                     {rowIcon && <SymbolView name={rowIcon} size={18} type="hierarchical" tintColor={isPast ? dt.c.skyTextSecondary : dt.c.skyText} />}
                     <Text variant="body" color={color} style={weight} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
@@ -305,7 +313,7 @@ export default function AthanScreen() {
                     {time}
                   </Text>
                 </View>
-                {!isLast && !isCurrent && listRows[i + 1]?.id !== currentPrayer && (
+                {!isLast && !isNext && i + 1 !== nextIdx && (
                   <View accessibilityElementsHidden importantForAccessibility="no" style={{ height: StyleSheet.hairlineWidth, marginHorizontal: dt.spacing.md, backgroundColor: dt.c.skyHairline }} />
                 )}
               </React.Fragment>

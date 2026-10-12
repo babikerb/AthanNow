@@ -19,3 +19,4 @@
 - R1: shared LocationProvider; Home/Qibla unresolved-location notices.
 - R2: Settings notification status row; schedule mutations serialised.
 - R3: notification copy in brand voice (times in titles).
+- R4: next-prayer marker on every surface.
