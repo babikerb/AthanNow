@@ -18,7 +18,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 4. DESIGN SYSTEM (`src/design`)
 - [x] 5. CUSTOM TAB BAR (decision: native bar restyled; custom floating bar rejected)
 - [ ] 6. ALL SCREENS
-  - [ ] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
+  - [x] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
   - [ ] 6b Home chrome  - [ ] 6c Calendar  - [ ] 6d Quran  - [ ] 6e Qibla
   - [ ] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
 - [ ] 7. IN-APP WIDGETS (`src/widgets`)
@@ -35,6 +35,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- 6a follow-ups: (1) dither overlay deliberately NOT shipped; gate = on-device before/after on isha/fajr (OLED); add 2% noise PNG tile if banding visible. (2) SkyScene celestial art colours (#FFF6CC sun, #E7E3F8 moon, cloud/bird/star hexes) still literal; tokenise or document as art exception in 6a-b/decision round. (3) Verify crossfade + perf on older iPhone (4 gradients during 4s fade). (4) Sunrise/maghrib/asr horizons judged on preview PNG only (`node scripts/sky-preview.mjs out.png`), re-judge on device. (5) Parallax rejected (BRAND).
 - CHECK on iOS 26 device: native tab bar glass over Home sky; apricot active tint legibility over translucent bar on the lightest (dhuhr) sky; in system Light mode the translucent bar may render light under the dark app (pre-existing; resolve with appearance work in 6f, e.g. set userInterfaceStyle per preference).
 - SHOULD (6): Toast renders under native Modal so it is invisible over BottomSheet (host a toast inside the sheet or use the sheet's own inline error). Existing JS sheets (`components/Sheet.tsx`) to be replaced by `design/BottomSheet` in 6h.
 - SHOULD: design system is untested on device (Windows): verify BottomSheet drag/detents, SegmentedControl thumb, PressableScale layout (Pressable flexGrow inside Animated.View) in first simulator pass; Fraunces tabular figures.
@@ -69,3 +70,9 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Decision: keep native UITabBar. The library's custom `tabBar` slot renders in layout flow with no hit-testing outside bounds -> a floating bar over the sky would shrink screens and lose native iOS 26 glass; also previously reverted by user preference. Styled with tokens: accent active tint, textSecondary inactive, SF symbol fill on focus, native selection haptic; removed Android indicator/old green/near-black hex; splash + primaryColor -> #17121F (logged).
 - Panel: native-safety PASS, HIG 8/10. Fixed warning (solid tabBarStyle would flatten the glass) by removing it.
 - Next: 6a Home sky refinement.
+### Iter 6 - 6a Home sky
+- Old `prayerGradients`/`prayerStatusBarLight`/`gradientShiftMinutes`/`NIGHT_BG`/sky text now derive from tokens (colors.ts), so Athan, onboarding and widget preview all share the new ramps. AthanScreen scrim from per-stage token.
+- AmbientGradient rewritten: vertical ramp + 30% opposing diagonal, single 4s crossfade at stage change via stacked layers (no jump if a change lands mid-fade), snap within 2.5s of foreground resume, 0.3s under Reduce Motion, cleanup on unmount.
+- Ramps restructured (0-3 sky, 4 pre-horizon, 5 horizon, 6 eased dissolve, 7 ink): fixes the ink 'shelf', distinct sunrise (gold) vs maghrib (deep red), asr mud routed via lavender/rose, isha lifted to ink hue. Added `scripts/sky-preview.mjs` (renders ramps to PNG; panel reviewed the actual render).
+- Panel: art 7, motion 6.5, anti-ai 8 on first pass -> all MUST-FIX addressed (crossfade jump, unmount cleanup, resume race, ramp twins, asr mud, isha cold navy, ink shelf). Not re-scored; will be re-judged with 6b on the full screen.
+- tsc + tokens:check clean.

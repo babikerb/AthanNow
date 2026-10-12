@@ -46,12 +46,12 @@ enum DTColor {
 }
 
 enum DTSky {
-  static let fajr: [Color] = [dtColor(0x101125FF), dtColor(0x1B1835FF), dtColor(0x2E2448FF), dtColor(0x4F2F51FF), dtColor(0x723C52FF), dtColor(0x7D4452FF), dtColor(0x845168FF), dtColor(0x181322FF)]
-  static let sunrise: [Color] = [dtColor(0x0F1223FF), dtColor(0x1F1939FF), dtColor(0x3F224CFF), dtColor(0x6A3053FF), dtColor(0x934956FF), dtColor(0xAC5F4CFF), dtColor(0xA86A2CFF), dtColor(0x181322FF)]
-  static let dhuhr: [Color] = [dtColor(0x769BAFFF), dtColor(0x6E92A6FF), dtColor(0x64859BFF), dtColor(0x4E6D83FF), dtColor(0x49647BFF), dtColor(0x3C4E66FF), dtColor(0x303A50FF), dtColor(0x181322FF)]
-  static let asr: [Color] = [dtColor(0x103243FF), dtColor(0x1E4157FF), dtColor(0x335467FF), dtColor(0x4E646DFF), dtColor(0x6F6149FF), dtColor(0x79623EFF), dtColor(0x7B6633FF), dtColor(0x181322FF)]
-  static let maghrib: [Color] = [dtColor(0x0E0C22FF), dtColor(0x1D1335FF), dtColor(0x391B3FFF), dtColor(0x5C2441FF), dtColor(0x793240FF), dtColor(0x8E3F36FF), dtColor(0x974A24FF), dtColor(0x181322FF)]
-  static let isha: [Color] = [dtColor(0x040817FF), dtColor(0x070C1DFF), dtColor(0x0E1021FF), dtColor(0x141223FF), dtColor(0x191526FF), dtColor(0x1E182AFF), dtColor(0x211A2DFF), dtColor(0x181322FF)]
+  static let fajr: [Color] = [dtColor(0x101125FF), dtColor(0x1B1835FF), dtColor(0x2E2448FF), dtColor(0x472B4FFF), dtColor(0x603758FF), dtColor(0x79465AFF), dtColor(0x43293DFF), dtColor(0x181322FF)]
+  static let sunrise: [Color] = [dtColor(0x13192DFF), dtColor(0x2B294BFF), dtColor(0x553B68FF), dtColor(0x854E73FF), dtColor(0xA3575FFF), dtColor(0xA66A3AFF), dtColor(0x5E362FFF), dtColor(0x181322FF)]
+  static let dhuhr: [Color] = [dtColor(0x769BAFFF), dtColor(0x6E92A6FF), dtColor(0x67889EFF), dtColor(0x547389FF), dtColor(0x4B677EFF), dtColor(0x465A71FF), dtColor(0x2F374DFF), dtColor(0x181322FF)]
+  static let asr: [Color] = [dtColor(0x103243FF), dtColor(0x214459FF), dtColor(0x3E5870FF), dtColor(0x5C667EFF), dtColor(0x81616FFF), dtColor(0x936456FF), dtColor(0x4F2D2DFF), dtColor(0x181322FF)]
+  static let maghrib: [Color] = [dtColor(0x0A081BFF), dtColor(0x140B27FF), dtColor(0x260F2FFF), dtColor(0x471635FF), dtColor(0x6D2736FF), dtColor(0x903E2FFF), dtColor(0x4B1D22FF), dtColor(0x181322FF)]
+  static let isha: [Color] = [dtColor(0x0C0B1AFF), dtColor(0x100E1EFF), dtColor(0x141122FF), dtColor(0x181425FF), dtColor(0x1D1729FF), dtColor(0x211A2DFF), dtColor(0x1D1728FF), dtColor(0x181322FF)]
   static let shiftMinutes: [String: Double] = ["fajr": 35, "sunrise": 20, "dhuhr": 50, "asr": 95, "maghrib": 45, "isha": 75]
   static func stops(_ stage: String) -> [Color] {
     switch stage {

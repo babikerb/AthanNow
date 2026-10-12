@@ -144,7 +144,7 @@ for (const name of stageNames) {
   });
 }
 {
-  const hz = Object.fromEntries(stageNames.map((n) => [n, toOKLab(skyHex[n][skyHex[n].length - 2])]));
+  const hz = Object.fromEntries(stageNames.map((n) => [n, toOKLab(skyHex[n][skyHex[n].length - 3])]));
   const ab = (l) => [l.C * Math.cos((l.h * Math.PI) / 180), l.C * Math.sin((l.h * Math.PI) / 180)];
   for (let i = 0; i < stageNames.length; i++) for (let j = i + 1; j < stageNames.length; j++) {
     const a = hz[stageNames[i]], b = hz[stageNames[j]];

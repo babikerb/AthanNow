@@ -29,6 +29,7 @@ import {
   skyTextPrimary,
   skyTextSecondary,
 } from '../theme/colors';
+import { skyStages } from '../design/tokens';
 import { iconSize } from '../theme/icons';
 import { PRESSED_OPACITY } from '../theme/motion';
 import { radii } from '../theme/radii';
@@ -152,7 +153,7 @@ export default function AthanScreen() {
   // is far lighter than every other stage's, so it alone needs a strong scrim to
   // keep white hero text at AA contrast; every other stage is already dark enough
   // that a flat, mild scrim suffices.
-  const scrimBottomOpacity = prayerData?.currentPrayer === 'dhuhr' ? 0.35 : 0.15;
+  const scrimBottomOpacity = skyStages[(prayerData?.currentPrayer ?? 'isha') as keyof typeof skyStages]?.scrimBottom ?? 0.15;
 
   // Countdown accessibility label, rounded to the minute (not raw seconds) so
   // VoiceOver doesn't get a per-second announcement storm from the 1s countdown

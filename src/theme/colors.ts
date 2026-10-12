@@ -1,3 +1,5 @@
+import { colorTokens, skyShiftMinutes, skyStages } from '../design/tokens.generated';
+
 /**
  * Global design tokens for AthanNow.
  *
@@ -70,7 +72,7 @@ export const darkPalette: Palette = {
 // instrument panel" interfaces by product design, not an oversight. Every
 // permanently-dark surface in the app (Athan, Onboarding, Qibla) must
 // reference this single constant — no screen may hardcode its own near-black.
-export const NIGHT_BG = '#070d18';
+export const NIGHT_BG = colorTokens.dark.bg;
 
 // Shared state colors, previously duplicated ad hoc per screen (Qibla's
 // "aligned" green, Settings'/LocationSheet's destructive/error red).
@@ -84,8 +86,8 @@ export const ERROR = '#E5484D';
  * translucent-white values previously hand-picked per label on the Athan
  * screen (subline 0.55, hijri 0.38, past-row 0.32) with two fixed tokens.
  */
-export const skyTextPrimary = '#FFFFFF';
-export const skyTextSecondary = 'rgba(255,255,255,0.82)';
+export const skyTextPrimary: string = colorTokens.dark.skyText;
+export const skyTextSecondary: string = colorTokens.dark.skyTextSecondary;
 
 /**
  * Reading-surface palette for the Quran mushaf reader — forced light,
@@ -112,35 +114,13 @@ export const readingPalette: Palette = {
  * Atmospheric gradients keyed to each prayer stage (ported from Jamaa).
  * Consumed by the AmbientGradient component on the Athan screen.
  */
-export const prayerGradients: Record<string, string[]> = {
-  // Pre-dawn: muted indigo -> dusky mauve
-  fajr: ['#0c0b1c', '#18153a', '#2c2258', '#4e3348', '#7a5560'],
-  // Sunrise: deep navy -> blue-violet -> rose-mauve -> warm peach-gold
-  sunrise: ['#060b18', '#0e1532', '#2c1848', '#6e2c50', '#b46050', '#d49448'],
-  // Noon: hazy sky blue
-  dhuhr: ['#8eb2c4', '#6090a8', '#4a7090', '#366078'],
-  // Afternoon: muted teal -> dusty amber
-  asr: ['#1c3448', '#2a4e68', '#466880', '#706258', '#907040'],
-  // Dusk: deep violet -> muted brick -> warm amber
-  maghrib: ['#121024', '#201846', '#4a1e30', '#783030', '#9a5838', '#a87840'],
-  // Night: deep navy
-  isha: ['#070d18', '#0b1522', '#0f1828', '#091220'],
-};
+/** Sky ramps now come from design/tokens.json (OKLCH-authored, validated). Same shape as before for existing consumers. */
+export const prayerGradients: Record<string, string[]> = Object.fromEntries(
+  Object.entries(skyStages).map(([k, v]) => [k, [...v.colors]]),
+);
 
-/**
- * How long before the next prayer the sky begins shifting toward that prayer's
- * gradient (minutes). Tuned per stage: the slow approach to Maghrib (sunset) and
- * the long pre-dawn drift from Isha toward Fajr shift over a wide window, while
- * midday changes are quicker.
- */
-export const gradientShiftMinutes: Record<string, number> = {
-  fajr: 35,
-  sunrise: 20,
-  dhuhr: 50,
-  asr: 95, // long, slow slide into the sunset
-  maghrib: 45,
-  isha: 75, // long drift toward the coming dawn
-};
+/** Minutes before the next prayer that the sky begins shifting (kept for the widget/blend helpers). */
+export const gradientShiftMinutes: Record<string, number> = { ...skyShiftMinutes };
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
@@ -181,14 +161,9 @@ export function blendGradients(from: string[], to: string[], t: number, stops = 
 }
 
 /** Whether to use a light (white) status bar over each prayer gradient. */
-export const prayerStatusBarLight: Record<string, boolean> = {
-  fajr: true,
-  sunrise: true,
-  dhuhr: false, // light sky -> dark status bar
-  asr: true,
-  maghrib: true,
-  isha: true,
-};
+export const prayerStatusBarLight: Record<string, boolean> = Object.fromEntries(
+  Object.entries(skyStages).map(([k, v]) => [k, v.statusBarLight]),
+);
 
 /** The Quran mushaf typeface (Amiri Quran, loaded via expo-font). */
 export const QURAN_FONT = 'AmiriQuran';
