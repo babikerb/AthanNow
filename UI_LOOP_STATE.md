@@ -13,7 +13,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 ## Phases
 - [x] 0. Setup: branch, tag, 7 agents in `.claude/agents/`, this file
 - [x] 1. AUDIT → `DESIGN_AUDIT.md`
-- [ ] 2. BRAND → `BRAND.md` (gate: art-director, anti-ai-critic, ux-strategist approve)
+- [x] 2. BRAND → `BRAND.md` (gate: art-director, anti-ai-critic, ux-strategist approve)
 - [ ] 3. SHARED DESIGN TOKENS (`design/tokens.json`, `src/design/tokens.ts`, ThemeProvider, `DesignTokens.swift`, `scripts/sync-tokens`)
 - [ ] 4. DESIGN SYSTEM (`src/design`)
 - [ ] 5. CUSTOM TAB BAR
@@ -35,7 +35,8 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
-(empty)
+- SHOULD (Phase 3): token validator must confirm light-mode accent text + tertiary AA; verify Fraunces lining+tabular figures on device (fallback SF digits); sky stop authoring with hue/chroma caps; Home notice line needs height budget (fits degradation order).
+- Note: `.claude/agents/*` are not hot-registered in a running session; panel is run as general-purpose agents that read the role file. (Restarting Claude Code would register them.)
 
 ## Iteration log
 ### Iter 0 — setup
@@ -43,3 +44,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 ### Iter 1 — Phase 1 audit
 - Wrote DESIGN_AUDIT.md (inventory, hardcoded colours, parity gaps, sky anatomy, do-not-touch, decisions, sub-task seeds). Docs only; no code, so no panel run. tsc unchanged (clean).
 - Next: Phase 2 BRAND.md (needs panel gate: art-director, anti-ai-critic, ux-strategist).
+### Iter 2 — Phase 2 BRAND
+- Wrote BRAND.md. Panel round 1: anti-ai 7 (approve cond.), art-director 7.5 REJECT, ux 7 REJECT. Fixed all MUST-FIX (OKLab-verified surface steps, accent budget, glyphQuiet scope, sky guard-rails, Fraunces static+fallback, Home DT budget, Home states+copy, appearance note, tab decision closed). Round 2: AD 8.5, UX 8, anti-ai 8.5 — all APPROVE.
+- Rejected (logged in BRAND §12): per-stage surface tint, stage-hued countdown, tab badge, parallax/idle drift.
+- Docs only; tsc unaffected. Next: Phase 3 tokens.
