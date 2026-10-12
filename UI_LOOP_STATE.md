@@ -24,7 +24,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 7. IN-APP WIDGETS (`src/widgets`)
 - [x] 8. NATIVE iOS PARITY
   - [x] 8a widget small  - [x] 8b medium  - [x] 8c large  - [x] 8d accessories (copy only; system-tinted by design)  - [x] 8e tinted/clear/StandBy (widgetAccentable on tick/rule/background via containerBackground; no StandBy-specific layout)
-  - [x] 8f launch screen  - [x] 8g app icon  - [ ] 8h tab bar tint  - [x] 8i widget fonts (decision: system serif, logged; upgrade path in NATIVE_CHANGES #7)  - [x] 8j Live Activity proposal (doc only)
+  - [x] 8f launch screen  - [x] 8g app icon  - [x] 8h tab bar tint  - [x] 8i widget fonts (decision: system serif, logged; upgrade path in NATIVE_CHANGES #7)  - [x] 8j Live Activity proposal (doc only)
 - [ ] 9. DESIGN DECISION ROUND
 - [ ] 10. FINAL full-panel scoring → FINAL SUMMARY
 
