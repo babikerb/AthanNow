@@ -23,6 +23,9 @@ export type AsrMadhab = 'Standard' | 'Hanafi';
 export type QuranLineMode = '15' | '13';
 export type ScrollDirection = 'horizontal' | 'vertical';
 
+/** App appearance preference. Dark is the default; Home and Qibla are always night regardless. */
+export type Appearance = 'system' | 'light' | 'dark';
+
 export type PrayerKey = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
 
 export interface NotificationSettings {
@@ -45,6 +48,7 @@ export interface Settings {
   quranLineMode: QuranLineMode;
   quranScrollDirection: ScrollDirection;
   onboardingComplete: boolean;
+  appearance: Appearance;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -60,6 +64,7 @@ export const DEFAULT_SETTINGS: Settings = {
   quranLineMode: '15',
   quranScrollDirection: 'horizontal',
   onboardingComplete: false,
+  appearance: 'dark',
 };
 
 export interface SettingsContextValue extends Settings {

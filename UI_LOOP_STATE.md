@@ -20,7 +20,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [ ] 6. ALL SCREENS
   - [x] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
   - [x] 6b Home chrome  - [x] 6c Calendar  - [x] 6d Quran (screen chrome + palettes; Quran sheets finish in 6h)  - [x] 6e Qibla
-  - [ ] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
+  - [x] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
 - [ ] 7. IN-APP WIDGETS (`src/widgets`)
 - [ ] 8. NATIVE iOS PARITY
   - [ ] 8a widget small  - [ ] 8b medium  - [ ] 8c large  - [ ] 8d accessories  - [ ] 8e tinted/clear/StandBy
@@ -35,6 +35,8 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- **6h MUST (first thing):** with Appearance=Light, unmigrated sheets still use the old green `ACCENT`/`ACCENT_SOFT` constants and are weak/clashing: LocationSheet:119,128,158,192,221 (opens over always-night Home), SurahPickerSheet:124-125,161,175,182,218, BookmarkSheet:48, SurahHeader:40, OnboardingBeacon/ProgressBar/CalcMethodStep on sky. Replace with `useTheme().colors.accent` / design tokens or the design BottomSheet; then delete ACCENT*, ERROR, STATE_SUCCESS from theme/colors.ts. Default appearance is Dark, so no regression by default.
+- 6f: verify on device: Appearance.setColorScheme('unspecified') follows system; native tab bar / keyboard over always-night Home & Qibla in Light; BottomSheet lower-detent content reachable; toggle rows read label twice (title + labelled switch) - consider merging.
 - 6e: verify on device: aligned transition (colour interpolation is JS-driven, border width animates), dial scale on SE width, lubber red->apricot legibility (danger #E08A8A is salmon, close to apricot in hue), crosshair at 8% hairline nearly invisible (keep or remove), 12pt degree numbers. Bold idea (not built): apricot arc sweep from the lubber on lock + 'Facing the Qibla' caption in place of the cardinal.
 - 6h MUST include Quran sheets: SurahPickerSheet (green ACCENT :124,159,173, '#FFF' on accent), BookmarkSheet:47, SurahHeader:40 still use old green ACCENT/ACCENT_SOFT on paper; replace with paper accentText / design tokens. Then delete ACCENT/ACCENT_SOFT/ACCENT_BORDER/ACCENT_ON_DARK/ERROR/STATE_SUCCESS from theme/colors.ts once Settings (6f), Qibla (6e), Onboarding (6g) migrate.
 - Legacy `darkPalette.accent` is now apricot: any future `#FFF` text on `colors.accent` fails contrast; use `onAccent` (#17121F).
@@ -101,3 +103,6 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - QiblaScreen rebuilt on tokens (always-night: reads dark tokens directly): ink bg, hairline dial, skyText cardinal ticks, muted-red north (danger), Fraunces 64pt readout (fit-to-width), plain skyText Qibla dot that turns apricot on lock with a 240ms transition (colour + ring weight + dot spring; Reduce Motion aware); halo/glow and stock green/red removed. States: denied/error now explains and offers Open Settings; compass-unavailable/calibrating copy rewritten. VoiceOver: static 'Qibla compass' label + value, 'Facing the Qibla' announcement. useQibla/sensor logic untouched.
 - Behaviour fixes from review: lock only counts when calibrated, compass present and tab focused; 1.5s cooldown; haptic per BRAND map (impact Medium, was notification Success); warning haptic on error; ScrollView for large Dynamic Type; dial scales down on narrow screens.
 - Panel: art 7.5, anti-ai 8.5, UX 8, HIG 7 -> MUST-FIX items addressed; not re-scored.
+### Iter 11 - 6f Settings + Appearance
+- SettingsScreen rebuilt on design system (ScreenContainer, SectionHeader/ListGroup/ListRow, native Toggle, SegmentedControl, design BottomSheet pickers); every prior setting/handler preserved. New Appearance control (System/Light/Dark) stored as additive `appearance` field in the existing settings blob (default 'dark'; reset restores it). App.tsx `AppThemes` feeds the preference to the design ThemeProvider and `Appearance.setColorScheme` (JS API, no native change) so tab bar/keyboard/alerts follow. Legacy ThemeContext now follows scheme (lightPalette added). Deleted settings/SettingsRows.tsx. Footer note: 'Home and Qibla always show the night sky. Appearance changes everything else.'
+- ListRow gained `selected`/`expanded` a11y state. Panel: UX 8, HIG 7, native-safety 9, art 7.5; MUST-FIX 1 (a11y state) fixed; MUST-FIX 2 (green accent in sheets under Light) moved to 6h as first task, since those files are 6h scope.

@@ -3,8 +3,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Appearance, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Keep the native splash (icon on its exact background color, see
@@ -132,6 +132,15 @@ function Root() {
   return <MainTabs />;
 }
 
+/** Feeds the saved Appearance preference to the design theme and the native window (tab bar, keyboard, alerts). */
+function AppThemes({ children }: { children: React.ReactNode }) {
+  const { appearance } = useSettings();
+  useEffect(() => {
+    Appearance.setColorScheme(appearance === 'system' ? 'unspecified' : appearance);
+  }, [appearance]);
+  return <DesignThemeProvider preference={appearance}>{children}</DesignThemeProvider>;
+}
+
 export default function App() {
   // Register the periodic background refresh once at startup (idempotent).
   useEffect(() => {
@@ -141,14 +150,14 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
-        <ThemeProvider>
-          <DesignThemeProvider>
+        <AppThemes>
+          <ThemeProvider>
             <OnboardingProvider>
               <StatusBar style="light" />
               <Root />
             </OnboardingProvider>
-          </DesignThemeProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </AppThemes>
       </SettingsProvider>
     </SafeAreaProvider>
   );

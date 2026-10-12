@@ -1,6 +1,7 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 
-import { darkPalette, Palette, prayerGradients } from '../theme/colors';
+import { useTheme as useDesignTheme } from '../design/theme';
+import { darkPalette, lightPalette, Palette, prayerGradients } from '../theme/colors';
 
 interface ThemeContextValue {
   colors: Palette;
@@ -8,17 +9,14 @@ interface ThemeContextValue {
   prayerGradients: Record<string, string[]>;
 }
 
-// The app is dark-mode only by design, no system-theme following. This
-// context still exists so palette/gradient tokens have one shared access
-// point (`useTheme()`) instead of every screen importing `darkPalette`
-// directly, not because the value itself can ever vary, so it's a plain
-// constant rather than state.
-const value: ThemeContextValue = { colors: darkPalette, prayerGradients };
+// Legacy bridge: screens not yet migrated to `src/design` still read `useTheme().colors`. It now follows the design
+// ThemeProvider's resolved scheme, so Appearance applies to them too. Remove once every consumer is migrated.
+const ThemeContext = createContext<ThemeContextValue>({ colors: darkPalette, prayerGradients });
 
-const ThemeContext = createContext<ThemeContextValue>(value);
-
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => (
-  <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-);
+export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  const { scheme } = useDesignTheme();
+  const value = useMemo<ThemeContextValue>(() => ({ colors: scheme === 'dark' ? darkPalette : lightPalette, prayerGradients }), [scheme]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+};
 
 export const useTheme = () => useContext(ThemeContext);

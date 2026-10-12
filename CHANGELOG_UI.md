@@ -9,3 +9,4 @@
 - Iter 8: Calendar restyled (header + Today button, badges, tokens).
 - Iter 9: Quran screen chrome + paper palette; legacy palettes bridged to tokens.
 - Iter 10: Qibla rebuilt (no glow, apricot lock transition, states).
+- Iter 11: Settings rebuilt on design system; Appearance (System/Light/Dark) added and wired to theme + native window scheme.

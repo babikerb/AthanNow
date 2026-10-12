@@ -67,6 +67,18 @@ export const darkPalette: Palette = {
   accent: colorTokens.dark.accent,
 };
 
+export const lightPalette: Palette = {
+  background: colorTokens.light.bg,
+  surface: colorTokens.light.surface1,
+  surfaceElevated: colorTokens.light.surface2,
+  textPrimary: colorTokens.light.text,
+  textSecondary: colorTokens.light.textSecondary,
+  textTertiary: colorTokens.light.textTertiary,
+  textQuaternary: colorTokens.light.glyphQuiet,
+  separator: colorTokens.light.hairline,
+  accent: colorTokens.light.accent,
+};
+
 // Explicit, documented exception: these three surfaces intentionally ignore
 // the light/dark theme system because they are "always night sky" / "always
 // instrument panel" interfaces by product design, not an oversight. Every

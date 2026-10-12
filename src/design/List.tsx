@@ -69,11 +69,15 @@ export interface ListRowProps {
   accessory?: React.ReactNode;
   onPress?: () => void;
   destructive?: boolean;
+  /** Selection state for picker rows (announced by VoiceOver; the visible mark is the accessory). */
+  selected?: boolean;
+  /** Disclosure state for rows that expand in place. */
+  expanded?: boolean;
   accessibilityHint?: string;
 }
 
 /** 52pt minimum row with leading hierarchical SF Symbol, title/subtitle, value and chevron. */
-export function ListRow({ title, subtitle, icon, value, accessory, onPress, destructive, accessibilityHint }: ListRowProps) {
+export function ListRow({ title, subtitle, icon, value, accessory, onPress, destructive, selected, expanded, accessibilityHint }: ListRowProps) {
   const t = useTheme();
   const body = (pressed: boolean) => (
     <View
@@ -119,6 +123,7 @@ export function ListRow({ title, subtitle, icon, value, accessory, onPress, dest
       accessibilityRole="button"
       accessibilityLabel={[title, subtitle, value].filter(Boolean).join(', ')}
       accessibilityHint={accessibilityHint}
+      accessibilityState={{ selected, expanded }}
     >
       {({ pressed }) => body(pressed)}
     </PressableScale>
