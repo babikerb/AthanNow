@@ -25,7 +25,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 8. NATIVE iOS PARITY
   - [x] 8a widget small  - [x] 8b medium  - [x] 8c large  - [x] 8d accessories (copy only; system-tinted by design)  - [x] 8e tinted/clear/StandBy (widgetAccentable on tick/rule/background via containerBackground; no StandBy-specific layout)
   - [x] 8f launch screen  - [x] 8g app icon  - [x] 8h tab bar tint  - [x] 8i widget fonts (decision: system serif, logged; upgrade path in NATIVE_CHANGES #7)  - [x] 8j Live Activity proposal (doc only)
-- [ ] 9. DESIGN DECISION ROUND
+- [x] 9. DESIGN DECISION ROUND
 - [ ] 10. FINAL full-panel scoring → FINAL SUMMARY
 
 ## Standing decisions (do not relitigate)
@@ -33,6 +33,22 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Keep native `react-native-bottom-tabs`; style it; Phase 5 evaluates a floating custom bar only if it carries no native risk (prior history: custom bar was reverted to native by user preference).
 - No Live Activities/Dynamic Island exist; only propose.
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
+
+## REFINEMENT PLAN (Phase 9 output; work one per iteration, tick when done)
+Panel scores at Phase 9 (baseline for Phase 10): art 7 - ux 6 - HIG 6.5 - motion 7 - native-parity 7 - native-safety 9 PASS - anti-ai 8. Stop condition needs every reviewer >= 8 and zero MUST-FIX.
+- [ ] **R1 (M) One shared location state.** `useLocation` is per-instance (Athan, Qibla, Calendar, Settings, widgets/model, Onboarding): city changes on Home leave other tabs stale. Introduce a `LocationProvider` (same storage key/shape, same restore/refresh semantics) and make the hook read it; show the Home notice when `!isManual && status !== 'ready'` (never silently Mecca); delete the dead 'Working out today's prayer times' branch. Accept: change city on Home -> Calendar/Qibla/Settings/widget preview update without relaunch. Check Qibla `status==='denied'` at cold start.
+- [ ] **R2 (M) Notification trust.** Settings status row for notification permission (read-only check via existing expo-notifications API; 'Open Settings' when denied) + 'Scheduled through <date>' line (cap ~60 => ~5 days). No scheduling-logic change. Accept: denied permission is visible and recoverable from Settings.
+- [ ] **R3 (S) Notification copy.** notifications.ts COPY ONLY: clock time in title ('Fajr - 5:12'), fix 'in 1 minutes', '(Fajr ends)', comma splice, Quran morning text, sound consistency. Do NOT change schedule times/ids (business logic); flag the 'Good morning fires with Sunrise' overlap in NATIVE/UI notes instead.
+- [ ] **R4 (S/M) One meaning for the apricot marker: NEXT prayer** on Home, Calendar and widgets (widgets/Swift already NEXT). Home eyebrow keeps 'Now - X'. Accept: all surfaces tick the same prayer at any moment.
+- [ ] **R5 (M) Location pill + sheet usability.** Home pill >= 44pt hit area; LocationSheet body scrollable + keyboard-aware; design BottomSheet via useWindowDimensions + keyboard inset. Accept: suggestions visible with keyboard open on SE.
+- [ ] **R6 (M) Sky polish (biggest premium lever; art-director ruling).** Fix ramp seams (~75%) in fajr/asr/maghrib, muddy sunrise lower band, teal asr top (tokens); static noise dither tile under the scrim (once, above skies); SkyScene art fades with the same value as the 4s gradient crossfade (no hard cut); remove birds + rays, simplify clouds, static glow; cap AmbientGradient stack at 2 layers. Verify with scripts/sky-preview.mjs.
+- [ ] **R7 (M) Home accessibility / Dynamic Type.** Allow scroll at fontScale >= 1.3 instead of capping text; row accessibilityRole/label/value; hero timer separate accessible element.
+- [ ] **R8 (M) Qibla performance.** Memoize the 72-tick rose (re-render only the readout on heading change); constant border width + native-driver opacity overlays (no useNativeDriver:false left in Qibla).
+- [ ] **R9 (S/M) Noise reduction.** Drop Home row SF icons (label + Arabic + time), de-duplicate Settings glyphs (bell x6, sunrise x2), Calendar non-today days as quiet cards, raw type in Qibla/Mushaf onto type tokens.
+- [ ] **R10 (M) Delete the legacy parallel system.** Migrate LocationSheet/SurahPickerSheet/BookmarkSheet off components/Sheet.tsx + components/IconButton.tsx (pick ONE sheet system), route raw expo-haptics calls through design/haptics, delete the legacy files.
+- Housekeeping (zero risk, do inside any iteration): NATIVE_CHANGES.md 'Verified unchanged (as of iter 3)' header -> iter 16; amend BRAND section 5 (tab bar has no hairline/tint, kept native glass); BRAND note that widgets use system serif.
+- Opportunistic (fold in while touching the file): BottomSheet release velocity/tokens, shared 1s clock, shared skeleton value, theme.reduceMotion initial value, Dimensions at module scope (AthanScreen, SkyScene), status bar per screen in Light, hardcoded radii outside design, mushaf load-error retry action, onboarding copy trims (steps.ts:52, Outro repeats itself), Settings expander chevron.
+- Deferred (not doing, with reason): typed-word icon redesign (needs art + device); icon bg mottling (asset re-export); Swift polish (padding double-inset, empty-state copy, group-widget stale guard, hero sizes, Fraunces, accessory gauge, StandBy, hardcoded numbers, VoiceOver labels): cannot compile/verify here, batch for a macOS-CI-verified pass; Live Activity: needs explicit go-ahead (touches bridge contract).
 
 ## Review backlog
 - 8 (Swift) is NOT compiled locally: the macOS CI workflow (workflow_dispatch `iOS Build`) must be run before trusting it. Reviewer acting as compiler found no errors; protected contract byte-identical to baseline.
@@ -136,3 +152,5 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Panel: native-safety PASS, parity 8/10, no MUST-FIX; SHOULD-FIX applied (timer alignment, reserved rule height, Large gap, Medium row size).
 ### Iter 17 - Phase 8 remainder (icon, launch, Live Activity doc)
 - App icon recoloured to ink + apricot with light/dark/tinted variants (scripts/make-icons.mjs; visually verified), app.json ios.icon added (logged #8); splash image = new icon on ink => seamless launch. Live Activity / Dynamic Island proposal documented only (touches the bridge contract; needs explicit go-ahead). Phase 8 done; next: Phase 9 decision round.
+### Iter 18 - Phase 9 decision round
+- Full 7-agent panel on the entire app: art 7, UX 6, HIG 6.5, motion 7, native-parity 7, native-safety 9 PASS, anti-ai 8. art-director + ux-strategist merged findings into the ranked plan R1-R10 above.
