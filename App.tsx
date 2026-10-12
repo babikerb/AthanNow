@@ -18,6 +18,8 @@ SplashScreen.preventAutoHideAsync();
 import { OnboardingProvider } from './src/context/OnboardingContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { ThemeProvider as DesignThemeProvider } from './src/design/theme';
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
 import { OnboardingOverlay } from './src/components/onboarding/OnboardingOverlay';
 import { navigationRef } from './src/navigation/navigationRef';
 import { ACCENT_ON_DARK } from './src/theme/colors';
@@ -115,18 +117,8 @@ function Root() {
   const { ready } = useSettings();
   const [fontsLoaded] = useFonts({
     AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf'),
-    // TODO(fonts): install `@expo-google-fonts/fraunces` (or add a static
-    // Fraunces-SemiBold.ttf to assets/fonts) and uncomment the two lines
-    // below to load the second headline typeface used by `type.hero` (see
-    // src/theme/typography.ts's HEADLINE_FONT_FAMILY). Reserved for exactly
-    // three moments: the onboarding wordmark, the Athan countdown, and the
-    // Qibla degree readout. Until this is wired, `fontFamily:
-    // 'Fraunces-SemiBold'` silently falls back to the system font at its
-    // numeric fontWeight (800) — correct default RN behavior, so nothing
-    // else needs to change once this is uncommented.
-    //
-    // import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
-    // ...then add: 'Fraunces-SemiBold': Fraunces_600SemiBold,
+    // Display face (BRAND.md): static SemiBold, family name matches design/tokens.json.
+    'Fraunces-SemiBold': Fraunces_600SemiBold,
   });
 
   const appReady = ready && fontsLoaded;
@@ -157,10 +149,12 @@ export default function App() {
     <SafeAreaProvider>
       <SettingsProvider>
         <ThemeProvider>
-          <OnboardingProvider>
-            <StatusBar style="light" />
-            <Root />
-          </OnboardingProvider>
+          <DesignThemeProvider>
+            <OnboardingProvider>
+              <StatusBar style="light" />
+              <Root />
+            </OnboardingProvider>
+          </DesignThemeProvider>
         </ThemeProvider>
       </SettingsProvider>
     </SafeAreaProvider>

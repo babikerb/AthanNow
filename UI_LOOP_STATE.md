@@ -14,7 +14,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 0. Setup: branch, tag, 7 agents in `.claude/agents/`, this file
 - [x] 1. AUDIT → `DESIGN_AUDIT.md`
 - [x] 2. BRAND → `BRAND.md` (gate: art-director, anti-ai-critic, ux-strategist approve)
-- [ ] 3. SHARED DESIGN TOKENS (`design/tokens.json`, `src/design/tokens.ts`, ThemeProvider, `DesignTokens.swift`, `scripts/sync-tokens`)
+- [x] 3. SHARED DESIGN TOKENS (`design/tokens.json`, `src/design/tokens.ts`, ThemeProvider, `DesignTokens.swift`, `scripts/sync-tokens`)
 - [ ] 4. DESIGN SYSTEM (`src/design`)
 - [ ] 5. CUSTOM TAB BAR
 - [ ] 6. ALL SCREENS
@@ -35,6 +35,9 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- MUST (6a): sky ramps are numbers-only so far; judge on-device/simulator renders (reviewer gave art 5 / motion 6 / anti-ai 5 on first ramps; ramps reworked after: horizon moved to stop 6, distinct per stage, validators added). Re-review with real screenshots in 6a. Renderer must match validator assumptions: evenly spaced stops, scrim alpha linear .05 -> scrimBottom.
+- SHOULD: ThemeProvider has no persisted appearance preference (wire in 6f); `highContrast` starts false (brief flash); old `src/theme/*` + `context/ThemeContext` coexist with `src/design/theme` until each screen migrates, delete in 6/9; DTSky.stops fallback isha == currentStage fallback (ok).
+- SHOULD (CI): `widgets/DesignTokens.swift` not compiled locally; run macOS workflow once before relying on it in Phase 8.
 - SHOULD (Phase 3): token validator must confirm light-mode accent text + tertiary AA; verify Fraunces lining+tabular figures on device (fallback SF digits); sky stop authoring with hue/chroma caps; Home notice line needs height budget (fits degradation order).
 - Note: `.claude/agents/*` are not hot-registered in a running session; panel is run as general-purpose agents that read the role file. (Restarting Claude Code would register them.)
 
@@ -48,3 +51,9 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Wrote BRAND.md. Panel round 1: anti-ai 7 (approve cond.), art-director 7.5 REJECT, ux 7 REJECT. Fixed all MUST-FIX (OKLab-verified surface steps, accent budget, glyphQuiet scope, sky guard-rails, Fraunces static+fallback, Home DT budget, Home states+copy, appearance note, tab decision closed). Round 2: AD 8.5, UX 8, anti-ai 8.5 — all APPROVE.
 - Rejected (logged in BRAND §12): per-stage surface tint, stage-hued countdown, tab badge, parallax/idle drift.
 - Docs only; tsc unaffected. Next: Phase 3 tokens.
+### Iter 3 — Phase 3 tokens
+- Added design/tokens.json, scripts/sync-tokens.mjs (validator: WCAG AA for all text pairs x 4 variants, OKLab surface steps/hue, sky ink convergence/hue travel/chroma/mud/horizon distinctness/skyText AA), generated src/design/tokens.generated.ts + widgets/DesignTokens.swift, src/design/{tokens,theme}.ts(x), Fraunces loaded in App.tsx, `npm run tokens[:check]`. NATIVE_CHANGES.md + CHANGELOG_UI.md created.
+- Decision: dynamic Swift UIColor trait provider instead of .xcassets colour sets (equivalent light/dark/Increase-Contrast, no asset wiring).
+- Validator caught real problems (light glyphQuiet 2.7:1, horizon text contrast); fixed. Sky ramps retuned after review (see backlog).
+- Panel: native-safety-guard PASS 9/10; tokens review art 5 / motion 6 / anti-ai 5 on first ramps -> fixed MUST-FIX 1-5 (asr mud, dhuhr hue drift/lightness, sunrise gold, validators, ink-vs-bg check); not re-scored since visual verification isn't possible until 6a.
+- tsc clean. No user-visible change yet.
