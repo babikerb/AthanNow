@@ -20,3 +20,4 @@
 - R2: Settings notification status row; schedule mutations serialised.
 - R3: notification copy in brand voice (times in titles).
 - R4: next-prayer marker on every surface.
+- R5: 44pt location pill, keyboard-aware LocationSheet, BottomSheet window/keyboard handling.

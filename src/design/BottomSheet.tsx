@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Dimensions, Modal, PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Keyboard, Modal, PanResponder, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from './haptics';
@@ -26,7 +26,17 @@ export interface BottomSheetProps {
 export function BottomSheet({ visible, onClose, title, detents = DEFAULT_DETENTS, children }: BottomSheetProps) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
-  const H = Dimensions.get('window').height;
+  const { height: H } = useWindowDimensions();
+  // Keyboard inset: content gets bottom padding so inputs in a lower detent are never covered.
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => setKb(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKb(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const sorted = useMemo(() => [...detents].sort((a, b) => a - b), [detents]);
   const sheetH = H * sorted[sorted.length - 1]!;
   const offsetFor = (d: number) => sheetH - H * d;
@@ -72,6 +82,12 @@ export function BottomSheet({ visible, onClose, title, detents = DEFAULT_DETENTS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  // Re-snap to the current detent when the window size changes while open (rotation / Split View).
+  useEffect(() => {
+    if (visible && mounted) animateTo(offsetFor(sorted[detentIndex]!));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [H]);
+
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -97,7 +113,7 @@ export function BottomSheet({ visible, onClose, title, detents = DEFAULT_DETENTS
         setDetentIndex(stops.indexOf(nearest));
         const anim = reduceMotion
           ? Animated.timing(y, { toValue: nearest, duration: 300, useNativeDriver: true })
-          : Animated.spring(y, { toValue: nearest, useNativeDriver: true, damping: 26, stiffness: 140, mass: 1 });
+          : Animated.spring(y, { toValue: nearest, useNativeDriver: true, damping: 26, stiffness: 140, mass: 1, velocity: g.vy * 1000 });
         anim.start();
       },
     }),
@@ -151,7 +167,7 @@ export function BottomSheet({ visible, onClose, title, detents = DEFAULT_DETENTS
               {title}
             </Text>
           ) : null}
-          <View style={{ flex: 1, paddingBottom: offsetFor(sorted[detentIndex]!) + insets.bottom }}>{children}</View>
+          <View style={{ flex: 1, paddingBottom: offsetFor(sorted[detentIndex]!) + Math.max(insets.bottom, kb) }}>{children}</View>
         </Animated.View>
       </View>
     </Modal>

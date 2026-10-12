@@ -96,6 +96,7 @@ export function FloatingPill({ tone, colors, icon, label, trailingIcon, onPress,
   return (
     <Pressable
       onPress={onPress}
+      hitSlop={{ top: 8, bottom: 8, left: 10, right: 10 }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [

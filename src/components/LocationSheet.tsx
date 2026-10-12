@@ -111,7 +111,14 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
 
   return (
     <Sheet visible={visible} onClose={onClose} title="Location">
-      <View style={styles.body}>
+      <ScrollView
+        contentContainerStyle={styles.body}
+        automaticallyAdjustKeyboardInsets
+        alwaysBounceVertical={false}
+        keyboardDismissMode="interactive"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {/* Current location hero card */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.separator }]}>
           <SymbolView name="location.fill" size={iconSize.lg} type="hierarchical" tintColor={colors.accent} style={styles.cardIcon} />
@@ -169,7 +176,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
                 <Text style={[styles.suggestEmptyText, { color: colors.textSecondary }]}>No cities match that yet</Text>
               </View>
             ) : (
-              <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
+              <View>
                 {suggestions.map((p, i) => {
                   const region = [p.admin1, p.country].filter(Boolean).join(', ');
                   return (
@@ -198,7 +205,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
                     </Pressable>
                   );
                 })}
-              </ScrollView>
+              </View>
             )}
           </Animated.View>
         )}
@@ -217,7 +224,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
           <Text style={[styles.useCurrentText, { color: colors.textPrimary }]}>Use current location</Text>
           <SymbolView name="chevron.right" size={14} tintColor={colors.textQuaternary} />
         </Pressable>
-      </View>
+      </ScrollView>
     </Sheet>
   );
 }
