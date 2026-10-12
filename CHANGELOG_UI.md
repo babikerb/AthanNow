@@ -17,3 +17,4 @@
 - Iter 16: WidgetKit widgets restyled to match in-app widgets (system serif numerals; Fraunces not bundleable).
 - Iter 17: app icon recoloured (apricot on ink) with dark/tinted variants; Live Activity proposal documented.
 - R1: shared LocationProvider; Home/Qibla unresolved-location notices.
+- R2: Settings notification status row; schedule mutations serialised.

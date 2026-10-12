@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { SymbolView } from 'expo-symbols';
-import React, { useMemo, useState } from 'react';
-import { Alert, Linking, ScrollView, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState, Linking, ScrollView, View } from 'react-native';
 
 import { useOnboarding } from '../context/OnboardingContext';
 import { Appearance, AsrMadhab, PrayerKey, useSettings } from '../context/SettingsContext';
@@ -16,6 +16,14 @@ import { Toggle } from '../design/Toggle';
 import { useLocation } from '../context/LocationContext';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { CALC_METHOD_WHY, CALC_METHODS, calcMethodForCountry, localeCountryCode } from '../utils/calcMethodDefaults';
+import {
+  getNotificationPermissionState,
+  getScheduledSummary,
+  requestNotificationPermissionState,
+  rescheduleNotifications,
+  type ScheduledSummary,
+} from '../utils/notifications';
+import { classifyPermission, type PermissionUIState } from '../utils/permissionState';
 
 const PRIVACY_URL = 'https://athannow.bbabiker.com/privacy';
 
@@ -53,6 +61,90 @@ function SegmentBlock({ title, children }: { title: string; children: React.Reac
       <Text variant="body">{title}</Text>
       {children}
     </View>
+  );
+}
+
+/**
+ * Notification status: the toggles below can all read "on" while iOS has notifications blocked, in which case nothing
+ * fires. This row says so, offers the recovery (ask, or open iOS Settings), and states how far ahead reminders are
+ * actually scheduled. Read-only: it never changes what gets scheduled.
+ */
+function NotificationStatus() {
+  const settings = useSettings();
+  const { location } = useLocation();
+  const [perm, setPerm] = useState<PermissionUIState>('checking');
+  const [summary, setSummary] = useState<ScheduledSummary | null>(null);
+  const prev = useRef<PermissionUIState>('checking');
+
+  const refresh = useCallback(async () => {
+    try {
+      const p = await getNotificationPermissionState();
+      const next = classifyPermission(p.status, p.canAskAgain);
+      setPerm(next);
+      setSummary(next === 'granted' ? await getScheduledSummary() : null);
+    } catch {
+      // Keep the last known state: an error must not turn into a false 'off'.
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    // The scheduler books ~60 notifications asynchronously after a change; look again once it has had time to finish.
+    const later = setTimeout(refresh, 2500);
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && refresh());
+    return () => {
+      clearTimeout(later);
+      sub.remove();
+    };
+  }, [refresh, settings.notifications]);
+
+  // Permission just became granted (from here or from iOS Settings): book the schedule now instead of waiting for the next
+  // settings/location change, which is when the scheduler would otherwise notice.
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = perm;
+    const anyOn = Object.values(settings.notifications.athanEnabled).some(Boolean) || settings.notifications.quranMorningEnabled;
+    if (perm === 'granted' && was !== 'granted' && was !== 'checking' && anyOn && location) {
+      rescheduleNotifications(location, settings).then(refresh).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perm]);
+
+  if (perm === 'checking') return <ListRow icon="bell" title="Checking notifications" />;
+
+  if (perm === 'granted') {
+    const anyOn = Object.values(settings.notifications.athanEnabled).some(Boolean) || settings.notifications.quranMorningEnabled;
+    const detail = !anyOn
+      ? 'Every prayer is switched off.'
+      : summary && summary.count > 0
+        ? `${summary.count} reminders scheduled. They are refreshed whenever you open the app.`
+        : 'Scheduling your reminders.';
+    return <ListRow icon="bell.badge" title="Notifications are on" subtitle={detail} />;
+  }
+  if (perm === 'denied-permanent') {
+    return (
+      <ListRow
+        icon="bell.slash"
+        title="Notifications are blocked"
+        subtitle="Nothing will sound until you allow them in iOS Settings."
+        value="Open Settings"
+        onPress={() => Linking.openSettings().catch(() => {})}
+        accessibilityHint="Opens the iOS Settings app"
+      />
+    );
+  }
+  return (
+    <ListRow
+      icon="bell.slash"
+      title="Notifications are off"
+      subtitle="Allow them to get a nudge at each prayer."
+      value="Allow"
+      accessibilityHint="Shows the iOS permission prompt"
+      onPress={async () => {
+        const p = await requestNotificationPermissionState().catch(() => null);
+        if (p) setPerm(classifyPermission(p.status, p.canAskAgain));
+      }}
+    />
   );
 }
 
@@ -142,7 +234,8 @@ export default function SettingsScreen() {
         </ListGroup>
 
         <SectionHeader title="Notifications" />
-        <ListGroup footer="Reminders are time sensitive, so they come through even on Focus or silent.">
+        <ListGroup footer="Time sensitive, so they can break through Focus when you allow it.">
+          <NotificationStatus />
           <ListRow
             icon="bell"
             title="Prayer notifications"

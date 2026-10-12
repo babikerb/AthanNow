@@ -69,7 +69,7 @@ function dateTrigger(date: Date): Notifications.NotificationTriggerInput {
  * Cancels everything and re-schedules the next `DAYS_AHEAD` days of athan,
  * jamaa, and morning-Quran notifications based on current settings + location.
  */
-export async function rescheduleNotifications(coords: Coords, settings: Settings): Promise<void> {
+async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
 
   const { notifications } = settings;
@@ -144,6 +144,36 @@ export async function rescheduleNotifications(coords: Coords, settings: Settings
   }
 }
 
-export async function cancelAllNotifications(): Promise<void> {
+async function cancelAllNotificationsImpl(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
+}
+
+/** What is currently scheduled, read-only (never schedules or cancels anything). */
+export interface ScheduledSummary {
+  count: number;
+}
+
+export async function getScheduledSummary(): Promise<ScheduledSummary> {
+  // iOS reports our DATE triggers back as relative time-interval triggers, so an absolute end date cannot be read
+  // back; the count of pending requests is what can be stated truthfully.
+  const all = await Notifications.getAllScheduledNotificationsAsync();
+  return { count: all.length };
+}
+
+// One module-level queue for every call that mutates the pending schedule (cancel-all + ~60 awaited schedules). The
+// scheduler hook already chains its own runs; callers outside it (Settings, background refresh) would otherwise be able
+// to interleave with it and wipe or duplicate bookings.
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(fn: () => Promise<T>): Promise<T> {
+  const run = queue.then(fn, fn);
+  queue = run.catch(() => {});
+  return run;
+}
+
+export function rescheduleNotifications(coords: Coords, settings: Settings): Promise<void> {
+  return serial(() => rescheduleNotificationsImpl(coords, settings));
+}
+
+export function cancelAllNotifications(): Promise<void> {
+  return serial(cancelAllNotificationsImpl);
 }
