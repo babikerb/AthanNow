@@ -18,3 +18,4 @@
 - Iter 17: app icon recoloured (apricot on ink) with dark/tinted variants; Live Activity proposal documented.
 - R1: shared LocationProvider; Home/Qibla unresolved-location notices.
 - R2: Settings notification status row; schedule mutations serialised.
+- R3: notification copy in brand voice (times in titles).

@@ -59,10 +59,27 @@ export async function requestNotificationPermissionState(): Promise<Notification
 interface Coords {
   latitude: number;
   longitude: number;
+  /** Used only to format clock times in notification text; the caller already passes it. */
+  timezone?: string;
 }
 
 function dateTrigger(date: Date): Notifications.NotificationTriggerInput {
   return { type: Notifications.SchedulableTriggerInputTypes.DATE, date };
+}
+
+// Notification-text clock: no leading zero in 12-hour mode ('5:12 AM'), location timezone. Never throws: this runs inside the
+// scheduler right after cancel-all, so a bad timezone string must degrade the text, not drop every notification.
+function formatClock(date: Date, use24Hour: boolean, timeZone?: string): string {
+  const base = { hour: use24Hour ? ('2-digit' as const) : ('numeric' as const), minute: '2-digit' as const, hour12: !use24Hour };
+  try {
+    return date.toLocaleTimeString([], { ...base, timeZone });
+  } catch {
+    try {
+      return date.toLocaleTimeString([], base);
+    } catch {
+      return '';
+    }
+  }
 }
 
 /**
@@ -99,21 +116,29 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
       const key = row.id as PrayerKey;
       const time = row.time;
       if (time <= now) continue;
+      const sunriseRow = listRows.find((x) => x.id === 'sunrise');
+      const sunriseClock = sunriseRow ? formatClock(sunriseRow.time, settings.use24Hour, coords.timezone) : '';
       const reminderAt = new Date(time.getTime() - mins * 60_000);
+      // Copy only: clock times are shown in the user's 12/24-hour preference, in the location's timezone.
+      const clock = formatClock(time, settings.use24Hour, coords.timezone);
+      const label = PRAYER_LABELS[key];
 
       if (key !== 'sunrise') {
         if (notifications.athanEnabled[key]) {
           if (mins > 0) {
             await schedule(
-              { title: `${PRAYER_LABELS[key]} soon`, body: `${PRAYER_LABELS[key]} is in ${mins} minutes.`, interruptionLevel: 'timeSensitive' },
+              { title: `${label} in ${mins} min`, body: `${label} is at ${clock}.`, interruptionLevel: 'timeSensitive' },
               reminderAt,
             );
           }
           // The athan itself, exactly at prayer time (with the adhan sound if enabled).
           await schedule(
             {
-              title: `${PRAYER_LABELS[key]}`,
-              body: `It's time to offer ${PRAYER_LABELS[key]} prayer.`,
+              title: `${label} · ${clock}`,
+              body:
+                key === 'fajr'
+                  ? `Fajr time has begun. It ends at sunrise${sunriseClock ? `, ${sunriseClock}` : ''}.`
+                  : `${label} time has begun.`,
               sound: notifications.athanSound ? 'adhan.wav' : undefined,
               interruptionLevel: 'timeSensitive',
             },
@@ -125,19 +150,19 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
         if (notifications.athanEnabled.sunrise) {
           if (mins > 0) {
             await schedule(
-              { title: 'Sunrise soon', body: `Sunrise is in ${mins} minutes (Fajr ends).`, sound: 'default', interruptionLevel: 'timeSensitive' },
+              { title: `Sunrise in ${mins} min`, body: `Fajr time ends at ${clock}.`, sound: 'default', interruptionLevel: 'timeSensitive' },
               reminderAt,
             );
           }
           await schedule(
-            { title: 'Sunrise', body: 'Sunrise has begun, Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
+            { title: `Sunrise · ${clock}`, body: 'Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
             time,
           );
         }
 
         // Morning Quran reminder around sunrise.
         if (notifications.quranMorningEnabled) {
-          await schedule({ title: 'Good morning', body: 'Start your day with the Quran.' }, time);
+          await schedule({ title: 'Morning Quran', body: 'A few minutes with the Quran before the day begins.' }, time);
         }
       }
     }
