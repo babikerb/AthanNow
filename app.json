@@ -8,6 +8,11 @@
     "userInterfaceStyle": "automatic",
     "primaryColor": "#17121F",
     "ios": {
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png",
+        "tinted": "./assets/icon-tinted.png"
+      },
       "supportsTablet": false,
       "bundleIdentifier": "com.bbabiker.AthanNow",
       "infoPlist": {

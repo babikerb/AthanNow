@@ -22,9 +22,9 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
   - [x] 6b Home chrome  - [x] 6c Calendar  - [x] 6d Quran (screen chrome + palettes; Quran sheets finish in 6h)  - [x] 6e Qibla
   - [x] 6f Settings (+appearance toggle)  - [x] 6g Onboarding  - [x] 6h Sheets  - [x] 6i Not-Found/empty/error/skeleton (Not-Found skipped: see note)
 - [x] 7. IN-APP WIDGETS (`src/widgets`)
-- [ ] 8. NATIVE iOS PARITY
+- [x] 8. NATIVE iOS PARITY
   - [x] 8a widget small  - [x] 8b medium  - [x] 8c large  - [x] 8d accessories (copy only; system-tinted by design)  - [x] 8e tinted/clear/StandBy (widgetAccentable on tick/rule/background via containerBackground; no StandBy-specific layout)
-  - [ ] 8f launch screen  - [ ] 8g app icon (propose)  - [ ] 8h tab bar tint  - [x] 8i widget fonts (decision: system serif, logged; upgrade path in NATIVE_CHANGES #7)  - [ ] 8j Live Activity proposal (doc only)
+  - [x] 8f launch screen  - [x] 8g app icon  - [ ] 8h tab bar tint  - [x] 8i widget fonts (decision: system serif, logged; upgrade path in NATIVE_CHANGES #7)  - [x] 8j Live Activity proposal (doc only)
 - [ ] 9. DESIGN DECISION ROUND
 - [ ] 10. FINAL full-panel scoring → FINAL SUMMARY
 
@@ -134,3 +134,5 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 ### Iter 16 - Phase 8a-8e,8i native widgets
 - widgets/AthanWidget.swift presentation rewrite mirroring src/widgets (DTSky ramp + scrim, DTNight colours, system-serif tabular countdown, next-prayer tick, apricot progress rule via ProgressView(timerInterval:), Arabic names on Large, sentence-case accessory copy, text shadow removed). Protected data/timeline/widget-config code unchanged (verified). Generator added DTNight, DTSky.scrim, serif DTFont.display. Fraunces cannot be bundled with the current plugin (only .xcassets reach Resources): system serif used, logged (NATIVE_CHANGES #5-7).
 - Panel: native-safety PASS, parity 8/10, no MUST-FIX; SHOULD-FIX applied (timer alignment, reserved rule height, Large gap, Medium row size).
+### Iter 17 - Phase 8 remainder (icon, launch, Live Activity doc)
+- App icon recoloured to ink + apricot with light/dark/tinted variants (scripts/make-icons.mjs; visually verified), app.json ios.icon added (logged #8); splash image = new icon on ink => seamless launch. Live Activity / Dynamic Island proposal documented only (touches the bridge contract; needs explicit go-ahead). Phase 8 done; next: Phase 9 decision round.
