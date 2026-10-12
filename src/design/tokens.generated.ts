@@ -24,7 +24,8 @@ export const colorTokens = {
     "scrim": "#00000066",
     "skyFill": "#F2EDF61A",
     "skyHairline": "#F2EDF629",
-    "skyWash": "#F2EDF614"
+    "skyWash": "#F2EDF614",
+    "onAccentText": "#17121F"
   },
   "light": {
     "bg": "#F3F0F7",
@@ -49,7 +50,8 @@ export const colorTokens = {
     "scrim": "#00000066",
     "skyFill": "#F2EDF61A",
     "skyHairline": "#F2EDF629",
-    "skyWash": "#F2EDF614"
+    "skyWash": "#F2EDF614",
+    "onAccentText": "#FFFFFF"
   },
   "darkHC": {
     "bg": "#17121F",
@@ -74,7 +76,8 @@ export const colorTokens = {
     "scrim": "#00000066",
     "skyFill": "#F2EDF61A",
     "skyHairline": "#F2EDF629",
-    "skyWash": "#F2EDF614"
+    "skyWash": "#F2EDF614",
+    "onAccentText": "#17121F"
   },
   "lightHC": {
     "bg": "#F3F0F7",
@@ -99,7 +102,8 @@ export const colorTokens = {
     "scrim": "#00000066",
     "skyFill": "#F2EDF61A",
     "skyHairline": "#F2EDF629",
-    "skyWash": "#F2EDF614"
+    "skyWash": "#F2EDF614",
+    "onAccentText": "#FFFFFF"
   },
   "paper": {
     "bg": "#F4EFE8",
@@ -113,7 +117,10 @@ export const colorTokens = {
     "accent": "#B8742F",
     "accentText": "#8F5A22",
     "band": "#2E283312",
-    "mark": "#2E283324"
+    "mark": "#2E283324",
+    "onAccentText": "#FFFFFF",
+    "accentSoft": "#8F5A2224",
+    "danger": "#A33F3F"
   }
 } as const;
 

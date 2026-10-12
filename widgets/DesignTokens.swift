@@ -46,6 +46,7 @@ enum DTColor {
   static let skyFill = dtDynamic(dark: 0xF2EDF61A, light: 0xF2EDF61A, darkHC: 0xF2EDF61A, lightHC: 0xF2EDF61A)
   static let skyHairline = dtDynamic(dark: 0xF2EDF629, light: 0xF2EDF629, darkHC: 0xF2EDF629, lightHC: 0xF2EDF629)
   static let skyWash = dtDynamic(dark: 0xF2EDF614, light: 0xF2EDF614, darkHC: 0xF2EDF614, lightHC: 0xF2EDF614)
+  static let onAccentText = dtDynamic(dark: 0x17121FFF, light: 0xFFFFFFFF, darkHC: 0x17121FFF, lightHC: 0xFFFFFFFF)
 }
 
 enum DTSky {

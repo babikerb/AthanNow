@@ -6,7 +6,6 @@ import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, T
 import { PlaceSuggestion, searchPlaces } from '../hooks/useLocation';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useTheme } from '../context/ThemeContext';
-import { ACCENT, ACCENT_BORDER, ACCENT_SOFT, ERROR } from '../theme/colors';
 import { iconSize } from '../theme/icons';
 import { duration, easing, PRESSED_OPACITY } from '../theme/motion';
 import { radii } from '../theme/radii';
@@ -115,8 +114,8 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
       <View style={styles.body}>
         {/* Current location hero card */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.separator }]}>
-          <View style={[styles.iconBadge, { backgroundColor: ACCENT_SOFT, borderColor: ACCENT_BORDER }]}>
-            <SymbolView name="location.fill" size={iconSize.lg} tintColor={ACCENT} />
+          <View style={[styles.iconBadge, { backgroundColor: colors.accentSoft, borderColor: colors.separator }]}>
+            <SymbolView name="location.fill" size={iconSize.lg} tintColor={colors.accent} />
           </View>
           <Text style={[styles.cardCaption, { color: colors.textSecondary }]}>CURRENT LOCATION</Text>
           <Text style={[styles.city, { color: colors.textPrimary }]} numberOfLines={1}>
@@ -125,7 +124,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
           <Text style={[styles.citySub, { color: colors.textSecondary }]}>
             {isManual ? 'Manually selected' : 'Using your device location'}
           </Text>
-          {loading && <ActivityIndicator color={ACCENT} style={{ marginTop: spacing.sm }} />}
+          {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.sm }} />}
         </View>
 
         {/* Same uppercase-tracked micro-label treatment Settings' section
@@ -155,11 +154,11 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
               accessibilityRole="button"
               accessibilityLabel="Search"
             >
-              <SymbolView name="arrow.up.circle.fill" size={24} tintColor={ACCENT} />
+              <SymbolView name="arrow.up.circle.fill" size={24} tintColor={colors.accent} />
             </Pressable>
           )}
         </View>
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error && <Text style={[styles.error, { color: colors.danger }]}>{error}</Text>}
 
         {/* Live suggestions while typing — fades in on appearance instead of
             popping (plan §3.8), gated by `useReducedMotion()`. */}
@@ -186,10 +185,10 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
                       style={({ pressed }) => [
                         styles.suggestRow,
                         i < suggestions.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.separator },
-                        pressed && { backgroundColor: ACCENT_SOFT },
+                        pressed && { backgroundColor: colors.accentSoft },
                       ]}
                     >
-                      <SymbolView name="mappin.circle.fill" size={20} tintColor={ACCENT} />
+                      <SymbolView name="mappin.circle.fill" size={20} tintColor={colors.accent} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.suggestName, { color: colors.textPrimary }]} numberOfLines={1}>
                           {p.name}
@@ -218,7 +217,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
             { backgroundColor: colors.surfaceElevated, borderColor: colors.separator, opacity: pressed ? PRESSED_OPACITY : 1 },
           ]}
         >
-          <SymbolView name="location.circle.fill" size={22} tintColor={ACCENT} />
+          <SymbolView name="location.circle.fill" size={22} tintColor={colors.accent} />
           <Text style={[styles.useCurrentText, { color: colors.textPrimary }]}>Use current location</Text>
           <SymbolView name="chevron.right" size={14} tintColor={colors.textQuaternary} />
         </Pressable>
@@ -258,7 +257,7 @@ const styles = StyleSheet.create({
     height: 50,
   },
   input: { flex: 1, ...type.body } as any,
-  error: { ...type.footnote, color: ERROR, marginTop: -spacing.xs, marginLeft: spacing.xxs } as any,
+  error: { ...type.footnote, marginTop: -spacing.xs, marginLeft: spacing.xxs } as any,
   suggestBox: { borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginTop: -spacing.xxs },
   suggestEmpty: { padding: spacing.lg, alignItems: 'center' },
   suggestEmptyText: { ...type.footnote } as any,

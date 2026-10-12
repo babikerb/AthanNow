@@ -4,7 +4,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
 import { Bookmark } from '../hooks/useBookmarks';
-import { ACCENT, ACCENT_SOFT, Palette } from '../theme/colors';
+import { Palette } from '../theme/colors';
 import { Sheet } from './Sheet';
 
 interface BookmarkSheetProps {
@@ -44,8 +44,8 @@ export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove,
               }}
               style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
             >
-              <View style={[styles.badge, { backgroundColor: ACCENT_SOFT }]}>
-                <SymbolView name="bookmark.fill" size={16} tintColor={ACCENT} />
+              <View style={[styles.badge, { backgroundColor: colors.accentSoft }]}>
+                <SymbolView name="bookmark.fill" size={16} tintColor={colors.accent} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: colors.textPrimary }]}>{item.surahName}</Text>

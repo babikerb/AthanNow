@@ -117,6 +117,7 @@ for (const [vName, v] of Object.entries(variants)) {
     need(contrast(v.accentText, v[s]) >= 4.5, `${vName}: accentText on ${s} = ${contrast(v.accentText, v[s]).toFixed(2)} (<4.5)`);
     need(contrast(v.glyphQuiet, v[s]) >= 3, `${vName}: glyphQuiet on ${s} = ${contrast(v.glyphQuiet, v[s]).toFixed(2)} (<3)`);
   }
+  need(contrast(v.onAccentText, v.accentText) >= 4.5, `${vName}: onAccentText on accentText = ${contrast(v.onAccentText, v.accentText).toFixed(2)} (<4.5)`);
   need(contrast(v.onAccent, v.accent) >= 4.5, `${vName}: onAccent on accent = ${contrast(v.onAccent, v.accent).toFixed(2)} (<4.5)`);
   for (const k of ['success', 'warning', 'danger', 'info']) {
     for (const s of ['bg', 'surface1', 'surface2']) need(contrast(v[k], v[s]) >= 4.5, `${vName}: ${k} on ${s} = ${contrast(v[k], v[s]).toFixed(2)} (<4.5)`);
@@ -125,6 +126,8 @@ for (const [vName, v] of Object.entries(variants)) {
 // paper (Quran reading surface)
 {
   const P = C.paper;
+  need(contrast(P.onAccentText, P.accentText) >= 4.5, `paper: onAccentText on accentText = ${contrast(P.onAccentText, P.accentText).toFixed(2)} (<4.5)`);
+  need(contrast(P.danger, P.bg) >= 4.5, `paper: danger on bg = ${contrast(P.danger, P.bg).toFixed(2)} (<4.5)`);
   for (const sName of ['bg', 'surface1', 'surface2']) {
     for (const t of ['text', 'textSecondary']) need(contrast(P[t], P[sName]) >= 4.5, `paper: ${t} on ${sName} = ${contrast(P[t], P[sName]).toFixed(2)} (<4.5)`);
   }

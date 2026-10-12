@@ -5,7 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, Vi
 import { useTheme } from '../context/ThemeContext';
 import { getSurah, Surah, SURAHS } from '../data/surahs';
 import { TOTAL_PAGES } from '../data/surahPages';
-import { ACCENT, ACCENT_SOFT, Palette, QURAN_FONT } from '../theme/colors';
+import { Palette, QURAN_FONT } from '../theme/colors';
 import { AyahHit, searchAyat, searchTranslation } from '../utils/quran';
 import { Sheet } from './Sheet';
 
@@ -121,8 +121,8 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
         }}
         style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
       >
-        <View style={[styles.numberBadge, { backgroundColor: selected ? ACCENT : ACCENT_SOFT }]}>
-          <Text style={[styles.numberText, { color: selected ? '#FFF' : ACCENT }]}>{item.id}</Text>
+        <View style={[styles.numberBadge, { backgroundColor: selected ? colors.accent : colors.accentSoft }]}>
+          <Text style={[styles.numberText, { color: selected ? colors.onAccent : colors.accent }]}>{item.id}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: colors.textPrimary }]}>{item.transliteration}</Text>
@@ -156,9 +156,9 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
             onSelectVerse(verseRef.key);
             onClose();
           }}
-          style={({ pressed }) => [styles.gotoRow, { backgroundColor: ACCENT_SOFT, opacity: pressed ? 0.6 : 1 }]}
+          style={({ pressed }) => [styles.gotoRow, { backgroundColor: colors.accentSoft, opacity: pressed ? 0.6 : 1 }]}
         >
-          <SymbolView name="arrow.right.circle.fill" size={22} tintColor={ACCENT} />
+          <SymbolView name="arrow.right.circle.fill" size={22} tintColor={colors.accent} />
           <Text style={[styles.gotoText, { color: colors.textPrimary }]}>
             Go to {verseRef.name} {verseRef.surahId}:{verseRef.ayah}
           </Text>
@@ -170,16 +170,16 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
             onSelectPage(pageRef);
             onClose();
           }}
-          style={({ pressed }) => [styles.gotoRow, { backgroundColor: ACCENT_SOFT, opacity: pressed ? 0.6 : 1 }]}
+          style={({ pressed }) => [styles.gotoRow, { backgroundColor: colors.accentSoft, opacity: pressed ? 0.6 : 1 }]}
         >
-          <SymbolView name="book.pages.fill" size={22} tintColor={ACCENT} />
+          <SymbolView name="book.pages.fill" size={22} tintColor={colors.accent} />
           <Text style={[styles.gotoText, { color: colors.textPrimary }]}>Go to page {pageRef}</Text>
         </Pressable>
       )}
       {isArabic && !verseRef ? (
         searching && ayahHits.length === 0 ? (
           <View style={styles.searchState}>
-            <ActivityIndicator color={ACCENT} />
+            <ActivityIndicator color={colors.accent} />
           </View>
         ) : ayahHits.length === 0 ? (
           <View style={styles.searchState}>
@@ -215,7 +215,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
       ) : wantsTranslationSearch ? (
         searchingEn && translationHits.length === 0 ? (
           <View style={styles.searchState}>
-            <ActivityIndicator color={ACCENT} />
+            <ActivityIndicator color={colors.accent} />
           </View>
         ) : translationHits.length === 0 ? (
           <View style={styles.searchState}>

@@ -50,7 +50,12 @@ export type Palette = {
    */
   textQuaternary: string;
   separator: string;
+  /** Text-safe accent for this surface family (also fine for icons). */
   accent: string;
+  accentSoft: string;
+  /** Text/icon colour for content sitting on an `accent` fill. */
+  onAccent: string;
+  danger: string;
 };
 
 // The app is dark-mode only by design (no system-theme following) — near-
@@ -64,7 +69,10 @@ export const darkPalette: Palette = {
   textTertiary: colorTokens.dark.textTertiary,
   textQuaternary: colorTokens.dark.glyphQuiet,
   separator: colorTokens.dark.hairline,
-  accent: colorTokens.dark.accent,
+  accent: colorTokens.dark.accentText,
+  accentSoft: colorTokens.dark.accentSoft,
+  onAccent: colorTokens.dark.onAccentText,
+  danger: colorTokens.dark.danger,
 };
 
 export const lightPalette: Palette = {
@@ -76,7 +84,10 @@ export const lightPalette: Palette = {
   textTertiary: colorTokens.light.textTertiary,
   textQuaternary: colorTokens.light.glyphQuiet,
   separator: colorTokens.light.hairline,
-  accent: colorTokens.light.accent,
+  accent: colorTokens.light.accentText,
+  accentSoft: colorTokens.light.accentSoft,
+  onAccent: colorTokens.light.onAccentText,
+  danger: colorTokens.light.danger,
 };
 
 // Explicit, documented exception: these three surfaces intentionally ignore
@@ -120,6 +131,9 @@ export const readingPalette: Palette = {
   textQuaternary: colorTokens.paper.glyphQuiet,
   separator: colorTokens.paper.hairline,
   accent: colorTokens.paper.accentText,
+  accentSoft: colorTokens.paper.accentSoft,
+  onAccent: colorTokens.paper.onAccentText,
+  danger: colorTokens.paper.danger,
 };
 
 /**

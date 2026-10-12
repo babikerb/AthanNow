@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
 import { Surah } from '../data/surahs';
-import { ACCENT, QURAN_FONT } from '../theme/colors';
+import { QURAN_FONT } from '../theme/colors';
 
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ';
 
@@ -37,7 +37,7 @@ export function SurahHeader({ surah, continued }: SurahHeaderProps) {
           {BISMILLAH}
         </Text>
       )}
-      <View style={[styles.accentDot, { backgroundColor: ACCENT }]} />
+      <View style={[styles.accentDot, { backgroundColor: colors.accent }]} />
     </View>
   );
 }
