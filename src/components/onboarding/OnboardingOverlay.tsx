@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 
 import { useOnboarding } from '../../context/OnboardingContext';
 import { useSettings } from '../../context/SettingsContext';
-import { useLocation } from '../../hooks/useLocation';
+import { useLocation } from '../../context/LocationContext';
 import { navigateToTab } from '../../navigation/navigationRef';
 import { CALC_METHODS } from '../../utils/calcMethodDefaults';
 import { ONBOARDING_STEPS } from './steps';
@@ -23,9 +23,8 @@ const TOTAL = ONBOARDING_STEPS.length;
  * targets, dropped per explicit feedback (that mechanism kept causing
  * layout bugs and read as glitchy).
  *
- * Calls its own `useLocation()` instance, independent from `AthanScreen`'s,
- * same as before. The two instances read/write the same AsyncStorage key,
- * so this is a documented, low-risk duplication rather than a new one.
+ * Reads the app-wide shared location (`LocationProvider`), so a city or GPS fix chosen
+ * during onboarding reaches every screen immediately.
  */
 export function OnboardingOverlay() {
   const { active, mode, step, next, skip, finish } = useOnboarding();

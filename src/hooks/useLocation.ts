@@ -141,7 +141,8 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
   }
 }
 
-export function useLocation() {
+/** The single location state machine. Consumed ONLY by `LocationProvider` (src/context/LocationContext.tsx); screens use `useLocation()` from there. */
+export function useLocationState() {
   // Seed with a default city so the app is *always* functional immediately, even
   // with Location Services disabled and no stored city yet (App Store 5.1.5). The
   // restore effect below replaces it with the user's saved city when there is one,

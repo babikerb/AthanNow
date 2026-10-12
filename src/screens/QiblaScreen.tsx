@@ -8,7 +8,7 @@ import { Button } from '../design/Button';
 import { haptic } from '../design/haptics';
 import { useTheme as useDesignTheme } from '../design/theme';
 import { colorTokens, textStyle } from '../design/tokens';
-import { useLocation } from '../hooks/useLocation';
+import { useLocation } from '../context/LocationContext';
 import { useQibla } from '../hooks/useQibla';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { formatDistance } from '../utils/units';
@@ -203,13 +203,14 @@ function Compass({
 }
 
 export default function QiblaScreen() {
-  const { cityName, status, location } = useLocation();
+  const { cityName, status, location, hasRestored } = useLocation();
   useFocusedStatusBar('light');
   const latitude = location?.latitude ?? null;
   const longitude = location?.longitude ?? null;
   const qibla = useQibla(latitude, longitude);
   const loading = !location && status === 'loading';
-  const error = status === 'denied' || status === 'error';
+  // Unresolved location (denied, failed, or never resolved) must not present Mecca's bearing as the user's.
+  const error = status === 'denied' || status === 'error' || (status === 'idle' && hasRestored && !location?.isManual);
   const compassUnavailable = qibla.compassAvailable === false;
   const calibrating = qibla.headingAccuracy < 0;
 

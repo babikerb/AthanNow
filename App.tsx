@@ -16,6 +16,7 @@ SplashScreen.preventAutoHideAsync();
 
 // Providers
 import { OnboardingProvider } from './src/context/OnboardingContext';
+import { LocationProvider } from './src/context/LocationContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { ThemeProvider as DesignThemeProvider, useTheme as useDesignTheme } from './src/design/theme';
@@ -150,6 +151,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SettingsProvider>
+        <LocationProvider>
         <AppThemes>
           <ThemeProvider>
             <OnboardingProvider>
@@ -158,6 +160,7 @@ export default function App() {
             </OnboardingProvider>
           </ThemeProvider>
         </AppThemes>
+        </LocationProvider>
       </SettingsProvider>
     </SafeAreaProvider>
   );

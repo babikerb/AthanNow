@@ -11,12 +11,11 @@ import { FloatingPill } from '../components/FloatingControl';
 import { LocationSheet } from '../components/LocationSheet';
 import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '../context/ThemeContext';
-import { useLocation } from '../hooks/useLocation';
+import { useLocation } from '../context/LocationContext';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { NIGHT_BG, prayerStatusBarLight } from '../theme/colors';
-import { PressableScale } from '../design/PressableScale';
 import { Text } from '../design/Text';
 import { useTheme as useDesignTheme } from '../design/theme';
 import { skyStages } from '../design/tokens';
@@ -173,20 +172,11 @@ export default function AthanScreen() {
     return Math.max(0, Math.min(1, elapsed / total));
   }, [prayerData, currentTime]);
 
+  // `location` is seeded and never null in practice; this only narrows the type.
   if (!prayerData) {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View style={styles.container}>
         <AmbientGradient colors={prayerGradients.isha} />
-        <Text variant="body" color="skyTextSecondary">
-          Working out today's prayer times
-        </Text>
-        <PressableScale onPress={openLocation} haptic="light" accessibilityRole="button" accessibilityLabel="Set location">
-          <View style={{ paddingHorizontal: dt.spacing.lg, paddingVertical: dt.spacing.sm, borderRadius: dt.radii.pill, backgroundColor: dt.c.skyFill }}>
-            <Text variant="subhead" color="skyText">
-              Set location
-            </Text>
-          </View>
-        </PressableScale>
         {locationSheet}
       </View>
     );
@@ -202,12 +192,17 @@ export default function AthanScreen() {
   const rowMin = dropProgress ? 36 : winH < 700 ? 40 : 44;
 
   // Home states (BRAND.md section 9). Presentation only: reads status the hook already exposes.
-  const notice =
-    location && !location.isManual && status === 'denied'
+  // Unresolved states must never pass off Mecca as the user's city: denied, failed, or never resolved (idle after restore).
+  const unresolved = !!location && !location.isManual && hasRestored;
+  const notice = !unresolved
+    ? null
+    : status === 'denied'
       ? 'Location is off. Tap to open Settings, or choose a city above.'
-      : location && !location.isManual && status === 'error'
+      : status === 'error'
         ? `We couldn't find your location, so these are the times for ${cityName}. Choose your city.`
-        : null;
+        : status === 'idle'
+          ? `Showing times for ${cityName} for now. Tap to choose your city.`
+          : null;
 
   // The notice needs room on a no-scroll screen: it displaces the Hijri line.
   const dropHijri = winH < 600 || fontScale >= 1.5 || !!notice;

@@ -13,7 +13,7 @@ import { SegmentedControl } from '../design/SegmentedControl';
 import { Text } from '../design/Text';
 import { useTheme as useDesignTheme } from '../design/theme';
 import { Toggle } from '../design/Toggle';
-import { useLocation } from '../hooks/useLocation';
+import { useLocation } from '../context/LocationContext';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { CALC_METHOD_WHY, CALC_METHODS, calcMethodForCountry, localeCountryCode } from '../utils/calcMethodDefaults';
 

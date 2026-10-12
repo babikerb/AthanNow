@@ -16,3 +16,4 @@
 - Iter 15: in-app widgets (src/widgets) small/medium/large as WidgetKit reference; onboarding preview uses them.
 - Iter 16: WidgetKit widgets restyled to match in-app widgets (system serif numerals; Fraunces not bundleable).
 - Iter 17: app icon recoloured (apricot on ink) with dark/tinted variants; Live Activity proposal documented.
+- R1: shared LocationProvider; Home/Qibla unresolved-location notices.

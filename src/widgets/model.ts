@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useSettings } from '../context/SettingsContext';
 import type { SkyStage } from '../design/tokens';
-import { useLocation } from '../hooks/useLocation';
+import { useLocation } from '../context/LocationContext';
 import { formatCountdown, getCelestialConfig, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 
