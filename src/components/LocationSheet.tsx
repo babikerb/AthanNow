@@ -114,10 +114,8 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
       <View style={styles.body}>
         {/* Current location hero card */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.separator }]}>
-          <View style={[styles.iconBadge, { backgroundColor: colors.accentSoft, borderColor: colors.separator }]}>
-            <SymbolView name="location.fill" size={iconSize.lg} tintColor={colors.accent} />
-          </View>
-          <Text style={[styles.cardCaption, { color: colors.textSecondary }]}>CURRENT LOCATION</Text>
+          <SymbolView name="location.fill" size={iconSize.lg} type="hierarchical" tintColor={colors.accent} style={styles.cardIcon} />
+          <Text style={[styles.cardCaption, { color: colors.textSecondary }]}>Current location</Text>
           <Text style={[styles.city, { color: colors.textPrimary }]} numberOfLines={1}>
             {cityName}
           </Text>
@@ -127,9 +125,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
           {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.sm }} />}
         </View>
 
-        {/* Same uppercase-tracked micro-label treatment Settings' section
-            titles use, not a one-off bold-13px style local to this sheet. */}
-        <Text style={[styles.label, { color: colors.textSecondary }]}>CHANGE LOCATION</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>Change location</Text>
 
         {/* Search field */}
         <View style={[styles.searchRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.separator }]}>
@@ -242,11 +238,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     alignItems: 'center',
   },
-  iconBadge: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm + 2, borderWidth: 1 },
-  cardCaption: { ...type.caption2, marginBottom: spacing.xxs } as any,
+  cardIcon: { width: iconSize.lg, height: iconSize.lg, marginBottom: spacing.sm },
+  cardCaption: { ...type.footnote, marginBottom: spacing.xxs } as any,
   city: { ...type.title2 } as any,
   citySub: { ...type.footnote, marginTop: spacing.xxs } as any,
-  label: { ...type.caption2, marginLeft: spacing.xxs, marginBottom: -spacing.xxs } as any,
+  label: { ...type.footnote, marginLeft: spacing.xxs, marginBottom: -spacing.xxs } as any,
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -256,7 +252,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm + 2,
     height: 50,
   },
-  input: { flex: 1, ...type.body } as any,
+  // No explicit lineHeight on a single-line TextInput: it shifts the baseline on iOS.
+  input: { flex: 1, ...type.body, lineHeight: undefined } as any,
   error: { ...type.footnote, marginTop: -spacing.xs, marginLeft: spacing.xxs } as any,
   suggestBox: { borderRadius: radii.sm, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden', marginTop: -spacing.xxs },
   suggestEmpty: { padding: spacing.lg, alignItems: 'center' },

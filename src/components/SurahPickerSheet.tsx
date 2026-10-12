@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, Vi
 import { useTheme } from '../context/ThemeContext';
 import { getSurah, Surah, SURAHS } from '../data/surahs';
 import { TOTAL_PAGES } from '../data/surahPages';
+import { radiiTokens, textStyle } from '../design/tokens';
 import { Palette, QURAN_FONT } from '../theme/colors';
 import { AyahHit, searchAyat, searchTranslation } from '../utils/quran';
 import { Sheet } from './Sheet';
@@ -267,7 +268,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 14,
+    borderRadius: radiiTokens.control,
+    borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
     height: 50,
@@ -275,17 +277,17 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 14,
   },
-  input: { flex: 1, fontSize: 16 },
-  gotoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 14 },
-  gotoText: { fontSize: 16, fontWeight: '600' },
+  input: { flex: 1, ...textStyle('body'), lineHeight: undefined },
+  gotoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: radiiTokens.control, borderCurve: 'continuous' },
+  gotoText: { ...textStyle('bodyEmph') },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
-  numberBadge: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  numberText: { fontSize: 14, fontWeight: '700' },
-  name: { fontSize: 16, fontWeight: '600' },
-  sub: { fontSize: 13, marginTop: 2 },
+  numberBadge: { width: 36, height: 36, borderRadius: 10, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
+  numberText: { ...textStyle('subhead') },
+  name: { ...textStyle('bodyEmph') },
+  sub: { ...textStyle('footnote'), marginTop: 2 },
   arabic: { fontSize: 20, writingDirection: 'rtl' },
   ayahText: { fontSize: 19, lineHeight: 32, fontFamily: QURAN_FONT, writingDirection: 'rtl', textAlign: 'right' },
-  translationText: { fontSize: 15, lineHeight: 21 },
+  translationText: { ...textStyle('subhead'), fontWeight: '400' },
   searchState: { paddingTop: 30, alignItems: 'center', gap: 10 },
-  emptyText: { fontSize: 14 },
+  emptyText: { ...textStyle('footnote') },
 });

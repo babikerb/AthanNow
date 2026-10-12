@@ -82,8 +82,8 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: spacing.sm,
   },
-  // Sheet titles collapse into `type.title2` (was 26/800/-0.4, title2 is 24/800/-0.4).
-  title: { ...type.title2, flex: 1 },
+  // Sheet titles use `type.title3` (20/600): a quiet title, not a heavy header.
+  title: { ...type.title3, flex: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   closeButton: { marginLeft: spacing.xxs },
   body: { flex: 1 },

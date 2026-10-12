@@ -11,3 +11,4 @@
 - Iter 10: Qibla rebuilt (no glow, apricot lock transition, states).
 - Iter 11: Settings rebuilt on design system; Appearance (System/Light/Dark) added and wired to theme + native window scheme.
 - Iter 12: sheets use palette-driven accent/danger (dark/light/paper).
+- Iter 13: sheet styling cleanup; legacy type/radii derive from tokens.

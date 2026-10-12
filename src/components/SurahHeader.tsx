@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
 import { Surah } from '../data/surahs';
+import { textStyle } from '../design/tokens';
 import { QURAN_FONT } from '../theme/colors';
 
 const BISMILLAH = 'بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ';
@@ -29,7 +30,7 @@ export function SurahHeader({ surah, continued }: SurahHeaderProps) {
       </View>
 
       <Text style={[styles.meta, { color: colors.textTertiary }]}>
-        {surah.transliteration.toUpperCase()} · {surah.type === 'meccan' ? 'MECCAN' : 'MEDINAN'} · {surah.totalVerses} AYAT
+        {surah.transliteration} · {surah.type === 'meccan' ? 'Meccan' : 'Medinan'} · {surah.totalVerses} ayat
       </Text>
 
       {showBismillah && (
@@ -37,7 +38,6 @@ export function SurahHeader({ surah, continued }: SurahHeaderProps) {
           {BISMILLAH}
         </Text>
       )}
-      <View style={[styles.accentDot, { backgroundColor: colors.accent }]} />
     </View>
   );
 }
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 14,
   },
   arabicName: { fontFamily: QURAN_FONT, fontSize: 26, writingDirection: 'rtl', lineHeight: 44 },
-  meta: { fontSize: 10, letterSpacing: 1.5, marginTop: 12 },
+  meta: { ...textStyle('caption'), marginTop: 12 },
   bismillah: {
     fontFamily: QURAN_FONT,
     fontSize: 24,
@@ -65,5 +65,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     lineHeight: 46,
   },
-  accentDot: { width: 4, height: 4, borderRadius: 2, marginTop: 16, opacity: 0.5 },
 });

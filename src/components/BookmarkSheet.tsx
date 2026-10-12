@@ -4,6 +4,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
 import { Bookmark } from '../hooks/useBookmarks';
+import { textStyle } from '../design/tokens';
 import { Palette } from '../theme/colors';
 import { Sheet } from './Sheet';
 
@@ -28,7 +29,7 @@ export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove,
         <View style={styles.empty}>
           <SymbolView name="bookmark" size={40} tintColor={colors.textTertiary} />
           <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-            No bookmarks yet. Tap the bookmark on any ayah to save it here.
+            Nothing saved yet. Tap the bookmark button while you read to keep your place.
           </Text>
         </View>
       ) : (
@@ -44,16 +45,14 @@ export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove,
               }}
               style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
             >
-              <View style={[styles.badge, { backgroundColor: colors.accentSoft }]}>
-                <SymbolView name="bookmark.fill" size={16} tintColor={colors.accent} />
-              </View>
+              <SymbolView name="bookmark.fill" size={18} tintColor={colors.accent} style={styles.glyph} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.title, { color: colors.textPrimary }]}>{item.surahName}</Text>
+                <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>{item.surahName}</Text>
                 <Text style={[styles.sub, { color: colors.textTertiary }]}>
                   {item.page ? `Page ${item.page} · Ayah ${item.ayah}` : `Ayah ${item.ayah}`}
                 </Text>
               </View>
-              <Pressable onPress={() => onRemove(item.surahId, item.ayah)} hitSlop={12}>
+              <Pressable onPress={() => onRemove(item.surahId, item.ayah)} hitSlop={14} accessibilityRole="button" accessibilityLabel={`Remove bookmark, ${item.surahName}`}>
                 <SymbolView name="xmark.circle.fill" size={22} tintColor={colors.textTertiary} />
               </Pressable>
             </Pressable>
@@ -66,9 +65,9 @@ export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove,
 
 const styles = StyleSheet.create({
   empty: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 40, gap: 16 },
-  emptyText: { fontSize: 15, textAlign: 'center', lineHeight: 21 },
+  emptyText: { ...textStyle('subhead'), textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
-  badge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 16, fontWeight: '600' },
-  sub: { fontSize: 13, marginTop: 2 },
+  glyph: { width: 22, height: 22 },
+  title: { ...textStyle('bodyEmph') },
+  sub: { ...textStyle('footnote'), marginTop: 2 },
 });

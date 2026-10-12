@@ -9,18 +9,15 @@
  * thing" grammar read as one decision instead of four.
  */
 
+import { radiiTokens } from '../design/tokens.generated';
+
+/** Legacy radii scale, mapped onto the design radii roles (control 12 / card 20 / pill). */
 export const radii = {
-  /** Small chips/badges (TODAY badge, small tags). */
-  xs: 8,
-  /** Compact controls (search rows, segment container). */
-  sm: 12,
-  /** Standard containers (Settings group — was 14, +2 for visual parity with the others). */
-  md: 16,
-  /** Elevated "hero" cards (Calendar day card, LocationSheet hero card, Spotlight tooltip — was 22/22/20, now one shared value). */
-  lg: 20,
-  /** Fully-rounded buttons and pills (Get Started button, GlassPill, segment items). */
-  pill: 999,
-  /** Icon circles are computed as size/2 at the call site — not a fixed constant. */
+  xs: radiiTokens.control,
+  sm: radiiTokens.control,
+  md: radiiTokens.card,
+  lg: radiiTokens.card,
+  pill: radiiTokens.pill,
   circle: 0,
 } as const;
 

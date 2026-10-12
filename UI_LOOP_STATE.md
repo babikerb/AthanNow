@@ -20,7 +20,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [ ] 6. ALL SCREENS
   - [x] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
   - [x] 6b Home chrome  - [x] 6c Calendar  - [x] 6d Quran (screen chrome + palettes; Quran sheets finish in 6h)  - [x] 6e Qibla
-  - [x] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
+  - [x] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [x] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
 - [ ] 7. IN-APP WIDGETS (`src/widgets`)
 - [ ] 8. NATIVE iOS PARITY
   - [ ] 8a widget small  - [ ] 8b medium  - [ ] 8c large  - [ ] 8d accessories  - [ ] 8e tinted/clear/StandBy
@@ -35,6 +35,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- 6g MUST (from bridge review): legacy `type`/`radii` now derive from design tokens app-wide (body 17/24, subhead 15/20, title1 30 Fraunces, hero 64 Fraunces, radii 12/20). Onboarding cards are absolutely positioned with no ScrollView: verify/fix fit of WidgetStep, CalcMethodStep (maxHeight 200 list), PermissionStep at 320/375pt + Dynamic Type; OutroStep title1 wrapping; IntroStep wordmark now fits via adjustsFontSizeToFit. Spotlight tooltip may be off the legacy scale (check).
 - 6h-2 TODO (sheets styling, panel scored art 6 / anti-ai 5): remove icon-badge circles (LocationSheet:245, BookmarkSheet:71), sentence-case the uppercase tracked labels (LocationSheet:120, SurahHeader:58), move raw fontSize/weight/radius in SurahPickerSheet/BookmarkSheet/SurahHeader onto design type/radii tokens, number badge -> rounded square, lighter Sheet title weight (title2 800 is heavy), drop SurahHeader decorative accent dot, PRESSED_OPACITY literal; consider design Text/ListRow inside the native pageSheet.
 - Then 6g onboarding: OnboardingBeacon:195, ProgressBar:69, CalcMethodStep:79,112 are the LAST importers of ACCENT; after migrating them delete ACCENT/ACCENT_SOFT/ACCENT_BORDER/ACCENT_ON_DARK/ERROR/STATE_SUCCESS from theme/colors.ts.
 - ~~6h MUST (first thing)~~ DONE in iter 12 (accent/danger now palette-driven; verified contrast dark/light/paper): with Appearance=Light, unmigrated sheets still use the old green `ACCENT`/`ACCENT_SOFT` constants and are weak/clashing: LocationSheet:119,128,158,192,221 (opens over always-night Home), SurahPickerSheet:124-125,161,175,182,218, BookmarkSheet:48, SurahHeader:40, OnboardingBeacon/ProgressBar/CalcMethodStep on sky. Replace with `useTheme().colors.accent` / design tokens or the design BottomSheet; then delete ACCENT*, ERROR, STATE_SUCCESS from theme/colors.ts. Default appearance is Dark, so no regression by default.
@@ -111,3 +112,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 ### Iter 12 - 6h part 1 (sheet colours)
 - Legacy Palette gained accentSoft/onAccent/danger (+ accent is now the text-safe accent per surface family); new tokens onAccentText (dark ink / white on deep accent), paper.accentSoft/danger, validated for AA in sync-tokens. LocationSheet, SurahPickerSheet, BookmarkSheet, SurahHeader no longer use old green ACCENT/ERROR; they follow dark/light/paper. Contrast verified by reviewer for all three palettes.
 - Panel: art 6, HIG 7, anti-ai 5 (styling leftovers: badges, uppercase labels, raw type; logged as 6h-2). 6h stays unchecked until 6h-2 is done.
+### Iter 13 - 6h part 2 (sheet styling + legacy scale bridge)
+- Sheets: icon-badge circles removed (LocationSheet, BookmarkSheet), sentence-case labels, SurahHeader meta sentence-case + decorative dot dropped, rounded-square surah number badge, tokens for type/radii, lighter sheet title (title3), labelled remove-bookmark button, real empty copy. LocationSheet input lineHeight fix.
+- Global: src/theme/typography.ts and radii.ts now derive from design/tokens (single source), so every legacy consumer inherits the new scale/Fraunces display; IntroStep wordmark made fit-to-width.
+- Panel: art 7, anti-ai 8, HIG 6.5 -> MUST-FIX 1-3 done; onboarding fit risk moved to 6g. 6h ticked.
