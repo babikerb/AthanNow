@@ -18,18 +18,12 @@ SplashScreen.preventAutoHideAsync();
 import { OnboardingProvider } from './src/context/OnboardingContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
-import { ThemeProvider as DesignThemeProvider } from './src/design/theme';
+import { ThemeProvider as DesignThemeProvider, useTheme as useDesignTheme } from './src/design/theme';
+import { colorTokens } from './src/design/tokens';
 import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
 import { OnboardingOverlay } from './src/components/onboarding/OnboardingOverlay';
 import { navigationRef } from './src/navigation/navigationRef';
-import { ACCENT_ON_DARK } from './src/theme/colors';
 
-// Translucent version of `ACCENT_ON_DARK` (see colors.ts's doc comment on
-// that token) for the Android Material indicator pill's fill — the plain
-// `ACCENT` was a real contrast problem here (a dark, desaturated green
-// against the tab bar's near-black background reads as barely-there
-// dark-on-dark), not just a stylistic preference.
-const TAB_INDICATOR_COLOR = 'rgba(79, 174, 134, 0.35)';
 // Side-effect import: defines the background-refresh task at module scope so the
 // headless JS runtime can find it.
 import { registerBackgroundRefresh } from './src/utils/backgroundRefresh';
@@ -47,31 +41,30 @@ import SettingsScreen from './src/screens/SettingsScreen';
 
 const Tab = createNativeBottomTabNavigator();
 
+// Decision (BRAND.md section 5, UI_LOOP_STATE standing decisions): keep the fully native UITabBar
+// (iOS 26 Liquid Glass, native haptics). The library's custom `tabBar` slot renders in normal layout flow with no
+// hit-testing outside its bounds, so a floating bar over the sky would shrink every screen and lose the glass bar.
+// Styling comes from design tokens: accent tint = the one active-state marker, secondary text for the rest. No
+// tabBarStyle background on purpose: a solid colour would replace the translucent glass/blur with a flat bar.
+const tabIcon = (name: 'moon.stars' | 'calendar' | 'book' | 'safari' | 'gearshape', fill: boolean) =>
+  ({ sfSymbol: fill && name !== 'calendar' ? `${name}.fill` : name }) as never;
+
 function MainTabs() {
+  const { c } = useDesignTheme();
   return (
     <View style={{ flex: 1 }}>
       <NavigationContainer ref={navigationRef}>
         <Tab.Navigator
-        {...({
-          // Reverted from a custom-rendered tab bar (tried, for a Crumbl-
-          // style abstract highlight) back to fully native, per explicit
-          // preference. `activeIndicatorColor` is the native Android
-          // Material 3 pill indicator; iOS 26+ renders its own Liquid Glass
-          // pill automatically when the bar stays native.
-          activeIndicatorColor: TAB_INDICATOR_COLOR,
-        } as any)}
-        tabBarActiveTintColor={ACCENT_ON_DARK}
-        screenOptions={{
-          // Explicitly use the native background bar color property
-          barTintColor: '#0B0B0D',
-        } as any}
-      >
+          tabBarActiveTintColor={c.accent}
+          tabBarInactiveTintColor={c.textSecondary}
+          hapticFeedbackEnabled
+        >
         <Tab.Screen
           name="Athan"
           component={AthanScreen}
           options={{
             title: 'Athan',
-            tabBarIcon: () => ({ sfSymbol: 'moon.stars.fill' })
+            tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('moon.stars', focused)
           } as any}
         />
         <Tab.Screen
@@ -79,7 +72,7 @@ function MainTabs() {
           component={CalendarScreen}
           options={{
             title: 'Calendar',
-            tabBarIcon: () => ({ sfSymbol: 'calendar' })
+            tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('calendar', focused)
           } as any}
         />
         <Tab.Screen
@@ -87,7 +80,7 @@ function MainTabs() {
           component={QuranScreen}
           options={{
             title: 'Quran',
-            tabBarIcon: () => ({ sfSymbol: 'book.fill' })
+            tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('book', focused)
           } as any}
         />
         <Tab.Screen
@@ -95,7 +88,7 @@ function MainTabs() {
           component={QiblaScreen}
           options={{
             title: 'Qibla',
-            tabBarIcon: () => ({ sfSymbol: 'safari.fill' })
+            tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('safari', focused)
           } as any}
         />
         <Tab.Screen
@@ -103,7 +96,7 @@ function MainTabs() {
           component={SettingsScreen}
           options={{
             title: 'Settings',
-            tabBarIcon: () => ({ sfSymbol: 'gearshape.fill' })
+            tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('gearshape', focused)
           } as any}
         />
         </Tab.Navigator>
@@ -129,7 +122,7 @@ function Root() {
   // Hold on the same background color as the native splash (not the app's
   // usual near-black) until persisted settings + the mushaf font load, so the
   // transition from native splash to this view is invisible.
-  if (!appReady) return <View style={{ flex: 1, backgroundColor: '#194834' }} />;
+  if (!appReady) return <View style={{ flex: 1, backgroundColor: colorTokens.dark.bg }} />;
   // `MainTabs` always renders now — the merged onboarding flow
   // (`OnboardingOverlay`, mounted inside it) overlays the real tab screens
   // itself instead of preceding them with a separate full-screen flow, so it

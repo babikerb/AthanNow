@@ -16,7 +16,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 2. BRAND → `BRAND.md` (gate: art-director, anti-ai-critic, ux-strategist approve)
 - [x] 3. SHARED DESIGN TOKENS (`design/tokens.json`, `src/design/tokens.ts`, ThemeProvider, `DesignTokens.swift`, `scripts/sync-tokens`)
 - [x] 4. DESIGN SYSTEM (`src/design`)
-- [ ] 5. CUSTOM TAB BAR
+- [x] 5. CUSTOM TAB BAR (decision: native bar restyled; custom floating bar rejected)
 - [ ] 6. ALL SCREENS
   - [ ] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
   - [ ] 6b Home chrome  - [ ] 6c Calendar  - [ ] 6d Quran  - [ ] 6e Qibla
@@ -35,6 +35,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- CHECK on iOS 26 device: native tab bar glass over Home sky; apricot active tint legibility over translucent bar on the lightest (dhuhr) sky; in system Light mode the translucent bar may render light under the dark app (pre-existing; resolve with appearance work in 6f, e.g. set userInterfaceStyle per preference).
 - SHOULD (6): Toast renders under native Modal so it is invisible over BottomSheet (host a toast inside the sheet or use the sheet's own inline error). Existing JS sheets (`components/Sheet.tsx`) to be replaced by `design/BottomSheet` in 6h.
 - SHOULD: design system is untested on device (Windows): verify BottomSheet drag/detents, SegmentedControl thumb, PressableScale layout (Pressable flexGrow inside Animated.View) in first simulator pass; Fraunces tabular figures.
 - SHOULD: bold idea (3pt apricot leading tick as shared 'selected marker' for rows/segments) - consider in decision round.
@@ -64,3 +65,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Built src/design: Text, PressableScale, Surface/Card, Divider, Button, IconButton, Chip, Badge, Avatar, SectionHeader/ListGroup/ListRow, Toggle (native UISwitch), SegmentedControl, TextField/SearchBar, BottomSheet (detents, a11y actions), Toast, Skeleton, EmptyState/ErrorState, ScreenContainer, haptics map; barrel index.ts. Zero hardcoded colours; no new native deps (RN Animated native driver).
 - Panel round 1: HIG 6, motion 6.5, anti-ai 6.5, art 7. Fixed: EmptyState unreachable button, iOS a11y announcements (live regions are Android-only), BottomSheet clipped content/stale closures/a11y actions/modal escape, Button pressed feedback + loading width, Segmented first-layout slide + 44pt, press timing 120ms, row scale removed, field focus without accent ring, chip pill + marker dot (no accent border), toast marker dot, required (non-generic) copy for EmptyState/ErrorState/SearchBar, display font Dynamic Type cap 1.3, 16pt gutter on SE width.
 - Not yet re-scored (code-only review; visual judgement deferred to first screens in Phase 6). tsc + tokens:check clean.
+### Iter 5 - Phase 5 tab bar
+- Decision: keep native UITabBar. The library's custom `tabBar` slot renders in layout flow with no hit-testing outside bounds -> a floating bar over the sky would shrink screens and lose native iOS 26 glass; also previously reverted by user preference. Styled with tokens: accent active tint, textSecondary inactive, SF symbol fill on focus, native selection haptic; removed Android indicator/old green/near-black hex; splash + primaryColor -> #17121F (logged).
+- Panel: native-safety PASS, HIG 8/10. Fixed warning (solid tabBarStyle would flatten the glass) by removing it.
+- Next: 6a Home sky refinement.
