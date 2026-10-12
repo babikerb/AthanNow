@@ -19,7 +19,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 5. CUSTOM TAB BAR (decision: native bar restyled; custom floating bar rejected)
 - [ ] 6. ALL SCREENS
   - [x] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
-  - [x] 6b Home chrome  - [x] 6c Calendar  - [x] 6d Quran (screen chrome + palettes; Quran sheets finish in 6h)  - [ ] 6e Qibla
+  - [x] 6b Home chrome  - [x] 6c Calendar  - [x] 6d Quran (screen chrome + palettes; Quran sheets finish in 6h)  - [x] 6e Qibla
   - [ ] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
 - [ ] 7. IN-APP WIDGETS (`src/widgets`)
 - [ ] 8. NATIVE iOS PARITY
@@ -35,6 +35,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- 6e: verify on device: aligned transition (colour interpolation is JS-driven, border width animates), dial scale on SE width, lubber red->apricot legibility (danger #E08A8A is salmon, close to apricot in hue), crosshair at 8% hairline nearly invisible (keep or remove), 12pt degree numbers. Bold idea (not built): apricot arc sweep from the lubber on lock + 'Facing the Qibla' caption in place of the cardinal.
 - 6h MUST include Quran sheets: SurahPickerSheet (green ACCENT :124,159,173, '#FFF' on accent), BookmarkSheet:47, SurahHeader:40 still use old green ACCENT/ACCENT_SOFT on paper; replace with paper accentText / design tokens. Then delete ACCENT/ACCENT_SOFT/ACCENT_BORDER/ACCENT_ON_DARK/ERROR/STATE_SUCCESS from theme/colors.ts once Settings (6f), Qibla (6e), Onboarding (6g) migrate.
 - Legacy `darkPalette.accent` is now apricot: any future `#FFF` text on `colors.accent` fails contrast; use `onAccent` (#17121F).
 - 6c: Calendar day rows are 400 near-identical blocks; mitigated by dropping Arabic on non-today days. Bold idea (not built): non-today days as one quiet inset-grouped surface1 card, full treatment only for Today. Revisit in decision round.
@@ -96,3 +97,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 ### Iter 9 - 6d Quran chrome
 - Legacy `darkPalette` and `readingPalette` now derive from design tokens (bridge), so unmigrated screens/sheets already pick up ink/paper colours. Paper token set completed (textTertiary, glyphQuiet, accent, band, mark) and validated for AA in sync-tokens. Mushaf band/mark and reader highlight tints from tokens. QuranScreen: VoiceOver header + button labels, type tokens, fallback fills from palette, continuous 12pt corners; dead retry styles removed. Liquid-glass usage, AsyncStorage keys, mushaf/quran logic untouched.
 - Panel (combined): art 8, HIG 7.5, native-safety 9.5, no MUST-FIX.
+### Iter 10 - 6e Qibla
+- QiblaScreen rebuilt on tokens (always-night: reads dark tokens directly): ink bg, hairline dial, skyText cardinal ticks, muted-red north (danger), Fraunces 64pt readout (fit-to-width), plain skyText Qibla dot that turns apricot on lock with a 240ms transition (colour + ring weight + dot spring; Reduce Motion aware); halo/glow and stock green/red removed. States: denied/error now explains and offers Open Settings; compass-unavailable/calibrating copy rewritten. VoiceOver: static 'Qibla compass' label + value, 'Facing the Qibla' announcement. useQibla/sensor logic untouched.
+- Behaviour fixes from review: lock only counts when calibrated, compass present and tab focused; 1.5s cooldown; haptic per BRAND map (impact Medium, was notification Success); warning haptic on error; ScrollView for large Dynamic Type; dial scales down on narrow screens.
+- Panel: art 7.5, anti-ai 8.5, UX 8, HIG 7 -> MUST-FIX items addressed; not re-scored.
