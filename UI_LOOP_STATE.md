@@ -19,7 +19,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 5. CUSTOM TAB BAR (decision: native bar restyled; custom floating bar rejected)
 - [ ] 6. ALL SCREENS
   - [x] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
-  - [x] 6b Home chrome  - [ ] 6c Calendar  - [ ] 6d Quran  - [ ] 6e Qibla
+  - [x] 6b Home chrome  - [x] 6c Calendar  - [ ] 6d Quran  - [ ] 6e Qibla
   - [ ] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
 - [ ] 7. IN-APP WIDGETS (`src/widgets`)
 - [ ] 8. NATIVE iOS PARITY
@@ -35,6 +35,9 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- 6c: Calendar day rows are 400 near-identical blocks; mitigated by dropping Arabic on non-today days. Bold idea (not built): non-today days as one quiet inset-grouped surface1 card, full treatment only for Today. Revisit in decision round.
+- 6c: LocationSheet no longer reachable from Calendar (dead branch removed; location is always seeded). Location is changed from Home.
+- 6c: getItemLayout ignores contentContainer padding (as in baseline; error now 4pt vs ~67pt).
 - 6b: stale-cache Home state NOT built (needs a saved-at timestamp the app does not store; would be a data-layer change). Revisit in decision round.
 - 6b: verify on device: Fraunces `adjustsFontSizeToFit` hero, SE-height budget with notice shown (667pt), tabular figures in Fraunces (fallback: SF digits), Mach-band seam near 72% of sky.
 - 6b: art-director flagged hue travel in fajr/sunrise/asr as 'template gradient'; resolved by documented amendment (muted violet->rose allowed at dawn/dusk). Re-judge on device.
@@ -85,3 +88,6 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - useLocation: one-line display-state change: cold start with *denied* permission now sets status 'denied' (no prompt, no location change) so the notice is reachable.
 - Sky ramps now densified in OKLCH by Catmull-Rom spline (29 stops) in sync-tokens: smoother horizon, no sRGB mud.
 - Panel: art 7.5, anti-ai 8, ux 7, HIG 6.5 -> fixed: unreachable notice, copy/action mismatch, SE overflow (notice displaces Hijri), hero VO redundancy, list role, stale SKY_STRIP height, weight/italic/track tweaks. BRAND amended (hue travel, sky fills). Not re-scored; on-device check pending.
+### Iter 8 - 6c Calendar
+- CalendarScreen visuals rebuilt on design system: opaque header (Fraunces 'Calendar' + secondary Today button, replaces floating pill + SafeAreaScrim), token colours, Badge (Today = accent, occasion = info), rows with accentSoft wash + 3pt tick for next prayer, Arabic names only on today. Scroll/measure/getItemLayout/onStartReached logic untouched (reviewer diffed vs baseline: equivalent). Removed unreachable empty state + LocationSheet. Old IMPORTANT_TINT gold/ACCENT green removed. Status bar follows scheme. Added Badge `info` tone.
+- Panel: art 6.5, anti-ai 7, UX 7.5, HIG 7 -> fixed accent budget (icon tint), wash token, DT wrapping/shrink, header a11y landmark, tabular numerals, tick inset, status bar by scheme. Not re-scored.

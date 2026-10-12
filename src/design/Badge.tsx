@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Text, type TextColor } from './Text';
 import { useTheme } from './theme';
 
-export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
+export type BadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info';
 
 export function Badge({ label, tone = 'neutral' }: { label: string; tone?: BadgeTone }) {
   const t = useTheme();
@@ -14,6 +14,7 @@ export function Badge({ label, tone = 'neutral' }: { label: string; tone?: Badge
     success: { bg: t.c.surface3, fg: 'success' },
     warning: { bg: t.c.surface3, fg: 'warning' },
     danger: { bg: t.c.surface3, fg: 'danger' },
+    info: { bg: t.c.surface3, fg: 'info' },
   };
   const s = map[tone];
   return (
