@@ -19,7 +19,8 @@
 | `textTertiary` | `#8A819B` | 5.0:1 bg, 4.7:1 s1. **Only on bg/surface1, never over the Home sky** (sky screens use `skyTextSecondary` only). On s2/s3 use secondary. |
 | `glyphQuiet` | `#6E6680` | **chevrons and decorative dividers only** (3.4:1, meets 3:1 non-text). Disabled controls use `textTertiary`, never this. |
 | `accent` | `#E8B07A` | soft apricot; 9.6:1 on bg. Ink text on accent fill = 9.6:1 |
-| `accentSoft` | accent @ 14% | selected-row wash, never decoration |
+| `accentSoft` | accent @ 14% | selected wash on *surfaces* (lists/segments), never decoration |
+| `skyFill` / `skyHairline` / `skyWash` | sky-text @ 10% / 16% / 8% | translucent fills on the always-night sky (location pill, progress track, current-row wash). Home's current row uses `skyWash` (8%) + a 3pt `accent` tick; not `accentSoft`. |
 | `success` | `#7FB89A` · `warning #D9A25E` · `danger #E08A8A` · `info #8FA6D6` | desaturated; ≥ 6.2:1 on every dark surface |
 ### Light (secondary, lavender paper)
 bg `#F3F0F7` · s1 `#FAF8FC` · s2 `#E9E4F0` · s3 `#DED7E8` · hairline ink@10% · text `#1F1A28` (15:1) · secondary `#5E566E` (6.1:1) · tertiary `#6A6179` (≥4.5:1, validator will confirm) · accent: fills/large `#B8742F`; accent *text* = deepest same-hue (OKLCH h≈64°) value reaching ≥4.5:1 on bg/s1 (token validator picks it, expected ≈`#9A5F24`), one hue family with the dark-mode apricot · semantic darkened ~25%.
@@ -79,7 +80,7 @@ Fixed-budget zones keep `NO_SCROLL_FONT_CAP` 1.3. Countdown: `numberOfLines={1}`
 ## 10. Sky palette principles (Home hero: refine, don't redesign)
 Stops authored in OKLCH, output hex, 6–8 stops/stage. Guard-rails (token validator enforces):
 - Bottom stop of every stage converges to the ink family (L≈.20, C≤.04, h 295–305°), **including Isha** (cold navy `#070d18` is retired).
-- **Hue travel:** adjacent stops differ ≤ 60° hue; a ramp never runs blue→violet→pink within one stage; hue changes pass through low chroma. **Chroma ceiling** C ≤ .10 in the sky body, ≤ .13 only in the horizon band (warm band, lowest 25%).
+- **Hue travel:** adjacent stops differ ≤ 60° hue unless the step passes through low chroma (both stops C ≤ .045); total travel ≤ 200°. Dawn/dusk stages (fajr, sunrise, maghrib) may pass through a *muted* violet→rose (C ≤ .10, L ≤ .5) because that is what a real horizon does; saturated blue→violet→pink (neon) is never allowed. (Amended in 6b after art review: the earlier absolute ban contradicted the ramps the validator accepts; art-director to re-judge on device.) **Chroma ceiling** C ≤ .10 in the sky body, ≤ .13 only in the horizon band (warm band, lowest 25%).
 - **Reads as a clock:** top-stop lightness spread between the brightest (Dhuhr) and darkest (Isha) stage ≥ 0.12 L. Dhuhr is a hazy dusty blue-grey, darker than before but still clearly the lightest; hero text keeps AA with the scrim.
 - **Dither:** ship only after an on-device before/after on Isha/Fajr shows banding removed; 1–3% opacity monochrome PNG tile, static. If banding isn't visible, drop it.
 - Crossfade 4 s once at stage boundary (see Motion).
@@ -87,6 +88,9 @@ Stops authored in OKLCH, output hex, 6–8 stops/stage. Guard-rails (token valid
 ## 11. Anti-AI checklist (PART 7) — enforced per screen
 No neon purple→pink/blue→purple gradients · no gradient text · no glows on UI (celestial-body glow in the sky art is the one exception) · no sparkle motifs · blur only tab bar + sheets · varied card roles/radii · no emoji icons · Fraunces + SF pairing · no centered-hero-plus-3-cards · accent ≤ 1 primary use per screen region · no filler copy.
 Pass criteria: a stranger shown a screenshot should not be able to say "template".
+
+## 11b. Sky ramp construction
+Ramps are authored as 8 OKLCH stops (0-3 sky, 4 pre-horizon, 5 horizon, 6 eased dissolve, 7 ink) and densified by `sync-tokens` with a Catmull-Rom spline in OKLCH (4 subdivisions per segment, 29 hex stops) so blends are perceptual and the horizon has no slope seam.
 
 ## 12. Panel record (Phase 2 gate)
 Round 1: anti-ai-critic 7 APPROVE(cond) · art-director 7.5 REJECT · ux-strategist 7 REJECT. Round 2 amendments above address every MUST-FIX. Rejected ideas (revisit in decision round): surfaces hue-shifted per prayer stage (breaks native parity); countdown hue by stage (breaks accent budget); numeric badge on Athan tab (not on native bar without risk); parallax / idle drift.

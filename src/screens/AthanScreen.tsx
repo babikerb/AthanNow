@@ -1,15 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  Dimensions,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextStyle,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Dimensions, Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,18 +15,12 @@ import { useLocation } from '../hooks/useLocation';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
-import {
-  NIGHT_BG,
-  prayerStatusBarLight,
-  skyTextPrimary,
-  skyTextSecondary,
-} from '../theme/colors';
+import { NIGHT_BG, prayerStatusBarLight } from '../theme/colors';
+import { PressableScale } from '../design/PressableScale';
+import { Text } from '../design/Text';
+import { useTheme as useDesignTheme } from '../design/theme';
 import { skyStages } from '../design/tokens';
 import { iconSize } from '../theme/icons';
-import { PRESSED_OPACITY } from '../theme/motion';
-import { radii } from '../theme/radii';
-import { spacing } from '../theme/spacing';
-import { HEADLINE_FONT_FAMILY, type } from '../theme/typography';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes, PRAYER_LIST_ICONS } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
@@ -69,6 +55,8 @@ export default function AthanScreen() {
   const { prayerGradients } = useTheme();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useTabBarHeight();
+  const dt = useDesignTheme();
+  const { fontScale, height: winH } = useWindowDimensions();
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
@@ -149,10 +137,7 @@ export default function AthanScreen() {
     return prayerGradients[prayerData.currentPrayer] || prayerGradients.isha;
   }, [prayerData, prayerGradients]);
 
-  // Darkening scrim under the hero text (plan §1.5): Dhuhr's gradient (`#8eb2c4`)
-  // is far lighter than every other stage's, so it alone needs a strong scrim to
-  // keep white hero text at AA contrast; every other stage is already dark enough
-  // that a flat, mild scrim suffices.
+  // Per-stage scrim from design/tokens.json; the token validator checks sky-text AA against exactly this model.
   const scrimBottomOpacity = skyStages[(prayerData?.currentPrayer ?? 'isha') as keyof typeof skyStages]?.scrimBottom ?? 0.15;
 
   // Countdown accessibility label, rounded to the minute (not raw seconds) so
@@ -192,10 +177,16 @@ export default function AthanScreen() {
     return (
       <View style={[styles.container, styles.centered]}>
         <AmbientGradient colors={prayerGradients.isha} />
-        <Text style={styles.syncingText}>Syncing prayer times</Text>
-        <TouchableOpacity style={styles.retryPill} onPress={openLocation} activeOpacity={PRESSED_OPACITY}>
-          <Text style={styles.retryText}>Set location</Text>
-        </TouchableOpacity>
+        <Text variant="body" color="skyTextSecondary">
+          Working out today's prayer times
+        </Text>
+        <PressableScale onPress={openLocation} haptic="light" accessibilityRole="button" accessibilityLabel="Set location">
+          <View style={{ paddingHorizontal: dt.spacing.lg, paddingVertical: dt.spacing.sm, borderRadius: dt.radii.pill, backgroundColor: dt.c.skyFill }}>
+            <Text variant="subhead" color="skyText">
+              Set location
+            </Text>
+          </View>
+        </PressableScale>
         {locationSheet}
       </View>
     );
@@ -204,21 +195,30 @@ export default function AthanScreen() {
   const { currentPrayer, nextPrayer, nextPrayerTime, listRows } = prayerData;
   const displayPrayer = currentPrayer;
 
+  // Short screens / large Dynamic Type degrade in the order BRAND.md specifies:
+  // Arabic names, then the progress rule, then the Hijri line; rows shrink to a 36pt minimum last.
+  const dropArabic = winH < 700 || fontScale > 1.15;
+  const dropProgress = winH < 640 || fontScale >= 1.3;
+  const rowMin = dropProgress ? 36 : winH < 700 ? 40 : 44;
+
+  // Home states (BRAND.md section 9). Presentation only: reads status the hook already exposes.
+  const notice =
+    location && !location.isManual && status === 'denied'
+      ? 'Location is off. Tap to open Settings, or choose a city above.'
+      : location && !location.isManual && status === 'error'
+        ? `We couldn't find your location, so these are the times for ${cityName}. Choose your city.`
+        : null;
+
+  // The notice needs room on a no-scroll screen: it displaces the Hijri line.
+  const dropHijri = winH < 600 || fontScale >= 1.5 || !!notice;
+
   return (
     <View style={styles.container}>
       <AmbientGradient colors={skyColors} scrimBottomOpacity={scrimBottomOpacity} />
-      {/* No header bar on this screen at all (explicit feedback: it doesn't
-          need one, just a way to switch locations). The atmospheric layers
-          (gradient, stars) already bleed all the way to the top of the
-          screen on their own, `AmbientGradient` is a full-bleed background
-          and `SkyScene`'s star field is positioned independent of
-          `skyAreaY`, so nothing extra is needed there. `skyAreaY` only
-          controls the celestial body (sun/moon)'s arc, which does need to
-          stay clear of the location pill, kept generous on purpose. */}
+      {/* `skyAreaY` only controls the celestial body's arc, which stays clear of the location pill. */}
       <SkyScene prayer={displayPrayer as any} skyAreaY={insets.top + 76} />
 
-      <View style={[styles.content, { paddingTop: insets.top + spacing.md, paddingBottom: tabBarHeight + spacing.xs }]}>
-        {/* --- LOCATION (minimal floating pill, not a header) --- */}
+      <View style={[styles.content, { paddingTop: insets.top + dt.spacing.md, paddingBottom: tabBarHeight + dt.spacing.xs, paddingHorizontal: dt.spacing.lg }]}>
         <View style={styles.locationPillWrap}>
           <FloatingPill
             tone="onSky"
@@ -230,104 +230,124 @@ export default function AthanScreen() {
           />
         </View>
 
-        {/* --- SKY STRIP (reserves space; celestial drawn by SkyScene) --- */}
-        <View style={{ height: SKY_STRIP_HEIGHT }} />
+        {/* Reserves space; the celestial body is drawn by SkyScene. */}
+        <View style={{ height: winH * 0.06 }} />
 
-        {/* --- HERO: current prayer eyebrow + countdown to next --- */}
-        <View style={styles.heroContainer}>
-          <Text style={styles.eyebrowText} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{displayPrayer.toUpperCase()}</Text>
-          <Text style={styles.countdownText} accessibilityLabel={countdownLabel} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+        {/* Hero: countdown is primary, then the next prayer, then the current-stage label. */}
+        <View
+          style={styles.hero}
+          accessible
+          accessibilityLabel={`${displayPrayer} now. ${countdownLabel} at ${formatClock(nextPrayerTime, use24Hour, tz)}`}
+        >
+          <Text variant="caption2" color="skyTextSecondary" eyebrow maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+            {`Now · ${displayPrayer}`}
+          </Text>
+          <Text
+            variant="hero"
+            color="skyText"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+            accessibilityRole="timer"
+            style={{ textAlign: 'center', alignSelf: 'stretch' }}
+          >
             {formatCountdown(currentTime, nextPrayerTime)}
           </Text>
-          <Text style={styles.sublineText} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
-            until {nextPrayer} · {formatClock(nextPrayerTime, use24Hour, tz)}
+          <Text variant="subhead" color="skyTextSecondary" maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+            {`until ${nextPrayer} · ${formatClock(nextPrayerTime, use24Hour, tz)}`}
           </Text>
-          {heroProgress != null && (
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${heroProgress * 100}%` }]} />
+          {heroProgress != null && !dropProgress && (
+            <View accessibilityElementsHidden importantForAccessibility="no" style={[styles.progressTrack, { backgroundColor: dt.c.skyHairline, borderRadius: dt.radii.pill, marginTop: dt.spacing.md }]}>
+              <View style={{ height: '100%', width: `${heroProgress * 100}%`, borderRadius: dt.radii.pill, backgroundColor: dt.c.accent }} />
             </View>
           )}
         </View>
 
-        {/* Flexible gap, shared with the one below the list (see
-            `flexSpacer`): extra room on a given device now splits between
-            *both* gaps instead of one fixed-height spacer here and all the
-            slack pooling into a single gap below the list — that read as
-            leftover empty space rather than intentional breathing room. */}
         <View style={styles.midSpacer} />
 
-        {/* --- PRAYER LIST (no card/box container, per explicit feedback
-            straying from the "everything in a bordered card" pattern; rows
-            flow directly on the sky, separated by hairlines like Calendar's
-            day rows) --- */}
-        <View style={styles.listContainer}>
+        {/* Prayer list: rows flow directly on the sky. The current prayer carries the only warm marker. */}
+        <View>
           {listRows.map((row, i) => {
             const isCurrent = row.id === currentPrayer;
             const isPast = row.time < currentTime && !isCurrent;
             const isSunrise = row.id === 'sunrise';
             const isLast = i === listRows.length - 1;
-
-            let rowStyle: StyleProp<TextStyle> = styles.futureRowText;
-            if (isCurrent) rowStyle = styles.currentRowText;
-            if (isPast) rowStyle = isSunrise ? styles.pastSunriseRowText : styles.pastRowText;
-
-            // Same icon set Calendar's day rows use (`PRAYER_LIST_ICONS`,
-            // prayerEngine.ts) — one shared mapping, not two screens
-            // independently picking similar glyphs. Arabic name reuses
-            // `getCelestialConfig`, already the source for the hero
-            // eyebrow's Arabic label above.
             const rowIcon = PRAYER_LIST_ICONS[row.id];
             const rowArabic = getCelestialConfig(row.id).arabicName;
-
+            const time = formatClock(row.time, use24Hour, tz);
+            const color = isPast ? 'skyTextSecondary' : 'skyText';
+            const weight = isCurrent ? ({ fontWeight: '600' } as const) : null;
             return (
-              <View
-                key={row.id}
-                style={[styles.row, isCurrent && styles.rowCurrent, !isLast && !isCurrent && styles.rowDivider]}
-                // Past state is visual-only (dimmed text) now — no checkmark
-                // glyph — but VoiceOver still gets the "already passed"
-                // signal via the label, so removing the icon doesn't quietly
-                // regress accessibility along with the visual simplification.
-                accessibilityLabel={isPast ? `${row.label}, passed` : undefined}
-              >
-                <View style={styles.rowLabelWrap}>
-                  {rowIcon && (
-                    <SymbolView
-                      name={rowIcon}
-                      size={iconSize.sm}
-                      tintColor={isPast ? skyTextSecondary : skyTextPrimary}
-                    />
-                  )}
-                  <Text style={[styles.rowLabel, rowStyle]} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{row.label}</Text>
-                  {/* Always secondary-toned regardless of row state (current/
-                      past/future) — same treatment as the hero eyebrow's
-                      Arabic label above, a supporting label, not a second
-                      primary value competing with the English name. */}
-                  <Text style={styles.rowArabic} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{rowArabic}</Text>
+              <React.Fragment key={row.id}>
+                <View
+                  accessible
+                  accessibilityLabel={`${row.label}, ${time}${isCurrent ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
+                  style={{
+                    minHeight: rowMin,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingHorizontal: dt.spacing.md,
+                    borderRadius: dt.radii.control,
+                    borderCurve: 'continuous',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {isCurrent && <View style={[StyleSheet.absoluteFill, { backgroundColor: dt.c.skyWash }]} />}
+                  {isCurrent && <View style={[styles.marker, { backgroundColor: dt.c.accent }]} />}
+                  <View style={styles.rowLabelWrap}>
+                    {rowIcon && <SymbolView name={rowIcon} size={18} type="hierarchical" tintColor={isPast ? dt.c.skyTextSecondary : dt.c.skyText} />}
+                    <Text variant="body" color={color} style={weight} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+                      {row.label}
+                    </Text>
+                    {!dropArabic && (
+                      <Text variant="footnote" color="skyTextSecondary" style={{ flexShrink: 1 }} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+                        {rowArabic}
+                      </Text>
+                    )}
+                  </View>
+                  <Text variant="body" color={color} style={weight} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+                    {time}
+                  </Text>
                 </View>
-                <Text style={[styles.rowTime, rowStyle]} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{formatClock(row.time, use24Hour, tz)}</Text>
-              </View>
+                {!isLast && !isCurrent && listRows[i + 1]?.id !== currentPrayer && (
+                  <View accessibilityElementsHidden importantForAccessibility="no" style={{ height: StyleSheet.hairlineWidth, marginHorizontal: dt.spacing.md, backgroundColor: dt.c.skyHairline }} />
+                )}
+              </React.Fragment>
             );
           })}
         </View>
 
-        {/* Flexible gap: absorbs whatever room is actually left on a given
-            device, so the date block settles near the bottom without ever
-            needing the fixed content above to compress to fit. */}
         <View style={styles.flexSpacer} />
 
-        {/* --- DATES --- redesigned per feedback: was two plain footnote-
-            weight gray lines, reading as an afterthought against everything
-            else on this screen (eyebrow badge, headline-font countdown,
-            icon+Arabic prayer rows). Weekday sits next to the date as one
-            confident line in the screen's primary text color, Hijri stays a
-            clear secondary subtitle below — same "primary line, muted
-            subtitle" pattern Calendar's day rows now use, for consistency
-            across the app, not just within this screen. */}
+        {/* Dates + state notice */}
         <View style={styles.dateContainer}>
-          <Text style={styles.gregorianText} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+          <Text variant="subhead" color="skyText" maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
             {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
-          <Text style={styles.hijriText} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>{getHijriDate(currentTime)}</Text>
+          {!dropHijri && (
+            <Text variant="caption" color="skyTextSecondary" maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+              {getHijriDate(currentTime)}
+            </Text>
+          )}
+          {notice && (
+            <Pressable
+              onPress={status === 'denied' ? () => Linking.openSettings().catch(() => {}) : openLocation}
+              onLongPress={openLocation}
+              accessibilityRole="button"
+              accessibilityLabel={notice}
+              accessibilityHint={status === 'denied' ? 'Opens Settings' : 'Opens the city picker'}
+              accessibilityActions={[{ name: 'choose', label: 'Choose city' }]}
+              onAccessibilityAction={() => openLocation()}
+              hitSlop={8}
+              style={{ marginTop: dt.spacing.sm, minHeight: 44, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: dt.spacing.xs }}
+            >
+              <Text variant="footnote" color="skyTextSecondary" numberOfLines={2} style={{ textAlign: 'center', flexShrink: 1 }} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+                {notice}
+              </Text>
+              <SymbolView name="chevron.right" size={11} weight="semibold" tintColor={dt.c.skyTextSecondary} />
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -339,94 +359,14 @@ export default function AthanScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: NIGHT_BG },
   content: { flex: 1 },
-  centered: { justifyContent: 'center', alignItems: 'center', gap: spacing.md },
-  syncingText: { color: skyTextSecondary, ...type.body } as TextStyle,
-  retryPill: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    // paddingHorizontal 18 doesn't land exactly on the spacing grid; kept as
-    // token +/- 2 rather than snapping to a token that would visibly tighten
-    // or loosen the pill (same precedent as AppHeader.tsx's `bar` style).
-    paddingHorizontal: spacing.md + 2,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.lg,
-  },
-  retryText: { color: skyTextPrimary, ...type.subhead } as TextStyle,
+  centered: { justifyContent: 'center', alignItems: 'center', gap: 12 },
   locationPillWrap: { alignItems: 'center' },
-
-  // --- Hero ---
-  heroContainer: { alignItems: 'center', marginTop: spacing.xs },
-  // No chip/background here on purpose now — it read as a second location-
-  // style pill and got lost next to the real one above it, and the Arabic
-  // label was redundant with the same name shown on every list row below.
-  // A bold, wider-tracked standalone label reads as its own moment instead.
-  eyebrowText: { ...type.title3, color: skyTextPrimary, letterSpacing: 1.2 } as TextStyle,
-  // Countdown is one of the three reserved Fraunces-SemiBold headline moments
-  // app-wide — a numeric hero moment, not a generic large number.
-  countdownText: {
-    color: skyTextPrimary,
-    ...type.hero,
-    fontFamily: HEADLINE_FONT_FAMILY,
-    marginTop: spacing.xs,
-  } as TextStyle,
-  sublineText: { color: skyTextSecondary, ...type.caption, marginTop: spacing.xxs } as TextStyle,
-  // Width is a deliberate multiple of an existing token (xxxl * 3) rather than
-  // an invented pixel value — see spacing.ts's own precedent for this pattern.
-  progressTrack: {
-    width: spacing.xxxl * 3,
-    height: 3,
-    borderRadius: radii.pill,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    overflow: 'hidden',
-    marginTop: spacing.sm,
-  },
-  progressFill: { height: '100%', borderRadius: radii.pill, backgroundColor: 'rgba(255,255,255,0.85)' },
-
-  // Two flexible gaps now (hero->list and list->date) sharing `flex: 1`
-  // equally, instead of one fixed gap above and all the slack pooling into
-  // one spacer below — both still have a low floor so they're the first
-  // things to compress on short screens, never the list or date block.
-  midSpacer: { flex: 1, minHeight: spacing.md },
-  flexSpacer: { flex: 1, minHeight: spacing.xs },
-
-  // --- Prayer list (no card/box — flows directly on the sky) ---
-  // Same side margin the old card had, kept on purpose: rows running edge-
-  // to-edge against the screen with no inset read as a layout bug, not as
-  // "minimal" — the card is gone, the breathing room around the list isn't.
-  listContainer: { marginHorizontal: spacing.lg },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    // Loosened back up now that removing the header (see below) freed real
-    // vertical budget — this was tightened to spacing.xs in an earlier pass
-    // specifically to fight a clipping bug that's since been fixed a
-    // different way (no more header bar eating ~60-70pt off the top).
-    paddingVertical: spacing.sm,
-    borderRadius: radii.sm,
-  },
-  rowCurrent: { backgroundColor: 'rgba(255,255,255,0.10)' },
-  // Minimal separator between rows (skipped after the current row and the
-  // very last row — a divider directly under/over the highlighted current
-  // row would visually cut through its own highlight background).
-  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.12)' },
-  rowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexShrink: 1 },
-  rowLabel: { ...type.body } as TextStyle,
-  rowArabic: { ...type.footnote, color: skyTextSecondary, flexShrink: 1 } as TextStyle,
-  rowTime: { ...type.body, fontVariant: ['tabular-nums'] } as TextStyle,
-  currentRowText: { color: skyTextPrimary, fontWeight: '700' },
-  futureRowText: { color: skyTextPrimary, fontWeight: '400' },
-  // Past rows are conveyed by color AND the leading checkmark glyph above (never
-  // state-by-color/opacity-alone) rather than by a degraded opacity.
-  pastRowText: { color: skyTextSecondary },
-  pastSunriseRowText: { color: skyTextSecondary, fontStyle: 'italic' },
-
-  dateContainer: { alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.xs, gap: 3 },
-  // Primary line, screen's main text color (was textSecondary/footnote —
-  // the smallest, dimmest text on the page for what's otherwise a full
-  // sentence of real information).
-  gregorianText: { ...type.subhead, color: skyTextPrimary } as TextStyle,
-  // Clear secondary subtitle beneath it, same relationship Calendar's day
-  // rows use between the Gregorian date and its Hijri line.
-  hijriText: { ...type.caption, color: skyTextSecondary } as TextStyle,
+  hero: { alignItems: 'center', marginTop: 4, gap: 4 },
+  progressTrack: { width: 96, height: 3, overflow: 'hidden' },
+  // Two flexible gaps (hero->list, list->date) share the slack; both compress first on short screens.
+  midSpacer: { flex: 1, minHeight: 12 },
+  flexSpacer: { flex: 1, minHeight: 4 },
+  marker: { position: 'absolute', left: 0, top: 8, bottom: 8, width: 3, borderRadius: 2 },
+  rowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 },
+  dateContainer: { alignItems: 'center', marginTop: 8, marginBottom: 4, gap: 3 },
 });

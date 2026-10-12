@@ -19,7 +19,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 5. CUSTOM TAB BAR (decision: native bar restyled; custom floating bar rejected)
 - [ ] 6. ALL SCREENS
   - [x] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
-  - [ ] 6b Home chrome  - [ ] 6c Calendar  - [ ] 6d Quran  - [ ] 6e Qibla
+  - [x] 6b Home chrome  - [ ] 6c Calendar  - [ ] 6d Quran  - [ ] 6e Qibla
   - [ ] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
 - [ ] 7. IN-APP WIDGETS (`src/widgets`)
 - [ ] 8. NATIVE iOS PARITY
@@ -35,6 +35,10 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- 6b: stale-cache Home state NOT built (needs a saved-at timestamp the app does not store; would be a data-layer change). Revisit in decision round.
+- 6b: verify on device: Fraunces `adjustsFontSizeToFit` hero, SE-height budget with notice shown (667pt), tabular figures in Fraunces (fallback: SF digits), Mach-band seam near 72% of sky.
+- 6b: art-director flagged hue travel in fajr/sunrise/asr as 'template gradient'; resolved by documented amendment (muted violet->rose allowed at dawn/dusk). Re-judge on device.
+- 6b bold idea (not built): progress rule as a full-width 1pt line with an apricot segment tying hero to the current row tick.
 - 6a follow-ups: (1) dither overlay deliberately NOT shipped; gate = on-device before/after on isha/fajr (OLED); add 2% noise PNG tile if banding visible. (2) SkyScene celestial art colours (#FFF6CC sun, #E7E3F8 moon, cloud/bird/star hexes) still literal; tokenise or document as art exception in 6a-b/decision round. (3) Verify crossfade + perf on older iPhone (4 gradients during 4s fade). (4) Sunrise/maghrib/asr horizons judged on preview PNG only (`node scripts/sky-preview.mjs out.png`), re-judge on device. (5) Parallax rejected (BRAND).
 - CHECK on iOS 26 device: native tab bar glass over Home sky; apricot active tint legibility over translucent bar on the lightest (dhuhr) sky; in system Light mode the translucent bar may render light under the dark app (pre-existing; resolve with appearance work in 6f, e.g. set userInterfaceStyle per preference).
 - SHOULD (6): Toast renders under native Modal so it is invisible over BottomSheet (host a toast inside the sheet or use the sheet's own inline error). Existing JS sheets (`components/Sheet.tsx`) to be replaced by `design/BottomSheet` in 6h.
@@ -76,3 +80,8 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Ramps restructured (0-3 sky, 4 pre-horizon, 5 horizon, 6 eased dissolve, 7 ink): fixes the ink 'shelf', distinct sunrise (gold) vs maghrib (deep red), asr mud routed via lavender/rose, isha lifted to ink hue. Added `scripts/sky-preview.mjs` (renders ramps to PNG; panel reviewed the actual render).
 - Panel: art 7, motion 6.5, anti-ai 8 on first pass -> all MUST-FIX addressed (crossfade jump, unmount cleanup, resume race, ramp twins, asr mud, isha cold navy, ink shelf). Not re-scored; will be re-judged with 6b on the full screen.
 - tsc + tokens:check clean.
+### Iter 7 - 6b Home chrome
+- AthanScreen render rewritten with design tokens (no hardcoded rgba): Fraunces 64pt hero countdown (fit-to-width, timer role, grouped VoiceOver label), eyebrow 'Now - <prayer>', subline 'until X - time', apricot progress rule (only filled accent), rows on sky with current row = 3pt apricot tick + 8% wash, hairlines, degradation order (Arabic -> progress -> Hijri -> row height), notice line (location off/error) with Settings deep link + 'choose city' accessibility action. New tokens skyFill/skyHairline/skyWash; FloatingControl onSky uses them.
+- useLocation: one-line display-state change: cold start with *denied* permission now sets status 'denied' (no prompt, no location change) so the notice is reachable.
+- Sky ramps now densified in OKLCH by Catmull-Rom spline (29 stops) in sync-tokens: smoother horizon, no sRGB mud.
+- Panel: art 7.5, anti-ai 8, ux 7, HIG 6.5 -> fixed: unreachable notice, copy/action mismatch, SE overflow (notice displaces Hijri), hero VO redundancy, list role, stale SKY_STRIP height, weight/italic/track tweaks. BRAND amended (hue travel, sky fills). Not re-scored; on-device check pending.

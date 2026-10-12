@@ -5,3 +5,4 @@
 - Iter 4: src/design primitives (Text, Button, Chip, ListRow, SegmentedControl, TextField, BottomSheet, Toast, Skeleton, EmptyState, ScreenContainer, ...). Not used by screens yet.
 - Iter 5: tab bar tinted from tokens (accent active, fill icons, native haptic); splash/primaryColor -> ink #17121F.
 - Iter 6: Home sky uses token ramps (OKLCH-authored), single 4s stage crossfade, ink-converging horizon; sky text/night bg from tokens.
+- Iter 7: Home chrome restyled (Fraunces hero, apricot progress rule + row tick, token sky fills, location/denied notice); sky ramps spline-densified.

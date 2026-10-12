@@ -192,6 +192,8 @@ export function useLocation() {
         if (stored?.isManual) return;
         const { status: permStatus } = await getLocationPermissionState();
         if (permStatus === 'granted') await refreshLocation();
+        // Display state only (no prompt, no location change): lets Home explain a denied permission on cold start.
+        else if (permStatus === 'denied') setStatus('denied');
       } catch {
         // ignore
       } finally {

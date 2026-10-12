@@ -4,6 +4,7 @@ import React from 'react';
 import { Pressable, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { colorTokens } from '../design/tokens.generated';
 import { Palette, skyTextPrimary, skyTextSecondary } from '../theme/colors';
 import { hitSlopFor, iconSize } from '../theme/icons';
 import { PRESSED_OPACITY } from '../theme/motion';
@@ -65,9 +66,9 @@ interface ToneColors {
 function toneColors(tone: ControlTone, colors?: Palette): ToneColors {
   if (tone === 'onSky') {
     return {
-      fill: 'rgba(255,255,255,0.10)',
-      border: 'rgba(255,255,255,0.16)',
-      icon: 'rgba(255,255,255,0.9)',
+      fill: colorTokens.dark.skyFill,
+      border: colorTokens.dark.skyHairline,
+      icon: colorTokens.dark.skyText,
       text: skyTextPrimary,
       textSecondary: skyTextSecondary,
     };
