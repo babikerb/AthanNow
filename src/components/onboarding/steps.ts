@@ -41,7 +41,7 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
     kind: 'info',
     tab: 'Athan',
     title: "Today's times",
-    body: 'All five prayers plus sunrise are right there on the home screen. The current one is bold, and the ones that already passed fade out.',
+    body: 'Five prayers and sunrise. The current one is bold; the ones that have passed fade back.',
   },
   { kind: 'permission', permission: 'notifications', tab: 'Athan' },
   { kind: 'widget', tab: 'Athan' },
@@ -55,7 +55,7 @@ export const ONBOARDING_STEPS: OnboardingStepConfig[] = [
     kind: 'info',
     tab: 'Qibla',
     title: 'Find the Qibla',
-    body: 'Point your phone and follow the marker toward the Kaaba. The compass turns green the moment you line up.',
+    body: 'Point your phone and follow the marker toward the Kaaba. The ring and marker turn apricot the moment you line up.',
   },
   { kind: 'outro', tab: 'Athan' },
 ];

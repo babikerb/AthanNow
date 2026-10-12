@@ -1,8 +1,8 @@
+import { colorTokens } from '../../design/tokens.generated';
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { ACCENT } from '../../theme/colors';
 import { duration, easing } from '../../theme/motion';
 
 interface Props {
@@ -65,6 +65,6 @@ function Segment({ filled }: { filled: boolean }) {
 
 const st = StyleSheet.create({
   row: { flexDirection: 'row', gap: 4, height: 3 },
-  track: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.18)', overflow: 'hidden' },
-  fill: { height: 3, borderRadius: 2, backgroundColor: ACCENT },
+  track: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colorTokens.dark.skyHairline, overflow: 'hidden' },
+  fill: { height: 3, borderRadius: 2, backgroundColor: colorTokens.dark.accent },
 });

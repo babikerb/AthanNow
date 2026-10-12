@@ -1,3 +1,4 @@
+import { colorTokens } from '../../../design/tokens.generated';
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -5,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { useSettings } from '../../../context/SettingsContext';
 import { AppLocation } from '../../../hooks/useLocation';
-import { ACCENT, skyTextSecondary } from '../../../theme/colors';
+import { skyTextSecondary } from '../../../theme/colors';
 import { PRESSED_OPACITY } from '../../../theme/motion';
 import { radii } from '../../../theme/radii';
 import { spacing } from '../../../theme/spacing';
@@ -76,7 +77,7 @@ export function CalcMethodStep({ index, total, location, applyDefault, onNext, o
               </Text>
 
               <Pressable onPress={() => choose(selected)} style={st.selectedRow} accessibilityRole="button">
-                <SymbolView name="checkmark.circle.fill" size={22} tintColor={ACCENT} />
+                <SymbolView name="checkmark.circle.fill" size={22} tintColor={colorTokens.dark.accent} />
                 <Text style={st.selectedText}>
                   <Text style={st.selectedLabel}>{selectedLabel}</Text>
                   {'\n'}
@@ -107,9 +108,10 @@ export function CalcMethodStep({ index, total, location, applyDefault, onNext, o
                         onPress={() => choose(m.key)}
                         style={({ pressed }) => [st.optionRow, pressed && { opacity: PRESSED_OPACITY }]}
                         accessibilityRole="button"
+                        accessibilityState={{ selected: isSelected }}
                       >
                         <Text style={st.optionLabel}>{m.label}</Text>
-                        {isSelected && <SymbolView name="checkmark" size={16} tintColor={ACCENT} />}
+                        {isSelected && <SymbolView name="checkmark" size={16} tintColor={colorTokens.dark.accent} />}
                       </Pressable>
                     );
                   })}
@@ -126,7 +128,7 @@ export function CalcMethodStep({ index, total, location, applyDefault, onNext, o
 }
 
 const st = StyleSheet.create({
-  title: { ...type.title3, color: '#FFFFFF' } as any,
+  title: { ...type.title3, color: colorTokens.dark.skyText } as any,
   body: { ...type.body, color: skyTextSecondary, marginTop: spacing.xxs } as any,
   selectedRow: {
     flexDirection: 'row',
@@ -135,12 +137,12 @@ const st = StyleSheet.create({
     marginTop: spacing.md,
     padding: spacing.md,
     borderRadius: radii.md,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: colorTokens.dark.skyWash,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: colorTokens.dark.skyHairline,
   },
   selectedText: { flex: 1 },
-  selectedLabel: { ...type.bodyEmph, color: '#FFFFFF' } as any,
+  selectedLabel: { ...type.bodyEmph, color: colorTokens.dark.skyText } as any,
   selectedWhy: { ...type.footnote, color: skyTextSecondary } as any,
   expandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxs, marginTop: spacing.sm, alignSelf: 'flex-start' },
   expandText: { ...type.footnote, color: skyTextSecondary } as any,
@@ -151,7 +153,7 @@ const st = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.12)',
+    borderBottomColor: colorTokens.dark.skyHairline,
   },
-  optionLabel: { ...type.body, color: '#FFFFFF' } as any,
+  optionLabel: { ...type.body, color: colorTokens.dark.skyText } as any,
 });

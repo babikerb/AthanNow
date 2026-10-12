@@ -1,3 +1,4 @@
+import { colorTokens } from '../../../design/tokens.generated';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text } from 'react-native';
@@ -25,16 +26,16 @@ interface Copy {
 
 const COPY: Record<Kind, Copy> = {
   location: {
-    headline: 'Find your prayer times',
-    ask: "AthanNow uses your location to calculate accurate prayer times for exactly where you are. It's used on-device only, nothing is sent anywhere.",
+    headline: 'Prayer times for where you are',
+    ask: "AthanNow uses your location to work out prayer times. It stays on your phone; nothing is sent anywhere.",
     granted: 'Location is already enabled.',
     deniedPermanent:
       "Location is turned off for AthanNow. Enable it in Settings to get prayer times for your exact location, or continue and we'll use Mecca's times for now.",
-    declined: "No problem, we'll start you off with Mecca's prayer times. Search any city anytime from the location pill.",
+    declined: "Showing Mecca's times for now. Search any city from the location pill.",
     allowLabel: 'Allow Location',
   },
   notifications: {
-    headline: 'Never miss a prayer',
+    headline: 'A nudge at each prayer',
     ask: 'AthanNow can notify you at each prayer time, with an optional reminder beforehand. You choose which prayers and how far ahead in Settings.',
     granted: 'Notifications are already enabled.',
     deniedPermanent:
@@ -158,6 +159,6 @@ export function PermissionStep({ index, total, permission, refreshLocation, onNe
 }
 
 const st = StyleSheet.create({
-  title: { ...type.title3, color: '#FFFFFF' } as any,
+  title: { ...type.title3, color: colorTokens.dark.skyText } as any,
   body: { ...type.body, color: skyTextSecondary, marginTop: spacing.xs } as any,
 });

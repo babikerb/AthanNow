@@ -1,3 +1,4 @@
+import { colorTokens } from '../../../design/tokens.generated';
 import * as Haptics from 'expo-haptics';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -68,17 +69,17 @@ export function WidgetStep({ index, total, onNext, onClose }: Props) {
 }
 
 const st = StyleSheet.create({
-  title: { ...type.title3, color: '#FFFFFF' } as any,
+  title: { ...type.title3, color: colorTokens.dark.skyText } as any,
   previewWrap: { marginTop: spacing.md, marginBottom: spacing.md, alignItems: 'center' },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   stepBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: colorTokens.dark.skyHairline,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBadgeText: { ...type.caption2, color: '#FFFFFF' } as any,
+  stepBadgeText: { ...type.caption2, color: colorTokens.dark.skyText } as any,
   stepText: { ...type.body, color: skyTextSecondary, flex: 1 } as any,
 });

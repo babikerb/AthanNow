@@ -1,3 +1,4 @@
+import { colorTokens } from '../../../design/tokens.generated';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
@@ -55,6 +56,6 @@ export function InfoStep({ index, total, title, body, onNext, onSkip, onClose }:
 }
 
 const st = StyleSheet.create({
-  title: { ...type.title3, color: '#FFFFFF' } as any,
+  title: { ...type.title3, color: colorTokens.dark.skyText } as any,
   body: { ...type.body, color: skyTextSecondary, marginTop: spacing.xs } as any,
 });

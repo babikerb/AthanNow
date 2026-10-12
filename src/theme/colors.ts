@@ -1,29 +1,9 @@
 import { colorTokens, skyShiftMinutes, skyStages } from '../design/tokens.generated';
 
 /**
- * Global design tokens for AthanNow.
- *
- * Accent is the single brand color, used sparingly for active/selected states.
- * Prayer gradients are ported from the Jamaa app for a richer, premium sky scene.
+ * Legacy colour bridge. The source of truth is design/tokens.json; everything here derives from it.
+ * New code should use `useTheme()` from src/design.
  */
-
-// Brand accent — sampled from the app icon background. Used sparingly for
-// active/selected states and highlights only; never as a full surface fill.
-export const ACCENT = '#315C46';
-export const ACCENT_SOFT = 'rgba(49, 92, 70, 0.16)';
-export const ACCENT_BORDER = 'rgba(49, 92, 70, 0.35)';
-/**
- * Same hue as `ACCENT`, lightened and slightly more saturated — for the one
- * context where the base accent's real problem shows up: `ACCENT` is a dark,
- * fairly desaturated green, and against a near-black surface (the tab bar's
- * `barTintColor`) that reads as low-contrast dark-on-dark, not as a legible
- * "this tab is active" signal. This isn't a second brand color — it's the
- * same green pushed brighter specifically for dark backdrops, the same idea
- * as an iOS system color having a light and dark variant of one hue. Use
- * this instead of `ACCENT` wherever a green needs to sit on a dark surface
- * and actually be seen (currently: the tab bar's active tint).
- */
-export const ACCENT_ON_DARK = '#4FAE86';
 
 export type Palette = {
   background: string;
@@ -99,8 +79,6 @@ export const NIGHT_BG = colorTokens.dark.bg;
 
 // Shared state colors, previously duplicated ad hoc per screen (Qibla's
 // "aligned" green, Settings'/LocationSheet's destructive/error red).
-export const STATE_SUCCESS = '#34C759';
-export const ERROR = '#E5484D';
 
 /**
  * Sky-text tokens — verified against the *scrimmed* Dhuhr sky background

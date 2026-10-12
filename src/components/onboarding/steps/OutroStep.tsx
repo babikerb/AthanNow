@@ -1,3 +1,4 @@
+import { colorTokens } from '../../../design/tokens.generated';
 import * as Haptics from 'expo-haptics';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
@@ -44,7 +45,7 @@ export function OutroStep({ index, total, cityName, methodLabel, mode, onFinish,
       content={
         <>
           <StaggerReveal index={0} count={3}>
-            <Text style={st.headline}>You're all set</Text>
+            <Text style={st.headline}>Your prayer times are ready</Text>
           </StaggerReveal>
           <StaggerReveal index={1} count={3}>
             <Text style={st.body}>
@@ -62,6 +63,6 @@ export function OutroStep({ index, total, cityName, methodLabel, mode, onFinish,
 }
 
 const st = StyleSheet.create({
-  headline: { ...type.title1, color: '#FFFFFF', textAlign: 'center' } as any,
+  headline: { ...type.title1, color: colorTokens.dark.skyText, textAlign: 'center' } as any,
   body: { ...type.body, color: skyTextSecondary, textAlign: 'center', marginTop: spacing.sm, maxWidth: 320, alignSelf: 'center' } as any,
 });

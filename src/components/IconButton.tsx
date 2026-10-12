@@ -1,3 +1,4 @@
+import { colorTokens } from '../design/tokens.generated';
 import { SymbolView, SymbolWeight } from 'expo-symbols';
 import { SFSymbol } from 'sf-symbols-typescript';
 import React from 'react';
@@ -36,7 +37,7 @@ export function IconButton({
   accessibilityLabel,
   accessibilityHint,
   size = iconSize.md,
-  tintColor = '#FFFFFF',
+  tintColor = colorTokens.dark.skyText,
   weight = 'semibold',
   disabled,
   style,

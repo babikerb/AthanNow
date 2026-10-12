@@ -221,6 +221,7 @@ export const motionTokens = ${JSON.stringify(tokens.motion, null, 2)} as const;
 
 /** Sky gradients, top -> bottom, computed in OKLCH and gamut-mapped to hex. */
 export const skyStages = ${JSON.stringify(Object.fromEntries(stageNames.map((n) => [n, { colors: skyDense[n], scrimBottom: tokens.sky.stages[n].scrimBottom, statusBarLight: tokens.sky.stages[n].statusBarLight }])), null, 2)} as const;
+export const skyArt = ${JSON.stringify(tokens.sky.art)} as const;
 export const skyShiftMinutes = ${JSON.stringify(tokens.sky.shiftMinutes)} as const;
 
 export type SkyStage = keyof typeof skyStages;

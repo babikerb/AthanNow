@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Mask, Path, RadialGradient, Stop } from 'react-native-svg';
 
+import { skyArt } from '../design/tokens.generated';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 const { width: W, height: H } = Dimensions.get('screen');
@@ -112,10 +113,10 @@ function Cloud({ def }: { def: CloudDef }) {
   const top = def.tf * H;
   return (
     <View style={{ position: 'absolute', left, top, opacity: def.op, width: 64 * s, height: 30 * s }} pointerEvents="none">
-      <View style={{ position: 'absolute', left: 6 * s, top: 6 * s, width: 22 * s, height: 22 * s, borderRadius: 11 * s, backgroundColor: '#FFFFFF' }} />
-      <View style={{ position: 'absolute', left: 22 * s, top: 0, width: 26 * s, height: 26 * s, borderRadius: 13 * s, backgroundColor: '#FFFFFF' }} />
-      <View style={{ position: 'absolute', left: 40 * s, top: 8 * s, width: 20 * s, height: 20 * s, borderRadius: 10 * s, backgroundColor: '#FFFFFF' }} />
-      <View style={{ position: 'absolute', left: 4 * s, top: 16 * s, width: 56 * s, height: 12 * s, borderRadius: 6 * s, backgroundColor: '#FFFFFF' }} />
+      <View style={{ position: 'absolute', left: 6 * s, top: 6 * s, width: 22 * s, height: 22 * s, borderRadius: 11 * s, backgroundColor: skyArt.cloud }} />
+      <View style={{ position: 'absolute', left: 22 * s, top: 0, width: 26 * s, height: 26 * s, borderRadius: 13 * s, backgroundColor: skyArt.cloud }} />
+      <View style={{ position: 'absolute', left: 40 * s, top: 8 * s, width: 20 * s, height: 20 * s, borderRadius: 10 * s, backgroundColor: skyArt.cloud }} />
+      <View style={{ position: 'absolute', left: 4 * s, top: 16 * s, width: 56 * s, height: 12 * s, borderRadius: 6 * s, backgroundColor: skyArt.cloud }} />
     </View>
   );
 }
@@ -138,7 +139,7 @@ function Bird({ def }: { def: BirdDef }) {
     >
       <Path
         d={`M0 ${h} Q ${w / 2} 0 ${w} ${h} Q ${w * 1.5} 0 ${w * 2} ${h}`}
-        stroke="rgba(40,38,44,0.4)"
+        stroke={skyArt.bird}
         strokeWidth={1.4 * s}
         fill="none"
         strokeLinecap="round"
@@ -175,7 +176,7 @@ function TwinklingStarField({ stars }: { stars: StarDef[] }) {
   return (
     <>
       {stars.map((s, i) => (
-        <Animated.View key={i} style={{ position: 'absolute', left: s.lf * W - s.r, top: s.tf * H - s.r, width: s.r * 2, height: s.r * 2, borderRadius: s.r, backgroundColor: '#FFFFFF', opacity: anims[i] }} />
+        <Animated.View key={i} style={{ position: 'absolute', left: s.lf * W - s.r, top: s.tf * H - s.r, width: s.r * 2, height: s.r * 2, borderRadius: s.r, backgroundColor: skyArt.star, opacity: anims[i] }} />
       ))}
     </>
   );
@@ -255,11 +256,11 @@ function CelestialGlow({
 
 function ActiveSun({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
   const cfg = {
-    dhuhr: { r: 22, glow: '#FFF9CC', glowR: 60, rays: true },
-    asr: { r: 16, glow: '#E0B25E', glowR: 44, rays: false },
-    maghrib: { r: 11, glow: '#E0783C', glowR: 34, rays: false },
+    dhuhr: { r: 22, glow: skyArt.sunGlowDhuhr, glowR: 60, rays: true },
+    asr: { r: 16, glow: skyArt.sunGlowAsr, glowR: 44, rays: false },
+    maghrib: { r: 11, glow: skyArt.sunGlowMaghrib, glowR: 34, rays: false },
   } as const;
-  const { r, glow, glowR, rays } = cfg[prayer as keyof typeof cfg] ?? { r: 16, glow: '#FFF9CC', glowR: 44, rays: false };
+  const { r, glow, glowR, rays } = cfg[prayer as keyof typeof cfg] ?? { r: 16, glow: skyArt.sunGlowDhuhr, glowR: 44, rays: false };
   const RAY_LEN = 9;
   const RAY_GAP = 5;
 
@@ -271,7 +272,7 @@ function ActiveSun({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
   return (
     <>
       <CelestialGlow x={x} y={y} radius={glowR} color={glow} opacity={glowOpacity} scale={glowScale} />
-      <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: '#FFF6CC' }} />
+      <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: skyArt.sun }} />
       {rays && RAY_ANGLES.map((deg) => {
         const isDiag = deg % 90 !== 0;
         const len = isDiag ? RAY_LEN * 0.6 : RAY_LEN;
@@ -279,13 +280,13 @@ function ActiveSun({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
         const rad = (deg * Math.PI) / 180;
         const rx = x + dist * Math.sin(rad);
         const ry = y - dist * Math.cos(rad);
-        return <View key={deg} style={{ position: 'absolute', left: rx - 1, top: ry - len / 2, width: 2, height: len, borderRadius: 1, backgroundColor: 'rgba(255,245,180,0.55)', transform: [{ rotate: `${deg}deg` }] }} />;
+        return <View key={deg} style={{ position: 'absolute', left: rx - 1, top: ry - len / 2, width: 2, height: len, borderRadius: 1, backgroundColor: skyArt.sunRay, transform: [{ rotate: `${deg}deg` }] }} />;
       })}
     </>
   );
 }
 
-const MOON_COLOR = '#E7E3F8';
+const MOON_COLOR = skyArt.moon;
 
 /**
  * The Fajr/Maghrib/Isha crescent.
@@ -320,8 +321,8 @@ function ActiveMoon({ x, y, prayer }: { x: number; y: number; prayer: Period }) 
     <Svg width={size} height={size} style={{ position: 'absolute', left: x - r, top: y - r }}>
       <Defs>
         <Mask id={maskId} maskUnits="userSpaceOnUse" x={0} y={0} width={size} height={size}>
-          <Circle cx={r} cy={r} r={r} fill="#fff" />
-          <Circle cx={r + offset} cy={r - r * 0.16} r={r * 1.04} fill="#000" />
+          <Circle cx={r} cy={r} r={r} fill={skyArt.maskOn} />
+          <Circle cx={r + offset} cy={r - r * 0.16} r={r * 1.04} fill={skyArt.maskOff} />
         </Mask>
       </Defs>
       <Circle cx={r} cy={r} r={r} fill={MOON_COLOR} mask={`url(#${maskId})`} />
@@ -336,8 +337,8 @@ function SunriseSun({ x, y }: { x: number; y: number }) {
   const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
   return (
     <>
-      <CelestialGlow x={x} y={y} radius={38} color="#E0913C" opacity={glowOpacity} scale={glowScale} />
-      <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: '#EFBE50' }} />
+      <CelestialGlow x={x} y={y} radius={38} color={skyArt.sunriseGlow} opacity={glowOpacity} scale={glowScale} />
+      <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: skyArt.sunrise }} />
     </>
   );
 }

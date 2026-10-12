@@ -1,3 +1,4 @@
+import { colorTokens } from '../../design/tokens.generated';
 import React, { useMemo } from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
 
@@ -64,6 +65,6 @@ const st = StyleSheet.create({
   frame: { width: PREVIEW_W, height: PREVIEW_H, borderRadius: radii.lg, overflow: 'hidden', alignSelf: 'center' },
   scaledScreen: { position: 'absolute', top: 0, left: 0, transformOrigin: [0, 0, 0] },
   overlay: { flex: 1, justifyContent: 'flex-end', padding: 14 },
-  prayerName: { ...type.title3, color: '#FFFFFF' } as any,
+  prayerName: { ...type.title3, color: colorTokens.dark.skyText } as any,
   subline: { ...type.caption, color: skyTextSecondary } as any,
 });

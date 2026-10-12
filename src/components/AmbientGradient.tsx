@@ -3,6 +3,7 @@ import { AppState, Animated, Easing, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 import { useTheme } from '../design/theme';
+import { colorTokens } from '../design/tokens.generated';
 
 interface AmbientGradientProps {
   /** Gradient stops, top to bottom (the sky ramps are authored and validated for a vertical read). */
@@ -21,6 +22,7 @@ interface Layer {
 }
 
 const key = (c: string[]) => c.join('|');
+const alphaHex = (a: number) => Math.round(Math.max(0, Math.min(1, a)) * 255).toString(16).padStart(2, '0');
 /** Colour changes this soon after returning to the foreground snap instead of fading. */
 const RESUME_SNAP_MS = 2500;
 
@@ -97,7 +99,7 @@ export default function AmbientGradient({ colors, scrimBottomOpacity = 0 }: Ambi
       )}
       {scrimBottomOpacity > 0 && (
         <LinearGradient
-          colors={['rgba(0,0,0,0.05)', `rgba(0,0,0,${scrimBottomOpacity})`]}
+          colors={[`${colorTokens.dark.scrimBase}${alphaHex(0.05)}`, `${colorTokens.dark.scrimBase}${alphaHex(scrimBottomOpacity)}`]}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFill}

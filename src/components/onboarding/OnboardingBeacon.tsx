@@ -1,12 +1,12 @@
+import { colorTokens } from '../../design/tokens.generated';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ACCENT, darkPalette, skyTextSecondary } from '../../theme/colors';
+import { darkPalette, skyTextSecondary } from '../../theme/colors';
 import { hitSlopFor } from '../../theme/icons';
 import { duration, easing, PRESSED_OPACITY } from '../../theme/motion';
 import { radii } from '../../theme/radii';
-import { shadow } from '../../theme/shadow';
 import { spacing } from '../../theme/spacing';
 import { type } from '../../theme/typography';
 import AmbientGradient from '../AmbientGradient';
@@ -42,7 +42,7 @@ interface Props {
   onClose?: () => void;
 }
 
-const DIM = 'rgba(5, 9, 18, 0.86)';
+const DIM = `${colorTokens.dark.bg}DB`; // ink at 86%
 const CARD = darkPalette.surfaceElevated;
 const NEXT_BTN_HEIGHT = 44;
 const TOP_CLEARANCE = 56;
@@ -96,7 +96,7 @@ export function OnboardingBeacon({
         hitSlop={hitSlopFor(NEXT_BTN_HEIGHT)}
         style={({ pressed }) => [st.primaryBtn, pressed && !primaryDisabled && st.btnPressed, primaryDisabled && st.btnDisabled]}
       >
-        {primaryLoading ? <ActivityIndicator color="#fff" /> : <Text style={st.primaryText}>{primaryLabel}</Text>}
+        {primaryLoading ? <ActivityIndicator color={colorTokens.dark.onAccent} /> : <Text style={st.primaryText}>{primaryLabel}</Text>}
       </Pressable>
       {secondaryLabel ? (
         <Pressable
@@ -141,10 +141,12 @@ export function OnboardingBeacon({
             { opacity: fade },
           ]}
         >
-          <View style={st.card}>
-            {content}
-            {footer}
-          </View>
+          <ScrollView style={st.cardScroll} contentContainerStyle={st.cardContent} bounces={false} showsVerticalScrollIndicator={false}>
+            <View style={st.card}>
+              {content}
+              {footer}
+            </View>
+          </ScrollView>
         </Animated.View>
       )}
     </View>
@@ -181,21 +183,23 @@ const st = StyleSheet.create({
   heroFooter: { paddingHorizontal: spacing.xl },
 
   cardWrap: { position: 'absolute', left: 20, right: 20 },
+  // Grows with content up to the available height, then scrolls (small phones, large Dynamic Type).
+  cardScroll: { flexGrow: 0 },
+  cardContent: { flexGrow: 0 },
   card: {
     backgroundColor: CARD,
     borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: colorTokens.dark.skyHairline,
     padding: spacing.lg,
     gap: spacing.sm,
-    ...shadow.floating,
   },
 
   footerRow: { gap: spacing.sm, marginTop: spacing.xs },
-  primaryBtn: { backgroundColor: ACCENT, borderRadius: radii.pill, paddingVertical: spacing.lg, alignItems: 'center', minHeight: NEXT_BTN_HEIGHT, justifyContent: 'center' },
+  primaryBtn: { backgroundColor: colorTokens.dark.accent, borderRadius: radii.pill, paddingVertical: spacing.lg, alignItems: 'center', minHeight: NEXT_BTN_HEIGHT, justifyContent: 'center' },
   btnPressed: { opacity: PRESSED_OPACITY },
   btnDisabled: { opacity: 0.6 },
-  primaryText: { ...type.headline, color: '#FFFFFF' } as any,
+  primaryText: { ...type.headline, color: colorTokens.dark.onAccent } as any,
   secondaryBtn: { paddingVertical: spacing.sm, alignItems: 'center' },
   secondaryText: { ...type.subhead, color: skyTextSecondary } as any,
 });

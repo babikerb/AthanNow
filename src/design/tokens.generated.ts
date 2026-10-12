@@ -25,7 +25,8 @@ export const colorTokens = {
     "skyFill": "#F2EDF61A",
     "skyHairline": "#F2EDF629",
     "skyWash": "#F2EDF614",
-    "onAccentText": "#17121F"
+    "onAccentText": "#17121F",
+    "scrimBase": "#000000"
   },
   "light": {
     "bg": "#F3F0F7",
@@ -51,7 +52,8 @@ export const colorTokens = {
     "skyFill": "#F2EDF61A",
     "skyHairline": "#F2EDF629",
     "skyWash": "#F2EDF614",
-    "onAccentText": "#FFFFFF"
+    "onAccentText": "#FFFFFF",
+    "scrimBase": "#000000"
   },
   "darkHC": {
     "bg": "#17121F",
@@ -77,7 +79,8 @@ export const colorTokens = {
     "skyFill": "#F2EDF61A",
     "skyHairline": "#F2EDF629",
     "skyWash": "#F2EDF614",
-    "onAccentText": "#17121F"
+    "onAccentText": "#17121F",
+    "scrimBase": "#000000"
   },
   "lightHC": {
     "bg": "#F3F0F7",
@@ -103,7 +106,8 @@ export const colorTokens = {
     "skyFill": "#F2EDF61A",
     "skyHairline": "#F2EDF629",
     "skyWash": "#F2EDF614",
-    "onAccentText": "#FFFFFF"
+    "onAccentText": "#FFFFFF",
+    "scrimBase": "#000000"
   },
   "paper": {
     "bg": "#F4EFE8",
@@ -457,6 +461,7 @@ export const skyStages = {
     "statusBarLight": true
   }
 } as const;
+export const skyArt = {"star":"#F2EDF6","cloud":"#F2EDF6","bird":"#28262C66","sun":"#FFF6CC","sunRay":"#FFF5B48C","sunGlowDhuhr":"#FFF9CC","sunGlowAsr":"#E0B25E","sunGlowMaghrib":"#E0783C","sunrise":"#EFBE50","sunriseGlow":"#E0913C","moon":"#E7E3F8","maskOn":"#FFFFFF","maskOff":"#000000"} as const;
 export const skyShiftMinutes = {"fajr":35,"sunrise":20,"dhuhr":50,"asr":95,"maghrib":45,"isha":75} as const;
 
 export type SkyStage = keyof typeof skyStages;

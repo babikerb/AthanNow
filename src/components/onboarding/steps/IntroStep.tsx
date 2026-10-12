@@ -1,3 +1,4 @@
+import { colorTokens } from '../../../design/tokens.generated';
 import * as Haptics from 'expo-haptics';
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text } from 'react-native';
@@ -62,6 +63,6 @@ export function IntroStep({ index, total, onContinue, onClose }: Props) {
 const st = StyleSheet.create({
   logo: { width: 110, height: 110, borderRadius: radii.lg, marginBottom: spacing.xs, alignSelf: 'center' },
   // One of the three reserved Fraunces-SemiBold moments app-wide.
-  wordmark: { ...type.hero, fontFamily: HEADLINE_FONT_FAMILY, color: '#FFFFFF', textAlign: 'center', alignSelf: 'stretch' } as any,
+  wordmark: { ...type.hero, fontFamily: HEADLINE_FONT_FAMILY, color: colorTokens.dark.skyText, textAlign: 'center', alignSelf: 'stretch' } as any,
   tagline: { ...type.body, color: skyTextSecondary, textAlign: 'center', maxWidth: 320, alignSelf: 'center' } as any,
 });

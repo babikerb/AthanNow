@@ -12,3 +12,4 @@
 - Iter 11: Settings rebuilt on design system; Appearance (System/Light/Dark) added and wired to theme + native window scheme.
 - Iter 12: sheets use palette-driven accent/danger (dark/light/paper).
 - Iter 13: sheet styling cleanup; legacy type/radii derive from tokens.
+- Iter 14: onboarding on tokens, legacy accent/error constants removed, zero hex literals outside tokens.
