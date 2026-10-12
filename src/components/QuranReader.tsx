@@ -1,3 +1,4 @@
+import { colorTokens } from '../design/tokens.generated';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Dimensions, FlatList, Pressable, StyleSheet, Text, View, ViewToken } from 'react-native';
@@ -8,7 +9,7 @@ import { Surah } from '../data/surahs';
 import { QURAN_FONT } from '../theme/colors';
 
 // Neutral (non-accent) highlight for a bookmarked ayah inside the reading area.
-const MUSHAF_HIGHLIGHT = 'rgba(128,128,128,0.18)';
+const MUSHAF_HIGHLIGHT = colorTokens.paper.mark;
 import { toArabicNumber, Verse } from '../utils/quran';
 import { getLineMetrics, paginate } from '../utils/quranPagination';
 import { SurahHeader } from './SurahHeader';

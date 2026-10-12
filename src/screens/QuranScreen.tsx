@@ -16,6 +16,7 @@ import { getSurah } from '../data/surahs';
 import { pageForSurah, surahForPage, TOTAL_PAGES } from '../data/surahPages';
 import { Bookmark, useBookmarks } from '../hooks/useBookmarks';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
+import { textStyle } from '../design/tokens';
 import { readingPalette } from '../theme/colors';
 import { fetchChapterVerses } from '../utils/quran';
 import { fetchMushafPage, juzForPage, pageForVerse } from '../utils/mushaf';
@@ -236,6 +237,9 @@ export default function QuranScreen() {
 
       {/* Header bar — surah, page, Juz. Always visible, no immersive mode. */}
       <View
+        accessible
+        accessibilityRole="header"
+        accessibilityLabel={`${headerSurah.transliteration}, page ${currentPage}, Juz ${juz}`}
         style={[
           styles.header,
           {
@@ -269,11 +273,16 @@ export default function QuranScreen() {
           },
         ]}
       >
-        <FooterIconButton colors={pageColors} onPress={quickBookmark}>
+        <FooterIconButton
+          colors={pageColors}
+          onPress={quickBookmark}
+          label={currentlyBookmarked ? 'Remove bookmark from this page' : 'Bookmark this page'}
+          selected={currentlyBookmarked}
+        >
           <SymbolView name={currentlyBookmarked ? 'bookmark.fill' : 'bookmark'} size={19} tintColor={pageColors.textPrimary} />
         </FooterIconButton>
 
-        <FooterButton colors={pageColors} onPress={() => setBookmarkOpen(true)}>
+        <FooterButton colors={pageColors} label="Bookmarks" onPress={() => setBookmarkOpen(true)}>
           <SymbolView name="books.vertical.fill" size={18} tintColor={pageColors.textPrimary} />
           <Text style={[styles.footerButtonText, { color: pageColors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
             Bookmarks
@@ -282,6 +291,7 @@ export default function QuranScreen() {
 
         <FooterButton
           colors={pageColors}
+          label="Search the Quran"
           onPress={() => {
             Haptics.selectionAsync();
             setPickerOpen(true);
@@ -318,17 +328,19 @@ export default function QuranScreen() {
 /** A fuller, flex-filling footer button (icon + label), not a small icon-only circle. */
 function FooterButton({
   colors,
+  label,
   onPress,
   onLongPress,
   children,
 }: {
   colors: typeof readingPalette;
+  label: string;
   onPress: () => void;
   onLongPress?: () => void;
   children: React.ReactNode;
 }) {
   const content = (
-    <Pressable onPress={onPress} onLongPress={onLongPress} hitSlop={6} style={styles.footerButtonHit}>
+    <Pressable onPress={onPress} onLongPress={onLongPress} hitSlop={6} style={styles.footerButtonHit} accessibilityRole="button" accessibilityLabel={label}>
       {children}
     </Pressable>
   );
@@ -339,13 +351,13 @@ function FooterButton({
       </LiquidGlassView>
     );
   }
-  return <View style={[styles.footerButton, styles.footerButtonFallback, { borderColor: colors.separator }]}>{content}</View>;
+  return <View style={[styles.footerButton, styles.footerButtonFallback, { borderColor: colors.separator, backgroundColor: colors.surfaceElevated }]}>{content}</View>;
 }
 
 /** Compact icon-only footer button (fixed square), for the quick-bookmark toggle. */
-function FooterIconButton({ colors, onPress, children }: { colors: typeof readingPalette; onPress: () => void; children: React.ReactNode }) {
+function FooterIconButton({ colors, onPress, label, selected, children }: { colors: typeof readingPalette; onPress: () => void; label: string; selected?: boolean; children: React.ReactNode }) {
   const content = (
-    <Pressable onPress={onPress} hitSlop={6} style={styles.footerButtonHit}>
+    <Pressable onPress={onPress} hitSlop={6} style={styles.footerButtonHit} accessibilityRole="button" accessibilityLabel={label}>
       {children}
     </Pressable>
   );
@@ -356,7 +368,7 @@ function FooterIconButton({ colors, onPress, children }: { colors: typeof readin
       </LiquidGlassView>
     );
   }
-  return <View style={[styles.footerIcon, styles.footerButtonFallback, { borderColor: colors.separator }]}>{content}</View>;
+  return <View style={[styles.footerIcon, styles.footerButtonFallback, { borderColor: colors.separator, backgroundColor: colors.surfaceElevated }]}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -375,8 +387,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerSurah: { flex: 1, fontSize: 15, fontWeight: '600' },
-  headerMeta: { fontSize: 13, fontVariant: ['tabular-nums'] },
+  headerSurah: { flex: 1, ...textStyle('subhead'), fontWeight: '600' },
+  headerMeta: { ...textStyle('footnote') },
   headerMetaRight: { flex: 1, textAlign: 'right' },
   footerBar: {
     position: 'absolute',
@@ -391,13 +403,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  footerButton: { flex: 1, height: 44, borderRadius: 14, overflow: 'hidden' },
-  footerIcon: { width: 44, height: 44, borderRadius: 14, overflow: 'hidden' },
-  footerButtonFallback: { backgroundColor: 'rgba(127,127,127,0.12)', borderWidth: StyleSheet.hairlineWidth },
+  footerButton: { flex: 1, height: 44, borderRadius: 12, borderCurve: 'continuous', overflow: 'hidden' },
+  footerIcon: { width: 44, height: 44, borderRadius: 12, borderCurve: 'continuous', overflow: 'hidden' },
+  footerButtonFallback: { borderWidth: StyleSheet.hairlineWidth },
   footerButtonHit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', height: '100%', paddingHorizontal: 10 },
-  footerButtonText: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
+  footerButtonText: { ...textStyle('subhead'), fontWeight: '600', flexShrink: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 40 },
-  errorText: { fontSize: 15, textAlign: 'center', lineHeight: 21 },
-  retry: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
-  retryText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  errorText: { ...textStyle('subhead'), textAlign: 'center' },
 });

@@ -19,7 +19,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 5. CUSTOM TAB BAR (decision: native bar restyled; custom floating bar rejected)
 - [ ] 6. ALL SCREENS
   - [x] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
-  - [x] 6b Home chrome  - [x] 6c Calendar  - [ ] 6d Quran  - [ ] 6e Qibla
+  - [x] 6b Home chrome  - [x] 6c Calendar  - [x] 6d Quran (screen chrome + palettes; Quran sheets finish in 6h)  - [ ] 6e Qibla
   - [ ] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
 - [ ] 7. IN-APP WIDGETS (`src/widgets`)
 - [ ] 8. NATIVE iOS PARITY
@@ -35,6 +35,8 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- 6h MUST include Quran sheets: SurahPickerSheet (green ACCENT :124,159,173, '#FFF' on accent), BookmarkSheet:47, SurahHeader:40 still use old green ACCENT/ACCENT_SOFT on paper; replace with paper accentText / design tokens. Then delete ACCENT/ACCENT_SOFT/ACCENT_BORDER/ACCENT_ON_DARK/ERROR/STATE_SUCCESS from theme/colors.ts once Settings (6f), Qibla (6e), Onboarding (6g) migrate.
+- Legacy `darkPalette.accent` is now apricot: any future `#FFF` text on `colors.accent` fails contrast; use `onAccent` (#17121F).
 - 6c: Calendar day rows are 400 near-identical blocks; mitigated by dropping Arabic on non-today days. Bold idea (not built): non-today days as one quiet inset-grouped surface1 card, full treatment only for Today. Revisit in decision round.
 - 6c: LocationSheet no longer reachable from Calendar (dead branch removed; location is always seeded). Location is changed from Home.
 - 6c: getItemLayout ignores contentContainer padding (as in baseline; error now 4pt vs ~67pt).
@@ -91,3 +93,6 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 ### Iter 8 - 6c Calendar
 - CalendarScreen visuals rebuilt on design system: opaque header (Fraunces 'Calendar' + secondary Today button, replaces floating pill + SafeAreaScrim), token colours, Badge (Today = accent, occasion = info), rows with accentSoft wash + 3pt tick for next prayer, Arabic names only on today. Scroll/measure/getItemLayout/onStartReached logic untouched (reviewer diffed vs baseline: equivalent). Removed unreachable empty state + LocationSheet. Old IMPORTANT_TINT gold/ACCENT green removed. Status bar follows scheme. Added Badge `info` tone.
 - Panel: art 6.5, anti-ai 7, UX 7.5, HIG 7 -> fixed accent budget (icon tint), wash token, DT wrapping/shrink, header a11y landmark, tabular numerals, tick inset, status bar by scheme. Not re-scored.
+### Iter 9 - 6d Quran chrome
+- Legacy `darkPalette` and `readingPalette` now derive from design tokens (bridge), so unmigrated screens/sheets already pick up ink/paper colours. Paper token set completed (textTertiary, glyphQuiet, accent, band, mark) and validated for AA in sync-tokens. Mushaf band/mark and reader highlight tints from tokens. QuranScreen: VoiceOver header + button labels, type tokens, fallback fills from palette, continuous 12pt corners; dead retry styles removed. Liquid-glass usage, AsyncStorage keys, mushaf/quran logic untouched.
+- Panel (combined): art 8, HIG 7.5, native-safety 9.5, no MUST-FIX.

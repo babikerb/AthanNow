@@ -56,15 +56,15 @@ export type Palette = {
 // The app is dark-mode only by design (no system-theme following) — near-
 // black greys, no purple tint.
 export const darkPalette: Palette = {
-  background: '#0B0B0D',
-  surface: '#161618',
-  surfaceElevated: '#202023',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255, 255, 255, 0.62)',
-  textTertiary: 'rgba(255, 255, 255, 0.36)',
-  textQuaternary: 'rgba(255, 255, 255, 0.36)',
-  separator: 'rgba(255, 255, 255, 0.10)',
-  accent: ACCENT,
+  background: colorTokens.dark.bg,
+  surface: colorTokens.dark.surface1,
+  surfaceElevated: colorTokens.dark.surface2,
+  textPrimary: colorTokens.dark.text,
+  textSecondary: colorTokens.dark.textSecondary,
+  textTertiary: colorTokens.dark.textTertiary,
+  textQuaternary: colorTokens.dark.glyphQuiet,
+  separator: colorTokens.dark.hairline,
+  accent: colorTokens.dark.accent,
 };
 
 // Explicit, documented exception: these three surfaces intentionally ignore
@@ -99,15 +99,15 @@ export const skyTextSecondary: string = colorTokens.dark.skyTextSecondary;
  * keeping the whole Quran tab on one consistent light surface.
  */
 export const readingPalette: Palette = {
-  background: '#F6F1E5',
-  surface: '#F6F1E5',
-  surfaceElevated: '#EFE7D6',
-  textPrimary: '#3A3128',
-  textSecondary: 'rgba(58, 49, 40, 0.64)',
-  textTertiary: 'rgba(58, 49, 40, 0.42)',
-  textQuaternary: 'rgba(58, 49, 40, 0.32)',
-  separator: 'rgba(58, 49, 40, 0.14)',
-  accent: ACCENT,
+  background: colorTokens.paper.bg,
+  surface: colorTokens.paper.surface1,
+  surfaceElevated: colorTokens.paper.surface2,
+  textPrimary: colorTokens.paper.text,
+  textSecondary: colorTokens.paper.textSecondary,
+  textTertiary: colorTokens.paper.textTertiary,
+  textQuaternary: colorTokens.paper.glyphQuiet,
+  separator: colorTokens.paper.hairline,
+  accent: colorTokens.paper.accentText,
 };
 
 /**

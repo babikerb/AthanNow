@@ -122,6 +122,18 @@ for (const [vName, v] of Object.entries(variants)) {
     for (const s of ['bg', 'surface1', 'surface2']) need(contrast(v[k], v[s]) >= 4.5, `${vName}: ${k} on ${s} = ${contrast(v[k], v[s]).toFixed(2)} (<4.5)`);
   }
 }
+// paper (Quran reading surface)
+{
+  const P = C.paper;
+  for (const sName of ['bg', 'surface1', 'surface2']) {
+    for (const t of ['text', 'textSecondary']) need(contrast(P[t], P[sName]) >= 4.5, `paper: ${t} on ${sName} = ${contrast(P[t], P[sName]).toFixed(2)} (<4.5)`);
+  }
+  for (const sName of ['bg', 'surface1']) {
+    need(contrast(P.textTertiary, P[sName]) >= 4.5, `paper: textTertiary on ${sName} = ${contrast(P.textTertiary, P[sName]).toFixed(2)} (<4.5)`);
+    need(contrast(P.accentText, P[sName]) >= 4.5, `paper: accentText on ${sName} = ${contrast(P.accentText, P[sName]).toFixed(2)} (<4.5)`);
+    need(contrast(P.glyphQuiet, P[sName]) >= 3, `paper: glyphQuiet on ${sName} = ${contrast(P.glyphQuiet, P[sName]).toFixed(2)} (<3)`);
+  }
+}
 // surface steps (dark): tonal, ink-hued
 {
   const ks = ['bg', 'surface1', 'surface2', 'surface3'];

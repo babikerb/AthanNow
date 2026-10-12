@@ -7,3 +7,4 @@
 - Iter 6: Home sky uses token ramps (OKLCH-authored), single 4s stage crossfade, ink-converging horizon; sky text/night bg from tokens.
 - Iter 7: Home chrome restyled (Fraunces hero, apricot progress rule + row tick, token sky fills, location/denied notice); sky ramps spline-densified.
 - Iter 8: Calendar restyled (header + Today button, badges, tokens).
+- Iter 9: Quran screen chrome + paper palette; legacy palettes bridged to tokens.

@@ -1,3 +1,4 @@
+import { colorTokens } from '../design/tokens.generated';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -41,7 +42,7 @@ function ayahMarker(w: MushafWord): string {
 
 function MushafPageInner({ data, words, width, height, colors, dark, isBookmarked, onBookmarkVerse }: MushafPageProps) {
   const markerColor = colors.textTertiary;
-  const bandColor = dark ? 'rgba(255,255,255,0.05)' : 'rgba(120,90,40,0.07)';
+  const bandColor = dark ? colorTokens.dark.hairline : colorTokens.paper.band;
   const lines = data.lines.length || 15;
   // Fill the page edge-to-edge; reserve a little for the baked header/footer.
   const baseFont = Math.min((height - 64) / lines / 1.5, width / 12);
@@ -110,7 +111,7 @@ function MushafPageInner({ data, words, width, height, colors, dark, isBookmarke
                   const rich = vk && w.position ? words[vk]?.[w.position - 1] : undefined;
                   const display = rich ?? w.text;
                   return (
-                    <Text key={i} onLongPress={() => longPress(w)} style={marked ? { backgroundColor: dark ? 'rgba(255,255,255,0.14)' : 'rgba(120,90,40,0.14)' } : undefined}>
+                    <Text key={i} onLongPress={() => longPress(w)} style={marked ? { backgroundColor: dark ? colorTokens.dark.surface3 : colorTokens.paper.mark } : undefined}>
                       {`${display} `}
                     </Text>
                   );
