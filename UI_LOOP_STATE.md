@@ -15,7 +15,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 1. AUDIT → `DESIGN_AUDIT.md`
 - [x] 2. BRAND → `BRAND.md` (gate: art-director, anti-ai-critic, ux-strategist approve)
 - [x] 3. SHARED DESIGN TOKENS (`design/tokens.json`, `src/design/tokens.ts`, ThemeProvider, `DesignTokens.swift`, `scripts/sync-tokens`)
-- [ ] 4. DESIGN SYSTEM (`src/design`)
+- [x] 4. DESIGN SYSTEM (`src/design`)
 - [ ] 5. CUSTOM TAB BAR
 - [ ] 6. ALL SCREENS
   - [ ] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
@@ -35,6 +35,9 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- SHOULD (6): Toast renders under native Modal so it is invisible over BottomSheet (host a toast inside the sheet or use the sheet's own inline error). Existing JS sheets (`components/Sheet.tsx`) to be replaced by `design/BottomSheet` in 6h.
+- SHOULD: design system is untested on device (Windows): verify BottomSheet drag/detents, SegmentedControl thumb, PressableScale layout (Pressable flexGrow inside Animated.View) in first simulator pass; Fraunces tabular figures.
+- SHOULD: bold idea (3pt apricot leading tick as shared 'selected marker' for rows/segments) - consider in decision round.
 - MUST (6a): sky ramps are numbers-only so far; judge on-device/simulator renders (reviewer gave art 5 / motion 6 / anti-ai 5 on first ramps; ramps reworked after: horizon moved to stop 6, distinct per stage, validators added). Re-review with real screenshots in 6a. Renderer must match validator assumptions: evenly spaced stops, scrim alpha linear .05 -> scrimBottom.
 - SHOULD: ThemeProvider has no persisted appearance preference (wire in 6f); `highContrast` starts false (brief flash); old `src/theme/*` + `context/ThemeContext` coexist with `src/design/theme` until each screen migrates, delete in 6/9; DTSky.stops fallback isha == currentStage fallback (ok).
 - SHOULD (CI): `widgets/DesignTokens.swift` not compiled locally; run macOS workflow once before relying on it in Phase 8.
@@ -57,3 +60,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Validator caught real problems (light glyphQuiet 2.7:1, horizon text contrast); fixed. Sky ramps retuned after review (see backlog).
 - Panel: native-safety-guard PASS 9/10; tokens review art 5 / motion 6 / anti-ai 5 on first ramps -> fixed MUST-FIX 1-5 (asr mud, dhuhr hue drift/lightness, sunrise gold, validators, ink-vs-bg check); not re-scored since visual verification isn't possible until 6a.
 - tsc clean. No user-visible change yet.
+### Iter 4 - Phase 4 design system
+- Built src/design: Text, PressableScale, Surface/Card, Divider, Button, IconButton, Chip, Badge, Avatar, SectionHeader/ListGroup/ListRow, Toggle (native UISwitch), SegmentedControl, TextField/SearchBar, BottomSheet (detents, a11y actions), Toast, Skeleton, EmptyState/ErrorState, ScreenContainer, haptics map; barrel index.ts. Zero hardcoded colours; no new native deps (RN Animated native driver).
+- Panel round 1: HIG 6, motion 6.5, anti-ai 6.5, art 7. Fixed: EmptyState unreachable button, iOS a11y announcements (live regions are Android-only), BottomSheet clipped content/stale closures/a11y actions/modal escape, Button pressed feedback + loading width, Segmented first-layout slide + 44pt, press timing 120ms, row scale removed, field focus without accent ring, chip pill + marker dot (no accent border), toast marker dot, required (non-generic) copy for EmptyState/ErrorState/SearchBar, display font Dynamic Type cap 1.3, 16pt gutter on SE width.
+- Not yet re-scored (code-only review; visual judgement deferred to first screens in Phase 6). tsc + tokens:check clean.
