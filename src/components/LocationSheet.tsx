@@ -100,7 +100,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
       setError(null);
       onClose();
     } else {
-      setError('Could not find that place. Try a city name.');
+      setError("We couldn't find that place. Try the name of a city.");
     }
   };
 
@@ -166,7 +166,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
               </View>
             ) : suggestions.length === 0 ? (
               <View style={styles.suggestEmpty}>
-                <Text style={[styles.suggestEmptyText, { color: colors.textSecondary }]}>No matches yet</Text>
+                <Text style={[styles.suggestEmptyText, { color: colors.textSecondary }]}>No cities match that yet</Text>
               </View>
             ) : (
               <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">

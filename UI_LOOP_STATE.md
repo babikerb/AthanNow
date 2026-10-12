@@ -17,11 +17,11 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - [x] 3. SHARED DESIGN TOKENS (`design/tokens.json`, `src/design/tokens.ts`, ThemeProvider, `DesignTokens.swift`, `scripts/sync-tokens`)
 - [x] 4. DESIGN SYSTEM (`src/design`)
 - [x] 5. CUSTOM TAB BAR (decision: native bar restyled; custom floating bar rejected)
-- [ ] 6. ALL SCREENS
+- [x] 6. ALL SCREENS
   - [x] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
   - [x] 6b Home chrome  - [x] 6c Calendar  - [x] 6d Quran (screen chrome + palettes; Quran sheets finish in 6h)  - [x] 6e Qibla
-  - [x] 6f Settings (+appearance toggle)  - [x] 6g Onboarding  - [x] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
-- [ ] 7. IN-APP WIDGETS (`src/widgets`)
+  - [x] 6f Settings (+appearance toggle)  - [x] 6g Onboarding  - [x] 6h Sheets  - [x] 6i Not-Found/empty/error/skeleton (Not-Found skipped: see note)
+- [x] 7. IN-APP WIDGETS (`src/widgets`)
 - [ ] 8. NATIVE iOS PARITY
   - [ ] 8a widget small  - [ ] 8b medium  - [ ] 8c large  - [ ] 8d accessories  - [ ] 8e tinted/clear/StandBy
   - [ ] 8f launch screen  - [ ] 8g app icon (propose)  - [ ] 8h tab bar tint  - [ ] 8i widget fonts (logged)  - [ ] 8j Live Activity proposal (doc only)
@@ -35,6 +35,8 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
+- 6i note: NO Not-Found screen: the navigator is a fixed set of five native tabs with no linking config, so no unmatched route is reachable (adding one would be dead UI). Remaining spinners (Quran restore, mushaf page image load, location suggestions, surah search) are short-lived system indicators; Quran/mushaf sit on the paper palette where the dark-scheme Skeleton does not apply. EmptyState/ErrorState exist in design for future use (Calendar/Home empty branches were dead code and removed).
+- Phase 8 (Swift) MUST mirror src/widgets: sizes 170/364x170/382 @393pt (and 158/338x158/354 @390pt: WidgetKit supplies real size, use proportions), radius via containerBackground, padding 16, Fraunces numeral (bundle font + UIAppFonts, logged), next-prayer emphasis (bold + 3pt apricot tick), passed rows dimmed, apricot only on progress rule + tick, dense sky ramp from DTSky, scrim; tinted/clear modes via widgetAccentable/containerBackground; countdown = Text(date, style: .timer) with fixed frame; progress rule = ProgressView(timerInterval:) or stepped. Interactive press/long-press menus are NOT possible for in-app reference previews and WidgetKit widgets are non-interactive (App Intents out of scope).
 - 6g follow-ups: hero steps (Intro/Outro) not scrollable (verify at AX Dynamic Type); card scroll has no visible hint (bounces off, indicator off) so on small phones the CalcMethod list may hide Continue; SkyScene sun glow/rays/radial halos are the most 'AI sunset' element left (art, kept: scene concept preserved); consider skyWash for ProgressBar track; import order (colorTokens above react) lint nit.
 - ZERO hex/rgba literals remain in src/ and App.tsx outside src/design + tokens.generated (verified by grep, iter 14). app.json has the two ink values (logged).
 - 6g MUST (from bridge review): legacy `type`/`radii` now derive from design tokens app-wide (body 17/24, subhead 15/20, title1 30 Fraunces, hero 64 Fraunces, radii 12/20). Onboarding cards are absolutely positioned with no ScrollView: verify/fix fit of WidgetStep, CalcMethodStep (maxHeight 200 list), PermissionStep at 320/375pt + Dynamic Type; OutroStep title1 wrapping; IntroStep wordmark now fits via adjustsFontSizeToFit. Spotlight tooltip may be off the legacy scale (check).
@@ -122,3 +124,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 - Onboarding on tokens (skyText/skyHairline/skyWash/accent/onAccent): primary CTA apricot fill + ink text, card shadow removed, card in a ScrollView (flexGrow 0) so tall steps scroll; selected state a11y on method options; copy rewritten to BRAND voice (Qibla step no longer claims green; permission/outro/info lines).
 - Deleted legacy ACCENT/ACCENT_SOFT/ACCENT_BORDER/ACCENT_ON_DARK/ERROR/STATE_SUCCESS and theme/shadow.ts; IconButton default tint, AmbientGradient scrim and SkyScene celestial art colours moved to tokens (skyArt, scrimBase). Flow/permissions/context logic untouched (reviewer diffed).
 - Panel: UX 7.5, HIG 8, art 8, anti-ai 8.5; MUST-FIX (Qibla green claim) fixed.
+### Iter 15 - 6i + Phase 7 in-app widgets
+- 6i: documented Not-Found as unreachable; sheet error/empty copy tuned.
+- src/widgets: model.ts (useWidgetModel: gated on restored location, heavy day compute memoised, 1s tick only for countdown/progress/flags), WidgetFrame (exact iOS sizes, radius 22, padding 16, sky ramp + stage scrim, mount fade), Small/Medium/Large widgets (Fraunces numeral countdown, next-prayer tick, apricot progress rule, tabular times, fixed geometry), onboarding WidgetPreview now renders the real Medium widget at thumbnail scale. Header comment lists what WidgetKit cannot do.
+- Panel: art 7, native-parity 5, anti-ai 8, HIG 6 -> fixed: 393pt sizes, medium column overflow (133 of 138pt), emphasis switched to NEXT (parity with Swift), passed rows dimmed (.62), model perf, rule animation once, reserved rule height, allowFontScaling off, preview gating. Not re-scored.
