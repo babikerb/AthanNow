@@ -12,16 +12,27 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 
 ## Phases
 - [x] 0. Setup: branch, tag, 7 agents in `.claude/agents/`, this file
-- [ ] 1. AUDIT → `DESIGN_AUDIT.md`
+- [x] 1. AUDIT → `DESIGN_AUDIT.md`
 - [ ] 2. BRAND → `BRAND.md` (gate: art-director, anti-ai-critic, ux-strategist approve)
 - [ ] 3. SHARED DESIGN TOKENS (`design/tokens.json`, `src/design/tokens.ts`, ThemeProvider, `DesignTokens.swift`, `scripts/sync-tokens`)
 - [ ] 4. DESIGN SYSTEM (`src/design`)
 - [ ] 5. CUSTOM TAB BAR
-- [ ] 6. ALL SCREENS (sub-tasks seeded by audit)
+- [ ] 6. ALL SCREENS
+  - [ ] 6a Home sky refinement (OKLCH, dither PNG, slow crossfade, parallax, harmonise with ink)
+  - [ ] 6b Home chrome  - [ ] 6c Calendar  - [ ] 6d Quran  - [ ] 6e Qibla
+  - [ ] 6f Settings (+appearance toggle)  - [ ] 6g Onboarding  - [ ] 6h Sheets  - [ ] 6i Not-Found/empty/error/skeleton
 - [ ] 7. IN-APP WIDGETS (`src/widgets`)
-- [ ] 8. NATIVE iOS PARITY (sub-tasks seeded by audit)
+- [ ] 8. NATIVE iOS PARITY
+  - [ ] 8a widget small  - [ ] 8b medium  - [ ] 8c large  - [ ] 8d accessories  - [ ] 8e tinted/clear/StandBy
+  - [ ] 8f launch screen  - [ ] 8g app icon (propose)  - [ ] 8h tab bar tint  - [ ] 8i widget fonts (logged)  - [ ] 8j Live Activity proposal (doc only)
 - [ ] 9. DESIGN DECISION ROUND
 - [ ] 10. FINAL full-panel scoring → FINAL SUMMARY
+
+## Standing decisions (do not relitigate)
+- Avoid new native deps: use RN Animated, react-native-linear-gradient, react-native-svg, pre-rendered noise PNG. (reanimated/blur/skia not installed.)
+- Keep native `react-native-bottom-tabs`; style it; Phase 5 evaluates a floating custom bar only if it carries no native risk (prior history: custom bar was reverted to native by user preference).
+- No Live Activities/Dynamic Island exist; only propose.
+- Sky crossfade: one slow crossfade at stage boundary, NOT the old continuous blend-toward-next (removed earlier by user feedback).
 
 ## Review backlog
 (empty)
@@ -29,3 +40,6 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
 ## Iteration log
 ### Iter 0 — setup
 - Created branch/tag, agents. tsc baseline clean. No panel run (no visual change).
+### Iter 1 — Phase 1 audit
+- Wrote DESIGN_AUDIT.md (inventory, hardcoded colours, parity gaps, sky anatomy, do-not-touch, decisions, sub-task seeds). Docs only; no code, so no panel run. tsc unchanged (clean).
+- Next: Phase 2 BRAND.md (needs panel gate: art-director, anti-ai-critic, ux-strategist).
