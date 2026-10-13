@@ -130,7 +130,7 @@ const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod
               style={[styles.row, active && { backgroundColor: colors.accentSoft }]}
             >
               {active && <View style={[styles.tick, { backgroundColor: colors.accent }]} />}
-              <SymbolView name={r.icon} size={16} type="hierarchical" tintColor={colors.textSecondary} />
+              {data.isToday && <SymbolView name={r.icon} size={16} type="hierarchical" tintColor={colors.textSecondary} />}
               <View style={styles.rowLabelWrap}>
                 <Text variant="body" color="text" style={{ fontWeight: active ? '600' : '400' }}>
                   {r.label}

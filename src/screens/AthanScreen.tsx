@@ -20,7 +20,7 @@ import { Text } from '../design/Text';
 import { useTheme as useDesignTheme } from '../design/theme';
 import { skyStages } from '../design/tokens';
 import { iconSize } from '../theme/icons';
-import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes, PRAYER_LIST_ICONS } from '../utils/prayerEngine';
+import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
 
@@ -258,7 +258,6 @@ export default function AthanScreen() {
             const isPast = row.time <= currentTime;
             const isSunrise = row.id === 'sunrise';
             const isLast = i === listRows.length - 1;
-            const rowIcon = PRAYER_LIST_ICONS[row.id];
             const rowArabic = getCelestialConfig(row.id).arabicName;
             const time = formatClock(row.time, use24Hour, tz);
             const color = isPast ? 'skyTextSecondary' : 'skyText';
@@ -284,7 +283,6 @@ export default function AthanScreen() {
                   {isNext && <View style={[StyleSheet.absoluteFill, { backgroundColor: dt.c.skyWash }]} />}
                   {isNext && <View style={[styles.marker, { backgroundColor: dt.c.accent }]} />}
                   <View style={styles.rowLabelWrap}>
-                    {rowIcon && <SymbolView name={rowIcon} size={18} type="hierarchical" tintColor={isPast ? dt.c.skyTextSecondary : dt.c.skyText} />}
                     <Text variant="body" color={color} style={[weight, { flexShrink: 1 }]}>
                       {row.label}
                     </Text>

@@ -254,7 +254,6 @@ export default function SettingsScreen() {
             PRAYER_LABELS.map((p) => (
               <ListRow
                 key={p.key}
-                icon={p.key === 'sunrise' ? 'sunrise' : 'bell'}
                 title={p.key === 'sunrise' ? 'Sunrise' : `${p.label} athan`}
                 accessory={
                   <Toggle
@@ -276,7 +275,7 @@ export default function SettingsScreen() {
             accessory={<Toggle label="Play adhan sound" value={settings.notifications.athanSound} onValueChange={(v) => settings.updateNotifications({ athanSound: v })} />}
           />
           <ListRow
-            icon="sunrise"
+            icon="book"
             title="Morning Quran reminder"
             accessory={
               <Toggle label="Morning Quran reminder" value={settings.notifications.quranMorningEnabled} onValueChange={(v) => settings.updateNotifications({ quranMorningEnabled: v })} />
