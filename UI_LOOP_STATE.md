@@ -26,7 +26,7 @@ Branch: `ui-refine` · Baseline tag: `ui-baseline` (f2ff37e)
   - [x] 8a widget small  - [x] 8b medium  - [x] 8c large  - [x] 8d accessories (copy only; system-tinted by design)  - [x] 8e tinted/clear/StandBy (widgetAccentable on tick/rule/background via containerBackground; no StandBy-specific layout)
   - [x] 8f launch screen  - [x] 8g app icon  - [x] 8h tab bar tint  - [x] 8i widget fonts (decision: system serif, logged; upgrade path in NATIVE_CHANGES #7)  - [x] 8j Live Activity proposal (doc only)
 - [x] 9. DESIGN DECISION ROUND
-- [ ] 10. FINAL full-panel scoring → FINAL SUMMARY
+- [x] 10. FINAL full-panel scoring → FINAL SUMMARY
 
 ## Standing decisions (do not relitigate)
 - Avoid new native deps: use RN Animated, react-native-linear-gradient, react-native-svg, pre-rendered noise PNG. (reanimated/blur/skia not installed.)
@@ -184,3 +184,31 @@ Panel scores at Phase 9 (baseline for Phase 10): art 7 - ux 6 - HIG 6.5 - motion
 - Review: motion 8.5, art 7.5; ring-offset MUST-FIX and underlay SHOULD-FIX applied. Not re-scored.
 - Iter 27 - R9: Home prayer rows are now label + time only (no per-row icons); Calendar shows row icons only for today; Settings per-prayer toggles have no repeated bell/sunrise glyphs (Morning Quran uses 'book'). Deferred: raw fontSize in Qibla marks / Mushaf components (instrument/scripture type, low impact).
 - Iter 28 - R10: ONE sheet system = native pageSheet (components/Sheet.tsx; Settings pickers moved onto it, design/BottomSheet deleted, legacy components/IconButton deleted with an inline close button in Sheet). All raw expo-haptics calls now go through design/haptics (Mushaf long-press is Light; Medium is reserved for Qibla lock). tsc clean. Next: Phase 10 final full-panel scoring.
+
+## FINAL SUMMARY (Phase 10 / PART 11)
+
+**Final panel scores** (whole app, source + rendered-image review; nothing was run on a device or compiled): art-director 8 - ux-strategist 8 - ios-hig 8 - motion 8.5 (re-scored after fix) - native-parity 8.0 (source review; CI/device outstanding) - native-safety 9 PASS - anti-ai 8. Zero MUST-FIX. Phase 9 baseline was 7 / 6 / 6.5 / 7 / 7 / 9 / 8.
+
+**Palette and why.** Ink `#17121F` base as a near-black (OKLab surface steps dL>=.029, hue 295-305, chroma <=.045), tonal surfaces + hairlines instead of shadows, warm off-white text, ONE soft apricot `#E8B07A` accent used as a state marker (progress rule, next-prayer tick, selected/active, Qibla lock, primary button) never decoration. Light mode = lavender paper; Quran reading surface = warm paper. All text pairs validated for WCAG AA in dark/light/paper and Increase-Contrast variants by `scripts/sync-tokens.mjs` (fails the build otherwise). The old green and all hardcoded colours are gone (zero hex/rgba literals in src outside design/tokens).
+
+**Type.** Fraunces SemiBold (display, title1, hero numerals; tabular) + SF Pro; Amiri Quran unchanged. Legacy type/radii scales now derive from the tokens. Widgets use the system serif (the widget plugin cannot bundle a .ttf; upgrade path logged).
+
+**Sky scene refinements (kept, not replaced).** Ramps authored in OKLCH, densified with a Catmull-Rom spline + smoothing (no mud/seams), every ramp converges to ink; single 4 s crossfade at stage boundaries (art fades with the gradient, snap on resume, Reduce Motion 0.3 s); static dither tile; birds/rays removed, static glows; <=3 stacked layers.
+
+**Tab structure.** Native bottom tabs kept (5 tabs), restyled from tokens (a custom floating bar was rejected: layout flow, no hit-testing outside bounds, loses native glass; also previously reverted by preference).
+
+**Screens refined.** Home (Fraunces countdown, next-prayer tick, states for denied/error/unresolved location, scrolls at >=1.3x text), Calendar, Quran chrome + paper palette, Qibla (memoised rose, native-driver aligned state), Settings (+Appearance System/Light/Dark, notification status row), onboarding, native pageSheet sheets. One shared LocationProvider; notification permission recovery; notification copy in brand voice.
+
+**Widgets built.** `src/widgets` Small/Medium/Large (exact iOS proportions) as the WidgetKit reference; onboarding previews the real widget.
+
+**Native surfaces matched.** WidgetKit small/medium/large/accessories restyled to the same hierarchy (DTSky/DTNight tokens, next-prayer tick, apricot progress rule); app icon recoloured (apricot on ink) with light/dark/tinted; launch screen seamless; tab bar tinted; notification text.
+
+**Native changes made** (all in NATIVE_CHANGES.md, items 1-11): DesignTokens.swift; Fraunces JS package; widget Swift presentation rewrite (protected data/timeline/config code byte-identical to baseline); app.json (splash colour, primaryColor, ios.icon); tab bar props; notifications.ts copy + serial queue + read-only summary; icon assets. No bundle id/App Group/entitlement/plugin/bridge changes.
+
+**Rejected ideas worth revisiting.** Parallax/idle drift; per-stage surface tint; stage-hued countdown; custom floating tab bar; Fraunces in widgets (needs xcassets data-set font + runtime registration, device-verified); Live Activity / Dynamic Island (touches the bridge stubs; needs explicit go-ahead); typed-word icon -> real mark/custom letterform; Calendar non-today days as quiet grouped cards; a 'Tomorrow' row after Isha.
+
+**Known gaps / must do before release.**
+1. NOTHING was compiled or run on a device (Windows): run the macOS `iOS Build` workflow, then check on device: widget insets (iOS 17 margin fix), Fraunces tabular figures, Home at SE height and ~1.29x text, sky banding/dither on OLED, Qibla aligned transition, native tab bar glass over the Dhuhr sky, Light mode over the always-night screens.
+2. Increase Contrast is handled in tokens/validator only; no component reads accessibilityContrast.
+3. Behaviour items intentionally NOT changed (logic): Morning Quran notification fires with Sunrise; reminder vs athan sound inconsistency; ~5 days of notifications with reminders on (60 cap); GPS city only refreshes on cold start; stale-location refresh on resume.
+4. Small leftovers: Calendar next-marker has no clock dependency; ProgressBar/widget rule use width animation (JS driver); View->ScrollView remount at 1.3x; dead unused design components (Chip/Avatar/Skeleton/Toast/TextField/States/Surface/IconButton in src/design) should be deleted or adopted; Increase Contrast; raw font sizes in Qibla marks/Mushaf; Swift polish (hardcoded numbers, accessory gauge, StandBy); App Store screenshots still show the old green brand.

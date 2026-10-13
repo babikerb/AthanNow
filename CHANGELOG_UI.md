@@ -26,3 +26,4 @@
 - R8: Qibla rose memoised; aligned state fully native-driver.
 - R9: quieter Home/Calendar/Settings rows.
 - R10: single native sheet system, haptics via design map.
+- Final: panel >= 8 across the board; summary in UI_LOOP_STATE.md.
