@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,29 +23,6 @@ import { iconSize } from '../theme/icons';
 import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes, PRAYER_LIST_ICONS } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-// Tightened from 0.1 -> 0.06: on the smallest current iPhone screen heights
-// (SE-class, ~667pt), the old fixed composition's total footprint (header +
-// sky strip + hero + six-row list + date block + tab bar) added up to more
-// than the screen itself, even with the flex spacer at its minHeight floor —
-// there's no ScrollView to fall back on, so the overflow pushed the date text
-// down under the tab bar instead of reflowing. This, the hero/list/date trims
-// below, and a lower flexSpacer floor together claw back enough room to fit
-// on the smallest supported screen with margin, not just the one it was
-// designed against.
-const SKY_STRIP_HEIGHT = SCREEN_HEIGHT * 0.06;
-
-// This screen is a deliberate no-scroll composition (a single flex column, no
-// ScrollView) so the countdown, full prayer list, and date always sit on one
-// screen together — there's no scroll fallback if content runs long. That's
-// fine at default text size (the flexSpacer absorbs the slack), but at large
-// Dynamic Type sizes the hero countdown + six-row list + date block combined
-// can exceed the screen height, and without a ScrollView that means clipping/
-// overlap rather than a scroll, not a graceful reflow. Capping the fixed-
-// budget chrome here (not the free-flowing text elsewhere in the app) follows
-// the same rule Calendar's fixed-height day cards already established.
-const NO_SCROLL_FONT_CAP = 1.3;
 
 export default function AthanScreen() {
   const { location, cityName, status, hasRestored, refreshLocation, setLocationByQuery, setLocationByPlace } = useLocation();
@@ -192,9 +169,12 @@ export default function AthanScreen() {
 
   // Short screens / large Dynamic Type degrade in the order BRAND.md specifies:
   // Arabic names, then the progress rule, then the Hijri line; rows shrink to a 36pt minimum last.
+  // At accessibility-ish text sizes (>= 1.3x) the composition scrolls instead of capping the text, so Dynamic Type applies
+  // in full; below that it stays the no-scroll single screen and degrades in the order above.
+  const scrolls = fontScale >= 1.3;
   const dropArabic = winH < 700 || fontScale > 1.15;
-  const dropProgress = winH < 640 || fontScale >= 1.3;
-  const rowMin = dropProgress ? 36 : winH < 700 ? 40 : 44;
+  const dropProgress = !scrolls && winH < 640;
+  const rowMin = scrolls ? 44 : dropProgress ? 36 : winH < 700 ? 40 : 44;
 
   // Home states (BRAND.md section 9). Presentation only: reads status the hook already exposes.
   // Unresolved states must never pass off Mecca as the user's city: denied, failed, or never resolved (idle after restore).
@@ -210,7 +190,13 @@ export default function AthanScreen() {
           : null;
 
   // The notice needs room on a no-scroll screen: it displaces the Hijri line.
-  const dropHijri = winH < 600 || fontScale >= 1.5 || !!notice;
+  const dropHijri = !scrolls && (winH < 600 || !!notice);
+
+  const contentPad = { paddingTop: insets.top + dt.spacing.md, paddingBottom: tabBarHeight + dt.spacing.xs, paddingHorizontal: dt.spacing.lg };
+  const Container: React.ComponentType<any> = scrolls ? ScrollView : View;
+  const containerProps = scrolls
+    ? { style: styles.content, contentContainerStyle: [{ flexGrow: 1 }, contentPad], showsVerticalScrollIndicator: true }
+    : { style: [styles.content, contentPad] };
 
   return (
     <View style={styles.container}>
@@ -218,7 +204,7 @@ export default function AthanScreen() {
       {/* `skyAreaY` only controls the celestial body's arc, which stays clear of the location pill. */}
       <SkyScene prayer={displayPrayer as any} skyAreaY={insets.top + 76} />
 
-      <View style={[styles.content, { paddingTop: insets.top + dt.spacing.md, paddingBottom: tabBarHeight + dt.spacing.xs, paddingHorizontal: dt.spacing.lg }]}>
+      <Container {...containerProps}>
         <View style={styles.locationPillWrap}>
           <FloatingPill
             tone="onSky"
@@ -234,12 +220,8 @@ export default function AthanScreen() {
         <View style={{ height: winH * 0.06 }} />
 
         {/* Hero: countdown is primary, then the next prayer, then the current-stage label. */}
-        <View
-          style={styles.hero}
-          accessible
-          accessibilityLabel={`${stageLabel}. ${countdownLabel} at ${formatClock(nextPrayerTime, use24Hour, tz)}`}
-        >
-          <Text variant="caption2" color="skyTextSecondary" eyebrow maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+        <View style={styles.hero}>
+          <Text variant="caption2" color="skyTextSecondary" eyebrow>
             {stageLabel}
           </Text>
           <Text
@@ -249,11 +231,12 @@ export default function AthanScreen() {
             adjustsFontSizeToFit
             minimumFontScale={0.6}
             accessibilityRole="timer"
+            accessibilityLabel={countdownLabel}
             style={{ textAlign: 'center', alignSelf: 'stretch' }}
           >
             {formatCountdown(currentTime, nextPrayerTime)}
           </Text>
-          <Text variant="subhead" color="skyTextSecondary" maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+          <Text variant="subhead" color="skyTextSecondary" accessibilityLabel={`at ${formatClock(nextPrayerTime, use24Hour, tz)}`}>
             {`until ${nextPrayer} · ${formatClock(nextPrayerTime, use24Hour, tz)}`}
           </Text>
           {heroProgress != null && !dropProgress && (
@@ -284,9 +267,11 @@ export default function AthanScreen() {
               <React.Fragment key={row.id}>
                 <View
                   accessible
+                  accessibilityRole="text"
                   accessibilityLabel={`${row.label}, ${time}${isNext ? ', next prayer' : ''}${row.id === currentPrayer && !(currentStart && currentStart > currentTime) ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
                   style={{
                     minHeight: rowMin,
+                    paddingVertical: scrolls ? dt.spacing.xs : 0,
                     flexDirection: 'row',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -300,16 +285,16 @@ export default function AthanScreen() {
                   {isNext && <View style={[styles.marker, { backgroundColor: dt.c.accent }]} />}
                   <View style={styles.rowLabelWrap}>
                     {rowIcon && <SymbolView name={rowIcon} size={18} type="hierarchical" tintColor={isPast ? dt.c.skyTextSecondary : dt.c.skyText} />}
-                    <Text variant="body" color={color} style={weight} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+                    <Text variant="body" color={color} style={[weight, { flexShrink: 1 }]}>
                       {row.label}
                     </Text>
                     {!dropArabic && (
-                      <Text variant="footnote" color="skyTextSecondary" style={{ flexShrink: 1 }} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+                      <Text variant="footnote" color="skyTextSecondary" style={{ flexShrink: 1 }}>
                         {rowArabic}
                       </Text>
                     )}
                   </View>
-                  <Text variant="body" color={color} style={weight} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+                  <Text variant="body" color={color} style={[weight, { flexShrink: 0, textAlign: 'right' }]}>
                     {time}
                   </Text>
                 </View>
@@ -325,11 +310,11 @@ export default function AthanScreen() {
 
         {/* Dates + state notice */}
         <View style={styles.dateContainer}>
-          <Text variant="subhead" color="skyText" maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+          <Text variant="subhead" color="skyText">
             {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </Text>
           {!dropHijri && (
-            <Text variant="caption" color="skyTextSecondary" maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+            <Text variant="caption" color="skyTextSecondary">
               {getHijriDate(currentTime)}
             </Text>
           )}
@@ -345,14 +330,14 @@ export default function AthanScreen() {
               hitSlop={8}
               style={{ marginTop: dt.spacing.sm, minHeight: 44, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: dt.spacing.xs }}
             >
-              <Text variant="footnote" color="skyTextSecondary" numberOfLines={2} style={{ textAlign: 'center', flexShrink: 1 }} maxFontSizeMultiplier={NO_SCROLL_FONT_CAP}>
+              <Text variant="footnote" color="skyTextSecondary" numberOfLines={2} style={{ textAlign: 'center', flexShrink: 1 }}>
                 {notice}
               </Text>
               <SymbolView name="chevron.right" size={11} weight="semibold" tintColor={dt.c.skyTextSecondary} />
             </Pressable>
           )}
         </View>
-      </View>
+      </Container>
 
       {locationSheet}
     </View>

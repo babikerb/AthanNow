@@ -22,3 +22,4 @@
 - R4: next-prayer marker on every surface.
 - R5: 44pt location pill, keyboard-aware LocationSheet, BottomSheet window/keyboard handling.
 - R6: smoother sky ramps, dither tile, art crossfades with sky, no birds/rays.
+- R7: Home scrolls at large text sizes; hero/rows VoiceOver reworked.
