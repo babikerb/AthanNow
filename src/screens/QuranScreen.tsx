@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../design/haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -195,7 +195,7 @@ export default function QuranScreen() {
 
   // One tap sets/removes a bookmark at the current page.
   const quickBookmark = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     {
       try {
         const data = await fetchMushafPage(currentPage);
@@ -293,7 +293,7 @@ export default function QuranScreen() {
           colors={pageColors}
           label="Search the Quran"
           onPress={() => {
-            Haptics.selectionAsync();
+            haptic.select();
             setPickerOpen(true);
           }}
         >

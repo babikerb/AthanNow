@@ -1,5 +1,5 @@
 import { colorTokens } from '../../../design/tokens.generated';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../../../design/haptics';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, StyleSheet, Text } from 'react-native';
 
@@ -86,7 +86,7 @@ export function PermissionStep({ index, total, permission, refreshLocation, onNe
   const canDecline = !declined && (permState === 'undetermined' || permState === 'denied-permanent');
 
   const handleDecline = () => {
-    Haptics.selectionAsync();
+    haptic.select();
     setDeclined(true);
   };
 
@@ -103,7 +103,7 @@ export function PermissionStep({ index, total, permission, refreshLocation, onNe
       onNext();
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     const request = permission === 'location' ? requestLocationPermission : requestNotificationPermissionState;
     const { status, canAskAgain } = await request();
     const next = classifyPermission(status, canAskAgain);

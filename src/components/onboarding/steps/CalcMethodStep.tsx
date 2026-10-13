@@ -1,5 +1,5 @@
 import { colorTokens } from '../../../design/tokens.generated';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../../../design/haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
@@ -54,7 +54,7 @@ export function CalcMethodStep({ index, total, location, applyDefault, onNext, o
   const why = CALC_METHOD_WHY[selected];
 
   const choose = (key: typeof selected) => {
-    Haptics.selectionAsync();
+    haptic.select();
     settings.update({ calcMethod: key });
   };
 
@@ -87,7 +87,7 @@ export function CalcMethodStep({ index, total, location, applyDefault, onNext, o
 
               <Pressable
                 onPress={() => {
-                  Haptics.selectionAsync();
+                  haptic.select();
                   setExpanded((e) => !e);
                 }}
                 accessibilityRole="button"

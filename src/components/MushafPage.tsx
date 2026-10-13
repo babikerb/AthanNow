@@ -1,5 +1,5 @@
 import { colorTokens } from '../design/tokens.generated';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../design/haptics';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -52,7 +52,7 @@ function MushafPageInner({ data, words, width, height, colors, dark, isBookmarke
   const longPress = (w: MushafWord) => {
     if (!w.verse_key) return;
     const [s, a] = w.verse_key.split(':').map(Number);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.light();
     onBookmarkVerse(s, a);
   };
 

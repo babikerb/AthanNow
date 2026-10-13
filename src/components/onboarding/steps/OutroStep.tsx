@@ -1,5 +1,5 @@
 import { colorTokens } from '../../../design/tokens.generated';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../../../design/haptics';
 import React, { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
@@ -31,7 +31,7 @@ export function OutroStep({ index, total, cityName, methodLabel, mode, onFinish,
   const label = mode === 'initial' ? 'Open AthanNow' : 'Done';
 
   const handleFinish = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    haptic.success();
     onFinish();
   };
 

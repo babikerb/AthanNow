@@ -1,5 +1,5 @@
 import { colorTokens } from '../../../design/tokens.generated';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../../../design/haptics';
 import React, { useMemo } from 'react';
 import { Image, StyleSheet, Text } from 'react-native';
 
@@ -28,7 +28,7 @@ export function IntroStep({ index, total, onContinue, onClose }: Props) {
   const gradient = useMemo(() => onboardingGradient(), []);
 
   const handleContinue = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    haptic.medium();
     onContinue();
   };
 

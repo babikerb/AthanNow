@@ -1,4 +1,4 @@
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../design/haptics';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -78,7 +78,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
   }, [suggestVisible, reducedMotion, suggestFade]);
 
   const pick = (place: PlaceSuggestion) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.light();
     onSelectPlace(place);
     setQuery('');
     setSuggestions([]);
@@ -93,7 +93,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
       pick(suggestions[0]);
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.light();
     const ok = await onSearch(query);
     if (ok) {
       setQuery('');
@@ -105,7 +105,7 @@ export function LocationSheet({ visible, onClose, cityName, isManual, loading, o
   };
 
   const refresh = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    haptic.light();
     onRefresh();
   };
 

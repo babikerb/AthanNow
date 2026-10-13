@@ -1,16 +1,17 @@
+import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import {
   Modal,
+  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 
-import { IconButton } from './IconButton';
 import { useTheme } from '../context/ThemeContext';
 import { Palette } from '../theme/colors';
-import { iconSize } from '../theme/icons';
+import { hitSlopFor, iconSize } from '../theme/icons';
 import { spacing } from '../theme/spacing';
 import { type } from '../theme/typography';
 
@@ -52,14 +53,15 @@ export function Sheet({ visible, onClose, title, headerRight, children, palette 
           </Text>
           <View style={styles.headerRight}>
             {headerRight}
-            <IconButton
-              name="xmark.circle.fill"
+            <Pressable
               onPress={onClose}
+              hitSlop={hitSlopFor(iconSize.xl)}
+              accessibilityRole="button"
               accessibilityLabel="Close"
-              size={iconSize.xl}
-              tintColor={colors.textQuaternary}
-              style={styles.closeButton}
-            />
+              style={({ pressed }) => [styles.closeButton, { width: iconSize.xl, height: iconSize.xl }, pressed && { opacity: 0.6 }]}
+            >
+              <SymbolView name="xmark.circle.fill" size={iconSize.xl} tintColor={colors.textQuaternary} weight="semibold" />
+            </Pressable>
           </View>
         </View>
         <View style={styles.body}>{children}</View>
@@ -85,6 +87,6 @@ const styles = StyleSheet.create({
   // Sheet titles use `type.title3` (20/600): a quiet title, not a heavy header.
   title: { ...type.title3, flex: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  closeButton: { marginLeft: spacing.xxs },
+  closeButton: { marginLeft: spacing.xxs, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1 },
 });

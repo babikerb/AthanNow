@@ -1,5 +1,5 @@
 import { colorTokens } from '../design/tokens.generated';
-import * as Haptics from 'expo-haptics';
+import { haptic } from '../design/haptics';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Dimensions, FlatList, Pressable, StyleSheet, Text, View, ViewToken } from 'react-native';
 
@@ -62,7 +62,7 @@ export function QuranReader({
 
   const longPress = useCallback(
     (surahId: number, ayah: number, name: string) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      haptic.light();
       onToggleBookmark(surahId, ayah, name);
     },
     [onToggleBookmark],

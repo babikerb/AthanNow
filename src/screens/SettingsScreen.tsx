@@ -5,7 +5,7 @@ import { Alert, AppState, Linking, ScrollView, View } from 'react-native';
 
 import { useOnboarding } from '../context/OnboardingContext';
 import { Appearance, AsrMadhab, PrayerKey, useSettings } from '../context/SettingsContext';
-import { BottomSheet } from '../design/BottomSheet';
+import { Sheet } from '../components/Sheet';
 import { haptic } from '../design/haptics';
 import { ListGroup, ListRow, SectionHeader } from '../design/List';
 import { ScreenContainer } from '../design/ScreenContainer';
@@ -292,16 +292,16 @@ export default function SettingsScreen() {
         </ListGroup>
       </ScreenContainer>
 
-      <BottomSheet visible={methodSheetOpen} onClose={() => setMethodSheetOpen(false)} title="Calculation method" detents={[0.7, 0.92]}>
+      <Sheet visible={methodSheetOpen} onClose={() => setMethodSheetOpen(false)} title="Calculation method">
         <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingBottom: dt.spacing.xxl }}>
           <SectionHeader title="Recommended for your region" />
           <ListGroup>{methodRow(recommendedMethod)}</ListGroup>
           <SectionHeader title="All methods" />
           <ListGroup>{otherMethods.map(methodRow)}</ListGroup>
         </ScrollView>
-      </BottomSheet>
+      </Sheet>
 
-      <BottomSheet visible={reminderSheetOpen} onClose={() => setReminderSheetOpen(false)} title="Reminder time" detents={[0.6]}>
+      <Sheet visible={reminderSheetOpen} onClose={() => setReminderSheetOpen(false)} title="Reminder time">
         <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingBottom: dt.spacing.xxl }}>
           <ListGroup>
             {MINUTE_OPTIONS.map((m) => (
@@ -318,7 +318,7 @@ export default function SettingsScreen() {
             ))}
           </ListGroup>
         </ScrollView>
-      </BottomSheet>
+      </Sheet>
     </>
   );
 }

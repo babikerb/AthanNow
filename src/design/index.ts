@@ -14,7 +14,6 @@ export { SectionHeader, ListGroup, ListRow, type ListRowProps } from './List';
 export { Toggle } from './Toggle';
 export { SegmentedControl, type SegmentOption } from './SegmentedControl';
 export { TextField, SearchBar, type TextFieldProps, type SearchBarProps } from './TextField';
-export { BottomSheet, type BottomSheetProps } from './BottomSheet';
 export { ToastProvider, useToast, type ToastTone } from './Toast';
 export { Skeleton } from './Skeleton';
 export { EmptyState, ErrorState } from './States';

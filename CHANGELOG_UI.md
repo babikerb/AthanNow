@@ -25,3 +25,4 @@
 - R7: Home scrolls at large text sizes; hero/rows VoiceOver reworked.
 - R8: Qibla rose memoised; aligned state fully native-driver.
 - R9: quieter Home/Calendar/Settings rows.
+- R10: single native sheet system, haptics via design map.
