@@ -23,3 +23,4 @@
 - R5: 44pt location pill, keyboard-aware LocationSheet, BottomSheet window/keyboard handling.
 - R6: smoother sky ramps, dither tile, art crossfades with sky, no birds/rays.
 - R7: Home scrolls at large text sizes; hero/rows VoiceOver reworked.
+- R8: Qibla rose memoised; aligned state fully native-driver.

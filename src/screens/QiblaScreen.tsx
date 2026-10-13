@@ -1,6 +1,6 @@
 import { useIsFocused } from '@react-navigation/native';
 import { SymbolView } from 'expo-symbols';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,6 +42,137 @@ function toDeg(value: Animated.Value | Animated.AnimatedNode): Animated.Animated
   });
 }
 
+/**
+ * The rotating rose (ticks, marks, Qibla dot). Memoised: it depends only on the heading *animated value* (stable), the
+ * Qibla bearing and the lock animation values, so a new heading reading re-renders only the readout, not ~90 views.
+ * The aligned state is a native-driver opacity crossfade between two stacked elements (no JS-driven colour or width).
+ */
+const Rose = React.memo(function Rose({
+  headingAnim,
+  qiblaBearing,
+  hasLocation,
+  lock,
+  under,
+  dotScale,
+}: {
+  headingAnim: Animated.Value;
+  qiblaBearing: number;
+  hasLocation: boolean;
+  lock: Animated.Value;
+  under: Animated.AnimatedInterpolation<number>;
+  dotScale: Animated.Value;
+}) {
+  const dialSpin = useMemo(() => toDeg(headingAnim), [headingAnim]);
+  // Keep every labelled mark upright as the dial turns.
+  const counters = useMemo(() => MARKS.map(({ deg }) => toDeg(Animated.subtract(new Animated.Value(-deg), headingAnim))), [headingAnim]);
+  const ticks = useMemo(
+    () =>
+      TICKS.map((deg) => {
+        const isCard = deg % 90 === 0;
+        const isMajor = deg % 30 === 0;
+        const h = isCard ? 14 : isMajor ? 10 : 5;
+        const w = isCard ? 2 : 1;
+        const bg = isCard ? c.skyText : isMajor ? c.textSecondary : c.skyHairline;
+        return (
+          <View
+            key={deg}
+            style={{
+              position: 'absolute',
+              width: w,
+              height: h,
+              backgroundColor: bg,
+              top: R - h / 2,
+              left: R - w / 2,
+              transform: [{ rotate: `${deg}deg` }, { translateY: -(R - h / 2 - 4) }],
+            }}
+          />
+        );
+      }),
+    [],
+  );
+
+  return (
+    <Animated.View style={[styles.fill, { transform: [{ rotate: dialSpin }] }]}>
+      {ticks}
+
+      {MARKS.map((m, i) => (
+        <View
+          key={m.deg}
+          style={{
+            position: 'absolute',
+            width: 34,
+            height: 22,
+            top: R - 11,
+            left: R - 17,
+            alignItems: 'center',
+            justifyContent: 'center',
+            transform: [{ rotate: `${m.deg}deg` }, { translateY: -(R - 32) }],
+          }}
+        >
+          <Animated.Text
+            allowFontScaling={false}
+            style={[m.cardinal ? styles.markLetter : styles.markNumber, m.label === 'N' && { color: c.danger }, { transform: [{ rotate: counters[i] }] }]}
+          >
+            {m.label}
+          </Animated.Text>
+        </View>
+      ))}
+
+      {/* Qibla marker riding the rim at the Qibla bearing. A plain dot,
+          not an image of the Kaaba, out of respect for the sacred site. */}
+      {hasLocation && (
+        <View
+          style={{
+            position: 'absolute',
+            width: 40,
+            height: 40,
+            top: R - 20,
+            left: R - 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            transform: [{ rotate: `${qiblaBearing}deg` }, { translateY: -(R - 30) }],
+          }}
+        >
+          <Animated.View style={{ transform: [{ scale: dotScale }] }}>
+            <Animated.View style={[styles.qiblaDot, { backgroundColor: c.skyText, opacity: under }]} />
+            <Animated.View style={[styles.qiblaDot, styles.stack, { backgroundColor: c.accent, opacity: lock }]} />
+          </Animated.View>
+        </View>
+      )}
+    </Animated.View>
+  );
+});
+
+/** The centre readout: the only part that re-renders on every heading reading. */
+function Readout({ heading, qiblaBearing, unavailable, calibrating, lock, under }: { heading: number; qiblaBearing: number; unavailable: boolean; calibrating: boolean; lock: Animated.Value; under: Animated.AnimatedInterpolation<number> }) {
+  if (unavailable) {
+    // No compass: the dial stays north-up, so the Kaaba marker already sits at the true bearing. Show it statically.
+    return (
+      <>
+        <Text style={styles.readoutDeg} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} maxFontSizeMultiplier={1.2}>
+          {Math.round(qiblaBearing)}°
+        </Text>
+        <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{toCardinal(qiblaBearing)}</Text>
+      </>
+    );
+  }
+  if (calibrating) return <SymbolView name="figure.walk.motion" size={26} tintColor={c.textSecondary} />;
+  const deg = `${Math.round(heading)}°`;
+  return (
+    <>
+      <View>
+        <Animated.Text style={[styles.readoutDeg, { opacity: under }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} maxFontSizeMultiplier={1.2}>
+          {deg}
+        </Animated.Text>
+        <Animated.Text style={[styles.readoutDeg, styles.stack, { color: c.accent, opacity: lock }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} maxFontSizeMultiplier={1.2}>
+          {deg}
+        </Animated.Text>
+      </View>
+      <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{toCardinal(heading)}</Text>
+    </>
+  );
+}
+
 function Compass({
   headingAnim,
   heading,
@@ -59,12 +190,8 @@ function Compass({
   calibrating: boolean;
   unavailable: boolean;
 }) {
-  const dialSpin = toDeg(headingAnim);
-  // Keep every labelled mark upright as the dial turns.
-  const counters = useRef(MARKS.map(({ deg }) => toDeg(Animated.subtract(new Animated.Value(-deg), headingAnim)))).current;
-
-  // One warm moment: the apricot accent appears only when the phone is facing the Qibla, and it is earned with a short
-  // transition (colour + ring weight + a spring on the dot) instead of an instant swap.
+  // One warm moment: the apricot accent appears only when the phone is facing the Qibla, earned with a short native-driver
+  // crossfade (ring, lubber, crosshair, dot, readout) and a spring on the dot instead of an instant swap.
   const { reduceMotion, motion } = useDesignTheme();
   const lock = useRef(new Animated.Value(isAligned ? 1 : 0)).current;
   const dotScale = useRef(new Animated.Value(isAligned ? 1.25 : 1)).current;
@@ -72,19 +199,15 @@ function Compass({
     Animated.timing(lock, {
       toValue: isAligned ? 1 : 0,
       duration: reduceMotion ? motion.duration.reducedFade : motion.duration.standard,
-      useNativeDriver: false, // animates colours and border width
+      useNativeDriver: true,
     }).start();
     const to = isAligned ? 1.25 : 1;
     if (reduceMotion) dotScale.setValue(to);
     else Animated.spring(dotScale, { toValue: to, useNativeDriver: true, ...motion.spring.snappy }).start();
   }, [isAligned, reduceMotion, lock, dotScale, motion]);
-  const mix = (from: string, to: string) => lock.interpolate({ inputRange: [0, 1], outputRange: [from, to] });
-  const ringColor = mix(c.skyHairline, c.accent);
-  const ringWidth = lock.interpolate({ inputRange: [0, 1], outputRange: [1, 2] });
-  const lubberColor = mix(c.danger, c.accent);
-  const crossColor = mix(c.hairline, c.accentSoft);
-  const dotColor = mix(c.skyText, c.accent);
-  const readoutColor = mix(c.skyText, c.accent);
+
+  // Underlays vanish at the very end of the crossfade so anti-aliased edges never fringe through the accent copy.
+  const under = lock.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] });
 
   const a11yLabel = unavailable
     ? `Qibla is ${Math.round(qiblaBearing)} degrees from north, ${CARDINAL_WORDS[toCardinal(qiblaBearing)]}.`
@@ -96,108 +219,27 @@ function Compass({
 
   return (
     <View style={styles.dialWrap} accessible accessibilityRole="image" accessibilityLabel="Qibla compass" accessibilityValue={{ text: a11yLabel }}>
-      {/* Fixed lubber pointer at the top: north-red until the Qibla is locked, then the accent */}
-      <Animated.View style={[styles.lubber, { borderTopColor: lubberColor }]} />
+      {/* Fixed lubber pointer at the top: north-red until the Qibla is locked, then the accent (stacked, opacity crossfade) */}
+      <Animated.View style={[styles.lubber, { borderTopColor: c.danger, opacity: under }]} />
+      <Animated.View style={[styles.lubber, { borderTopColor: c.accent, opacity: lock }]} />
 
-      <Animated.View style={[styles.dial, { borderColor: ringColor, borderWidth: ringWidth }]}>
+      <View style={styles.dial}>
         {/* Fixed crosshair */}
-        <Animated.View style={[styles.crossV, { backgroundColor: crossColor }]} />
-        <Animated.View style={[styles.crossH, { backgroundColor: crossColor }]} />
+        <Animated.View style={[styles.crossV, { backgroundColor: c.hairline, opacity: under }]} />
+        <Animated.View style={[styles.crossH, { backgroundColor: c.hairline, opacity: under }]} />
+        <Animated.View style={[styles.crossV, { backgroundColor: c.accentSoft, opacity: lock }]} />
+        <Animated.View style={[styles.crossH, { backgroundColor: c.accentSoft, opacity: lock }]} />
 
-        {/* Rotating rose */}
-        <Animated.View style={[styles.fill, { transform: [{ rotate: dialSpin }] }]}>
-          {TICKS.map((deg) => {
-            const isCard = deg % 90 === 0;
-            const isMajor = deg % 30 === 0;
-            const h = isCard ? 14 : isMajor ? 10 : 5;
-            const w = isCard ? 2 : 1;
-            const bg = isCard ? c.skyText : isMajor ? c.textSecondary : c.skyHairline;
-            return (
-              <View
-                key={deg}
-                style={{
-                  position: 'absolute',
-                  width: w,
-                  height: h,
-                  backgroundColor: bg,
-                  top: R - h / 2,
-                  left: R - w / 2,
-                  transform: [{ rotate: `${deg}deg` }, { translateY: -(R - h / 2 - 4) }],
-                }}
-              />
-            );
-          })}
+        <Rose headingAnim={headingAnim} qiblaBearing={qiblaBearing} hasLocation={hasLocation} lock={lock} under={under} dotScale={dotScale} />
 
-          {MARKS.map((m, i) => (
-            <View
-              key={m.deg}
-              style={{
-                position: 'absolute',
-                width: 34,
-                height: 22,
-                top: R - 11,
-                left: R - 17,
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ rotate: `${m.deg}deg` }, { translateY: -(R - 32) }],
-              }}
-            >
-              <Animated.Text
-                allowFontScaling={false}
-                style={[
-                  m.cardinal ? styles.markLetter : styles.markNumber,
-                  m.label === 'N' && { color: c.danger },
-                  { transform: [{ rotate: counters[i] }] },
-                ]}
-              >
-                {m.label}
-              </Animated.Text>
-            </View>
-          ))}
-
-          {/* Qibla marker riding the rim at the Qibla bearing. A plain dot,
-              not an image of the Kaaba, out of respect for the sacred site. */}
-          {hasLocation && (
-            <View
-              style={{
-                position: 'absolute',
-                width: 40,
-                height: 40,
-                top: R - 20,
-                left: R - 20,
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: [{ rotate: `${qiblaBearing}deg` }, { translateY: -(R - 30) }],
-              }}
-            >
-              <Animated.View style={[styles.qiblaDot, { backgroundColor: dotColor, transform: [{ scale: dotScale }] }]} />
-            </View>
-          )}
-        </Animated.View>
+        {/* Aligned ring: constant width, fades in over the hairline ring */}
+        <Animated.View pointerEvents="none" style={[styles.ring, { opacity: lock }]} />
 
         {/* Fixed center heading readout */}
         <View style={styles.readout} pointerEvents="none">
-          {unavailable ? (
-            // No compass: the dial stays north-up, so the Kaaba marker already
-            // sits at the true bearing. Show that bearing from North statically.
-            <>
-              <Text style={styles.readoutDeg} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} maxFontSizeMultiplier={1.2}>
-                {Math.round(qiblaBearing)}°
-              </Text>
-              <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{toCardinal(qiblaBearing)}</Text>
-            </>
-          ) : calibrating ? (
-            <SymbolView name="figure.walk.motion" size={26} tintColor={c.textSecondary} />
-          ) : (
-            <>
-              <Animated.Text style={[styles.readoutDeg, { color: readoutColor }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} maxFontSizeMultiplier={1.2}>
-                {Math.round(heading)}°
-              </Animated.Text>
-              <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{toCardinal(heading)}</Text>
-            </>
-          )}
+          <Readout heading={heading} qiblaBearing={qiblaBearing} unavailable={unavailable} calibrating={calibrating} lock={lock} under={under} />
         </View>
-      </Animated.View>
+      </View>
     </View>
   );
 }
@@ -332,6 +374,10 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
   },
+  // Aligned ring overlay: same circle as the dial, accent, fades in (the base hairline ring never changes width).
+  ring: { position: 'absolute', top: -1, left: -1, width: DIAL, height: DIAL, borderRadius: R, borderWidth: 2, borderColor: c.accent },
+  // Second copy of an element stacked exactly on the first (crossfaded with opacity).
+  stack: { position: 'absolute', top: 0, left: 0, right: 0 },
   readout: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   readoutDeg: { ...textStyle('hero'), color: c.skyText, width: 190, textAlign: 'center' },
   readoutCard: { ...textStyle('subhead'), color: c.textSecondary, letterSpacing: 3, marginTop: -2 },
