@@ -1,9 +1,11 @@
-import React, { useEffect, useId, useMemo, useRef } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, Mask, Path, RadialGradient, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Mask, RadialGradient, Stop } from 'react-native-svg';
 
 import { skyArt } from '../design/tokens.generated';
+import { useTheme } from '../design/theme';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useResumeSnap } from '../hooks/useResumeSnap';
 
 const { width: W, height: H } = Dimensions.get('screen');
 
@@ -77,74 +79,25 @@ const ISHA_STARS: StarDef[] = [
 ];
 const STARS_FOR: Partial<Record<Period, StarDef[]>> = { fajr: FAJR_STARS, maghrib: MAGHRIB_STARS, isha: ISHA_STARS };
 
-// Static (no animation, matching the app's established motion restraint —
-// stillness reads as premium here, not a missed opportunity for more
-// movement) daytime atmosphere: a couple of soft, low-opacity clouds and a
-// couple of small hand-drawn-style birds, gated to the bright daytime
-// stages only (dhuhr/asr for clouds; dhuhr/asr/sunrise for birds — fajr/
-// maghrib/isha are night/dusk scenes with stars, clouds and birds wouldn't
-// read there). Kept deliberately sparse (2 of each, at most) — restraint
-// over decoration, same as everywhere else in this app.
+// Quiet daytime atmosphere: one or two soft, low-opacity clouds on the bright stages (dhuhr, asr). Static: stillness reads as
+// premium here. (Birds and sun rays were removed in the sky polish pass.)
 interface CloudDef { lf: number; tf: number; scale: number; op: number }
-interface BirdDef { lf: number; tf: number; scale: number; flip?: boolean }
 
 const DHUHR_CLOUDS: CloudDef[] = [
-  { lf: 0.16, tf: 0.09, scale: 1, op: 0.5 },
-  { lf: 0.74, tf: 0.13, scale: 0.7, op: 0.36 },
+  { lf: 0.16, tf: 0.09, scale: 1, op: 0.42 },
+  { lf: 0.7, tf: 0.12, scale: 0.75, op: 0.3 },
 ];
-const ASR_CLOUDS: CloudDef[] = [{ lf: 0.2, tf: 0.11, scale: 0.8, op: 0.32 }];
+const ASR_CLOUDS: CloudDef[] = [{ lf: 0.2, tf: 0.11, scale: 0.85, op: 0.28 }];
 const CLOUDS_FOR: Partial<Record<Period, CloudDef[]>> = { dhuhr: DHUHR_CLOUDS, asr: ASR_CLOUDS };
 
-const DHUHR_BIRDS: BirdDef[] = [
-  { lf: 0.4, tf: 0.07, scale: 1 },
-  { lf: 0.47, tf: 0.095, scale: 0.65, flip: true },
-];
-const ASR_BIRDS: BirdDef[] = [{ lf: 0.58, tf: 0.08, scale: 0.85 }];
-const SUNRISE_BIRDS: BirdDef[] = [{ lf: 0.72, tf: 0.085, scale: 0.9 }];
-const BIRDS_FOR: Partial<Record<Period, BirdDef[]>> = { dhuhr: DHUHR_BIRDS, asr: ASR_BIRDS, sunrise: SUNRISE_BIRDS };
-
-/** A soft 4-blob cloud silhouette — three overlapping "puffs" plus a base
- *  to fill the underside, all one flat low-opacity white fill. Intentionally
- *  simple flat shapes (not a gradient/blur) to match the app's icon-language
- *  restraint elsewhere, not a photoreal cloud. */
+/** A quiet cloud: one long pill and one small bump, flat low-opacity fill (two shapes, no outline, no motion). */
 function Cloud({ def }: { def: CloudDef }) {
   const s = def.scale;
-  const left = def.lf * W;
-  const top = def.tf * H;
   return (
-    <View style={{ position: 'absolute', left, top, opacity: def.op, width: 64 * s, height: 30 * s }} pointerEvents="none">
-      <View style={{ position: 'absolute', left: 6 * s, top: 6 * s, width: 22 * s, height: 22 * s, borderRadius: 11 * s, backgroundColor: skyArt.cloud }} />
-      <View style={{ position: 'absolute', left: 22 * s, top: 0, width: 26 * s, height: 26 * s, borderRadius: 13 * s, backgroundColor: skyArt.cloud }} />
-      <View style={{ position: 'absolute', left: 40 * s, top: 8 * s, width: 20 * s, height: 20 * s, borderRadius: 10 * s, backgroundColor: skyArt.cloud }} />
-      <View style={{ position: 'absolute', left: 4 * s, top: 16 * s, width: 56 * s, height: 12 * s, borderRadius: 6 * s, backgroundColor: skyArt.cloud }} />
+    <View style={{ position: 'absolute', left: def.lf * W, top: def.tf * H, opacity: def.op, width: 72 * s, height: 28 * s }} pointerEvents="none">
+      <View style={{ position: 'absolute', left: 0, top: 10 * s, width: 72 * s, height: 18 * s, borderRadius: 9 * s, backgroundColor: skyArt.cloud }} />
+      <View style={{ position: 'absolute', left: 18 * s, top: 0, width: 34 * s, height: 22 * s, borderRadius: 11 * s, backgroundColor: skyArt.cloud }} />
     </View>
-  );
-}
-
-/** The classic minimalist "flying bird" doodle — two connected shallow
- *  curves (a wide, gentle "M"), stroke only, no fill. Exactly the "2
- *  curves" shorthand for a bird silhouette, drawn once, never animated. */
-function Bird({ def }: { def: BirdDef }) {
-  const s = def.scale;
-  const w = 15 * s;
-  const h = 5.5 * s;
-  const left = def.lf * W;
-  const top = def.tf * H;
-  return (
-    <Svg
-      width={w * 2}
-      height={h * 1.7}
-      style={{ position: 'absolute', left, top, transform: def.flip ? [{ scaleX: -1 }] : undefined }}
-      pointerEvents="none"
-    >
-      <Path
-        d={`M0 ${h} Q ${w / 2} 0 ${w} ${h} Q ${w * 1.5} 0 ${w * 2} ${h}`}
-        stroke={skyArt.bird}
-        strokeWidth={1.4 * s}
-        fill="none"
-        strokeLinecap="round"
-      />
-    </Svg>
   );
 }
 
@@ -182,64 +135,12 @@ function TwinklingStarField({ stars }: { stars: StarDef[] }) {
   );
 }
 
-const RAY_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
-
-/**
- * A slow "breathing" loop (0 -> 1 -> 0). `half` is the milliseconds for each
- * direction, so a full cycle is 2 * half. Used to gently pulse celestial glows —
- * deliberately slow (several seconds) so the sky feels alive, not busy.
- */
-function useSlowPulse(half: number) {
-  const reducedMotion = useReducedMotion();
-  const v = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (reducedMotion) {
-      // Settle at the peak (not the trough) so the glow reads as steady-and-lit
-      // rather than dimmed/broken when motion is reduced.
-      v.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(v, { toValue: 1, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(v, { toValue: 0, duration: half, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [v, half, reducedMotion]);
-  return v;
-}
-
-/**
- * A soft, true radial-gradient halo behind a sun-type body — replaces the old
- * "two flat-opacity rings" approximation (which read as visible concentric
- * bands, a big part of the "vibe coded" look) with an actual smooth falloff
- * to transparent, via `react-native-svg`'s `RadialGradient`.
- */
-function CelestialGlow({
-  x,
-  y,
-  radius,
-  color,
-  opacity,
-  scale,
-}: {
-  x: number;
-  y: number;
-  radius: number;
-  color: string;
-  opacity: Animated.AnimatedInterpolation<number>;
-  scale: Animated.AnimatedInterpolation<number>;
-}) {
+function CelestialGlow({ x, y, radius, color, opacity = 0.85 }: { x: number; y: number; radius: number; color: string; opacity?: number }) {
   const rawId = useId().replace(/:/g, '');
   const gradId = `glow-${rawId}`;
   const d = radius * 2;
   return (
-    <Animated.View
-      pointerEvents="none"
-      style={{ position: 'absolute', left: x - radius, top: y - radius, width: d, height: d, opacity, transform: [{ scale }] }}
-    >
+    <View pointerEvents="none" style={{ position: 'absolute', left: x - radius, top: y - radius, width: d, height: d, opacity }}>
       <Svg width={d} height={d}>
         <Defs>
           <RadialGradient id={gradId} cx="50%" cy="50%" r="50%">
@@ -250,38 +151,22 @@ function CelestialGlow({
         </Defs>
         <Circle cx={radius} cy={radius} r={radius} fill={`url(#${gradId})`} />
       </Svg>
-    </Animated.View>
+    </View>
   );
 }
 
+/** The sun: a steady disc with a static halo (no rays, no pulse). */
 function ActiveSun({ x, y, prayer }: { x: number; y: number; prayer: Period }) {
   const cfg = {
-    dhuhr: { r: 22, glow: skyArt.sunGlowDhuhr, glowR: 60, rays: true },
-    asr: { r: 16, glow: skyArt.sunGlowAsr, glowR: 44, rays: false },
-    maghrib: { r: 11, glow: skyArt.sunGlowMaghrib, glowR: 34, rays: false },
+    dhuhr: { r: 22, glow: skyArt.sunGlowDhuhr, glowR: 60 },
+    asr: { r: 16, glow: skyArt.sunGlowAsr, glowR: 44 },
+    maghrib: { r: 11, glow: skyArt.sunGlowMaghrib, glowR: 34 },
   } as const;
-  const { r, glow, glowR, rays } = cfg[prayer as keyof typeof cfg] ?? { r: 16, glow: skyArt.sunGlowDhuhr, glowR: 44, rays: false };
-  const RAY_LEN = 9;
-  const RAY_GAP = 5;
-
-  // Slow glow pulse — asr breathes the slowest, then maghrib, then dhuhr.
-  const pulse = useSlowPulse(prayer === 'asr' ? 5200 : prayer === 'maghrib' ? 4400 : 3800);
-  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.1] });
-  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
-
+  const { r, glow, glowR } = cfg[prayer as keyof typeof cfg] ?? { r: 16, glow: skyArt.sunGlowDhuhr, glowR: 44 };
   return (
     <>
-      <CelestialGlow x={x} y={y} radius={glowR} color={glow} opacity={glowOpacity} scale={glowScale} />
+      <CelestialGlow x={x} y={y} radius={glowR} color={glow} />
       <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: skyArt.sun }} />
-      {rays && RAY_ANGLES.map((deg) => {
-        const isDiag = deg % 90 !== 0;
-        const len = isDiag ? RAY_LEN * 0.6 : RAY_LEN;
-        const dist = r + RAY_GAP + len / 2;
-        const rad = (deg * Math.PI) / 180;
-        const rx = x + dist * Math.sin(rad);
-        const ry = y - dist * Math.cos(rad);
-        return <View key={deg} style={{ position: 'absolute', left: rx - 1, top: ry - len / 2, width: 2, height: len, borderRadius: 1, backgroundColor: skyArt.sunRay, transform: [{ rotate: `${deg}deg` }] }} />;
-      })}
     </>
   );
 }
@@ -332,31 +217,26 @@ function ActiveMoon({ x, y, prayer }: { x: number; y: number; prayer: Period }) 
 
 function SunriseSun({ x, y }: { x: number; y: number }) {
   const r = 13;
-  const pulse = useSlowPulse(4600);
-  const glowScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.12] });
-  const glowOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] });
   return (
     <>
-      <CelestialGlow x={x} y={y} radius={38} color={skyArt.sunriseGlow} opacity={glowOpacity} scale={glowScale} />
+      <CelestialGlow x={x} y={y} radius={38} color={skyArt.sunriseGlow} />
       <View style={{ position: 'absolute', left: x - r, top: y - r, width: r * 2, height: r * 2, borderRadius: r, backgroundColor: skyArt.sunrise }} />
     </>
   );
 }
 
-export default function SkyScene({ prayer, skyAreaY }: Props) {
+function SkyArt({ prayer, skyAreaY }: Props) {
   const arc = useMemo(() => getArc(skyAreaY), [skyAreaY]);
   const { cx, cy, a, b } = arc;
   const pos = arcXY(cx, cy, a, b, DEG[prayer]);
   const stars = STARS_FOR[prayer];
   const body = BODY[prayer];
   const clouds = CLOUDS_FOR[prayer];
-  const birds = BIRDS_FOR[prayer];
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {stars && <TwinklingStarField key={prayer} stars={stars} />}
       {clouds && clouds.map((c, i) => <Cloud key={`cloud-${i}`} def={c} />)}
-      {birds && birds.map((b, i) => <Bird key={`bird-${i}`} def={b} />)}
       {body === 'sunrise' ? (
         <SunriseSun x={pos.x} y={pos.y} />
       ) : body === 'sun' ? (
@@ -364,6 +244,60 @@ export default function SkyScene({ prayer, skyAreaY }: Props) {
       ) : (
         <ActiveMoon x={pos.x} y={pos.y} prayer={prayer} />
       )}
+    </View>
+  );
+}
+
+interface ArtLayer {
+  id: number;
+  prayer: Period;
+  v: Animated.Value;
+}
+
+/**
+ * The sky scene's celestial art. A stage change fades the old art out while the new art fades in over the same duration
+ * as the gradient crossfade (AmbientGradient), so the sun/moon/stars never hard-cut. Snaps when the app has just resumed.
+ */
+export default function SkyScene({ prayer, skyAreaY }: Props) {
+  const { motion, reduceMotion } = useTheme();
+  const recentlyResumed = useResumeSnap();
+  const nextId = useRef(1);
+  const [layers, setLayers] = useState<ArtLayer[]>(() => [{ id: 0, prayer, v: new Animated.Value(1) }]);
+  const layersRef = useRef(layers);
+  layersRef.current = layers;
+  const shown = useRef(prayer);
+
+  useEffect(() => () => layersRef.current.forEach((l) => l.v.stopAnimation()), []);
+
+  useEffect(() => {
+    if (prayer === shown.current) return;
+    shown.current = prayer;
+    if (recentlyResumed()) {
+      layersRef.current.forEach((l) => l.v.stopAnimation());
+      setLayers([{ id: nextId.current++, prayer, v: new Animated.Value(1) }]);
+      return;
+    }
+    const layer: ArtLayer = { id: nextId.current++, prayer, v: new Animated.Value(0) };
+    const outgoing = layersRef.current.slice(-2);
+    setLayers([...outgoing, layer]);
+    const cfg = {
+      duration: reduceMotion ? motion.duration.reducedFade : motion.duration.skyCrossfade,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: true,
+    };
+    Animated.parallel([Animated.timing(layer.v, { toValue: 1, ...cfg }), ...outgoing.map((l) => Animated.timing(l.v, { toValue: 0, ...cfg }))]).start(({ finished }) => {
+      if (finished) setLayers((cur) => cur.filter((l) => l.id === layer.id));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prayer]);
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {layers.map((l) => (
+        <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.v }]} pointerEvents="none">
+          <SkyArt prayer={l.prayer} skyAreaY={skyAreaY} />
+        </Animated.View>
+      ))}
     </View>
   );
 }

@@ -76,6 +76,22 @@ const unwrapHue = (stops) => {
   return hs;
 };
 const cr = (p0, p1, p2, p3, t) => 0.5 * (2 * p1 + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (-p0 + 3 * p1 - 3 * p2 + p3) * t * t * t);
+// Light smoothing of the dense ramp (5-tap binomial-ish kernel, endpoints pinned) so no stop leaves a visible slope seam.
+const smoothDense = (arr) => {
+  const hs = [arr[0][2]];
+  for (let i = 1; i < arr.length; i++) { let d = arr[i][2] - (hs[i - 1] % 360); if (d > 180) d -= 360; if (d < -180) d += 360; hs.push(hs[i - 1] + d); }
+  const w = [1, 2, 3, 2, 1];
+  return arr.map((p, i) => {
+    if (i === 0 || i === arr.length - 1) return p;
+    let L = 0, C = 0, H = 0, tw = 0;
+    for (let k = -2; k <= 2; k++) {
+      const j = Math.max(0, Math.min(arr.length - 1, i + k));
+      const wt = w[k + 2];
+      L += arr[j][0] * wt; C += arr[j][1] * wt; H += hs[j] * wt; tw += wt;
+    }
+    return [L / tw, C / tw, (((H / tw) % 360) + 360) % 360];
+  });
+};
 const densify = (stops) => {
   const hs = unwrapHue(stops);
   const n = stops.length;
@@ -90,7 +106,7 @@ const densify = (stops) => {
     }
   }
   out.push(stops[n - 1]);
-  return out;
+  return smoothDense(out);
 };
 const hueDelta = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 

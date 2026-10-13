@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, Animated, Easing, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
 import { useTheme } from '../design/theme';
+import { useResumeSnap } from '../hooks/useResumeSnap';
 import { colorTokens } from '../design/tokens.generated';
 
 interface AmbientGradientProps {
@@ -23,8 +24,6 @@ interface Layer {
 
 const key = (c: string[]) => c.join('|');
 const alphaHex = (a: number) => Math.round(Math.max(0, Math.min(1, a)) * 255).toString(16).padStart(2, '0');
-/** Colour changes this soon after returning to the foreground snap instead of fading. */
-const RESUME_SNAP_MS = 2500;
 
 function Sky({ colors }: { colors: string[] }) {
   return (
@@ -50,30 +49,23 @@ export default function AmbientGradient({ colors, scrimBottomOpacity = 0 }: Ambi
   const layersRef = useRef(layers);
   layersRef.current = layers;
   const shown = useRef(key(colors));
-  const lastActiveAt = useRef(0);
+  const recentlyResumed = useResumeSnap();
 
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => {
-      if (s === 'active') lastActiveAt.current = Date.now();
-    });
-    return () => {
-      sub.remove();
-      layersRef.current.forEach((l) => l.v.stopAnimation());
-    };
-  }, []);
+  useEffect(() => () => layersRef.current.forEach((l) => l.v.stopAnimation()), []);
 
   useEffect(() => {
     if (key(colors) === shown.current) return;
     shown.current = key(colors);
 
-    if (Date.now() - lastActiveAt.current < RESUME_SNAP_MS) {
+    if (recentlyResumed()) {
       layersRef.current.forEach((l) => l.v.stopAnimation());
       setLayers([{ id: nextId.current++, colors, v: new Animated.Value(1) }]);
       return;
     }
 
     const layer: Layer = { id: nextId.current++, colors, v: new Animated.Value(0) };
-    setLayers((cur) => [...cur, layer]);
+    // At most three skies stacked (outgoing, still-fading, incoming) so a rapid second change never pops a half-faded layer.
+    setLayers((cur) => [...cur.slice(-2), layer]);
     Animated.timing(layer.v, {
       toValue: 1,
       duration: reduceMotion ? motion.duration.reducedFade : motion.duration.skyCrossfade,
@@ -88,15 +80,13 @@ export default function AmbientGradient({ colors, scrimBottomOpacity = 0 }: Ambi
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      {layers.map((l, i) =>
-        i === 0 ? (
-          <Sky key={l.id} colors={l.colors} />
-        ) : (
-          <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.v }]}>
-            <Sky colors={l.colors} />
-          </Animated.View>
-        ),
-      )}
+      {layers.map((l) => (
+        <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.v }]}>
+          <Sky colors={l.colors} />
+        </Animated.View>
+      ))}
+      {/* Static noise tile: breaks up 8-bit banding on the large dark ramps. Mounted once, above the skies, below the scrim. */}
+      <Image source={DITHER} resizeMode="repeat" style={[StyleSheet.absoluteFill, styles.dither]} fadeDuration={0} accessibilityElementsHidden importantForAccessibility="no" />
       {scrimBottomOpacity > 0 && (
         <LinearGradient
           colors={[`${colorTokens.dark.scrimBase}${alphaHex(0.05)}`, `${colorTokens.dark.scrimBase}${alphaHex(scrimBottomOpacity)}`]}
@@ -109,6 +99,11 @@ export default function AmbientGradient({ colors, scrimBottomOpacity = 0 }: Ambi
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const DITHER = require('../../assets/dither.png');
+
 const styles = StyleSheet.create({
   cross: { opacity: 0.3 },
+  // ~1 LSB of noise on 8-bit ramps: enough to break banding without visible grain.
+  dither: { opacity: 0.013, pointerEvents: 'none' },
 });
