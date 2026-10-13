@@ -207,7 +207,8 @@ function Compass({
   }, [isAligned, reduceMotion, lock, dotScale, motion]);
 
   // Underlays vanish at the very end of the crossfade so anti-aliased edges never fringe through the accent copy.
-  const under = lock.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] });
+  // Memoised so the memoised Rose receives a stable prop and skips re-render on every heading change.
+  const under = useMemo(() => lock.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 1, 0] }), [lock]);
 
   const a11yLabel = unavailable
     ? `Qibla is ${Math.round(qiblaBearing)} degrees from north, ${CARDINAL_WORDS[toCardinal(qiblaBearing)]}.`

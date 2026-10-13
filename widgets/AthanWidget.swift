@@ -114,7 +114,8 @@ extension View {
   @ViewBuilder
   func skyBackgroundCompat(stage: String) -> some View {
     if #available(iOS 17.0, *) {
-      self.padding(16).containerBackground(for: .widget) { SkyBackground(stage: stage) }
+      // iOS 17+ already insets widget content by the system content margin (~16pt); adding our own padding would double it.
+      self.containerBackground(for: .widget) { SkyBackground(stage: stage) }
     } else {
       self.padding(16).background(SkyBackground(stage: stage))
     }
@@ -184,7 +185,10 @@ struct AthanWidgetView: View {
     } else {
       VStack(spacing: 4) {
         Image(systemName: "moon.stars").foregroundColor(DTNight.skyText)
-        Text("Open AthanNow").font(DTFont.text(12)).foregroundColor(DTNight.skyTextSecondary)
+        Text("No times yet. Open AthanNow to load them.")
+          .font(DTFont.text(12))
+          .foregroundColor(DTNight.skyTextSecondary)
+          .multilineTextAlignment(.center)
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .skyBackgroundCompat(stage: "isha")
@@ -510,7 +514,7 @@ struct AthanGroupWidgetView: View {
   var entry: AthanEntry
   let ids: Set<String>
   var body: some View {
-    if let data = entry.data, !data.times.isEmpty {
+    if let data = entry.data, nextPrayer(data, now: entry.date) != nil {
       PrayerGroupRectangularView(data: data, ids: ids, now: entry.date)
     } else {
       Label("Open AthanNow", systemImage: "moon.stars.fill").font(.caption2).accessoryContainer()

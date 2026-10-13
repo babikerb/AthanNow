@@ -12,9 +12,8 @@ const { width: W, height: H } = Dimensions.get('screen');
 type Period = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha';
 
 interface Props {
-  /** Which stage to show — the sky switches directly, no cross-fade/blend
-   *  toward the next stage as its time approaches (removed per explicit
-   *  feedback; each stage renders discretely). */
+  /** Which stage to show. A stage change crossfades the art once, in step with the gradient (no continuous blend
+   *  toward the next stage as its time approaches). */
   prayer: Period;
   /** Absolute Y where the sky strip starts (below the location pill). */
   skyAreaY: number;
