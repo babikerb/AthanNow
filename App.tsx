@@ -38,6 +38,7 @@ import AthanScreen from './src/screens/AthanScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import QiblaScreen from './src/screens/QiblaScreen';
 import QuranScreen from './src/screens/QuranScreen';
+import { useImmersive } from './src/navigation/immersive';
 import SettingsScreen from './src/screens/SettingsScreen';
 
 const Tab = createNativeBottomTabNavigator();
@@ -52,6 +53,7 @@ const tabIcon = (name: 'moon.stars' | 'calendar' | 'book' | 'safari' | 'gearshap
 
 function MainTabs() {
   const { c } = useDesignTheme();
+  const immersive = useImmersive();
   return (
     <View style={{ flex: 1 }}>
       <NavigationContainer ref={navigationRef}>
@@ -59,6 +61,7 @@ function MainTabs() {
           tabBarActiveTintColor={c.accent}
           tabBarInactiveTintColor={c.textSecondary}
           hapticFeedbackEnabled
+          tabBarHidden={immersive}
         >
         <Tab.Screen
           name="Athan"

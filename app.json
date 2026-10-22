@@ -67,7 +67,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#17121F"
         }
-      ]
+      ],
+      "expo-image"
     ],
     "extra": {
       "eas": {

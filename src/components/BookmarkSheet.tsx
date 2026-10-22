@@ -1,11 +1,11 @@
 import { SymbolView } from 'expo-symbols';
-import React from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo } from 'react';
+import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 
-import { useTheme } from '../context/ThemeContext';
-import { Bookmark } from '../hooks/useBookmarks';
 import { textStyle } from '../design/tokens';
+import { Bookmark, BOOKMARK_COLOR_NAMES, BOOKMARK_COLORS, BookmarkColor, bookmarkColor } from '../hooks/useBookmarks';
 import { Palette } from '../theme/colors';
+import { juzForPage } from '../utils/mushaf';
 import { Sheet } from './Sheet';
 
 interface BookmarkSheetProps {
@@ -13,47 +13,59 @@ interface BookmarkSheetProps {
   onClose: () => void;
   bookmarks: Bookmark[];
   onSelect: (bookmark: Bookmark) => void;
-  onRemove: (surahId: number, ayah: number) => void;
-  /** Overrides the app's default (dark) palette — the Quran tab stays on the
-   *  forced-light reading palette instead. */
-  palette?: Palette;
+  onRemove: (bookmark: Bookmark) => void;
+  palette: Palette;
 }
 
-export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove, palette }: BookmarkSheetProps) {
-  const { colors: themeColors } = useTheme();
-  const colors = palette ?? themeColors;
+const ORDER = Object.keys(BOOKMARK_COLORS) as BookmarkColor[];
+
+export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove, palette: colors }: BookmarkSheetProps) {
+  // Grouped by colour, most recent first within each, the way Ayah groups highlights.
+  const sections = useMemo(
+    () =>
+      ORDER.map((c) => ({ color: c, data: bookmarks.filter((b) => (b.color ?? 'red') === c) })).filter((s) => s.data.length > 0),
+    [bookmarks],
+  );
 
   return (
     <Sheet visible={visible} onClose={onClose} title="Bookmarks" palette={colors}>
       {bookmarks.length === 0 ? (
         <View style={styles.empty}>
-          <SymbolView name="bookmark" size={40} tintColor={colors.textTertiary} />
-          <Text style={[styles.emptyText, { color: colors.textTertiary }]}>
-            Nothing saved yet. Tap the bookmark button while you read to keep your place.
+          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No bookmarks</Text>
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            Tap the ribbon below a page to mark it. Use a different colour for each thing you're reading.
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={bookmarks}
-          keyExtractor={(b) => `${b.surahId}:${b.ayah}`}
-          contentContainerStyle={{ paddingVertical: 8 }}
+        <SectionList
+          sections={sections}
+          keyExtractor={(b) => `${b.page ?? 0}:${b.surahId}:${b.ayah}`}
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={styles.list}
+          renderSectionHeader={({ section }) => (
+            <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{BOOKMARK_COLOR_NAMES[section.color]}</Text>
+          )}
           renderItem={({ item }) => (
             <Pressable
               onPress={() => {
                 onSelect(item);
                 onClose();
               }}
-              style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.surahName}, page ${item.page ?? ''}`}
+              style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, backgroundColor: pressed ? colors.surface : 'transparent' }]}
             >
-              <SymbolView name="bookmark.fill" size={18} tintColor={colors.accent} style={styles.glyph} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>{item.surahName}</Text>
-                <Text style={[styles.sub, { color: colors.textTertiary }]}>
-                  {item.page ? `Page ${item.page} · Ayah ${item.ayah}` : `Ayah ${item.ayah}`}
+              <SymbolView name="bookmark.fill" size={17} tintColor={bookmarkColor(item)} style={styles.glyph} />
+              <View style={styles.rowText}>
+                <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {item.surahName}
+                </Text>
+                <Text style={[styles.sub, { color: colors.textSecondary }]}>
+                  {item.page ? `Page ${item.page}, Juz ${juzForPage(item.page)}` : `Ayah ${item.ayah}`}
                 </Text>
               </View>
-              <Pressable onPress={() => onRemove(item.surahId, item.ayah)} hitSlop={14} accessibilityRole="button" accessibilityLabel={`Remove bookmark, ${item.surahName}`}>
-                <SymbolView name="xmark.circle.fill" size={22} tintColor={colors.textTertiary} />
+              <Pressable onPress={() => onRemove(item)} hitSlop={12} accessibilityRole="button" accessibilityLabel={`Remove bookmark, ${item.surahName}`}>
+                <Text style={[styles.remove, { color: colors.textSecondary }]}>Remove</Text>
               </Pressable>
             </Pressable>
           )}
@@ -64,10 +76,15 @@ export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove,
 }
 
 const styles = StyleSheet.create({
-  empty: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, paddingHorizontal: 40, gap: 16 },
+  empty: { paddingTop: 64, paddingHorizontal: 32, gap: 8 },
+  emptyTitle: { ...textStyle('headline'), textAlign: 'center' },
   emptyText: { ...textStyle('subhead'), textAlign: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
-  glyph: { width: 22, height: 22 },
+  list: { paddingBottom: 32 },
+  sectionHeader: { ...textStyle('footnote'), paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, minHeight: 56, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  glyph: { width: 20, height: 20 },
+  rowText: { flex: 1 },
   title: { ...textStyle('bodyEmph') },
   sub: { ...textStyle('footnote'), marginTop: 2 },
+  remove: { ...textStyle('subhead') },
 });

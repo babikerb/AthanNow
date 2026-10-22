@@ -1,379 +1,284 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isLiquidGlassSupported, LiquidGlassView } from '@callstack/liquid-glass';
-import { haptic } from '../design/haptics';
+import { useFocusEffect } from '@react-navigation/native';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookmarkSheet } from '../components/BookmarkSheet';
 import { MushafImageReader } from '../components/MushafImageReader';
-import { QuranReader, ReaderSection } from '../components/QuranReader';
 import { SurahPickerSheet } from '../components/SurahPickerSheet';
-import { useSettings } from '../context/SettingsContext';
-import { useTheme } from '../context/ThemeContext';
 import { getSurah } from '../data/surahs';
 import { pageForSurah, surahForPage, TOTAL_PAGES } from '../data/surahPages';
-import { Bookmark, useBookmarks } from '../hooks/useBookmarks';
-import { useFocusedStatusBar } from '../hooks/useStatusBar';
+import { haptic } from '../design/haptics';
 import { textStyle } from '../design/tokens';
+import { Bookmark, BOOKMARK_COLOR_NAMES, BOOKMARK_COLORS, BookmarkColor, bookmarkColor, useBookmarks } from '../hooks/useBookmarks';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useFocusedStatusBar } from '../hooks/useStatusBar';
+import { setImmersive } from '../navigation/immersive';
 import { readingPalette } from '../theme/colors';
-import { fetchChapterVerses } from '../utils/quran';
 import { fetchMushafPage, juzForPage, pageForVerse } from '../utils/mushaf';
 
-const LAST_SURAH = 114;
 const LAST_PAGE_KEY = 'athannow.quran.lastpage.v1';
+const LAST_COLOR_KEY = 'athannow.quran.lastcolor.v1';
 
-// Content height of the header/footer bars, excluding the safe-area inset
-// (top-of-notch / home-indicator) each one also carries.
-const HEADER_CONTENT_H = 44;
-const FOOTER_CONTENT_H = 56;
-// Standard iOS native tab bar height (49pt) on top of the home-indicator
-// inset. `react-native-bottom-tabs` renders the screen full-bleed *behind*
-// the tab bar rather than shrinking it, so anything anchored to this
-// screen's own bottom edge (like the footer bar) renders underneath the
-// tab bar unless it's pushed up by this amount.
-const TAB_BAR_H_ESTIMATE = 49;
+// Content heights of the header/footer bars, excluding the safe-area inset each also carries.
+const HEADER_H = 44;
+const FOOTER_H = 52;
+// The native tab bar (react-native-bottom-tabs) draws over the screen instead of shrinking it.
+const TAB_BAR_H = 49;
+
+const COLOR_ORDER = Object.keys(BOOKMARK_COLORS) as BookmarkColor[];
 
 export default function QuranScreen() {
   const insets = useSafeAreaInsets();
-  const { bookmarks, isBookmarked, toggleBookmark, removeBookmark } = useBookmarks();
+  const reduceMotion = useReducedMotion();
+  const { bookmarks, bookmarkForPage, setPageBookmark, removeBookmark } = useBookmarks();
 
-  // Quran is always the printed-page mushaf with horizontal page turning.
-  const isMushaf = true;
-
-  // Reading surface is always the warm-paper light palette, regardless of the
-  // rest of the app's forced-dark theme — a full page of Arabic text reads
-  // best on light paper, and this is the one deliberate exception.
-  const pageColors = readingPalette;
-
+  // The reading surface is always warm paper, the one deliberate exception to the app's dark theme.
+  const colors = readingPalette;
   useFocusedStatusBar('dark');
 
-  const [selectedSurahId, setSelectedSurahId] = useState(1);
-  const [visibleSurahId, setVisibleSurahId] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageTarget, setPageTarget] = useState(1);
-  // Restore the last-read page so the reader resumes instead of resetting to page 1.
   const [restored, setRestored] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [trayOpen, setTrayOpen] = useState(false);
+  const [lastColor, setLastColor] = useState<BookmarkColor>('red');
 
+  // Restore the last-read page so the reader resumes instead of resetting to page 1.
   useEffect(() => {
     let cancelled = false;
-    AsyncStorage.getItem(LAST_PAGE_KEY)
-      .then((v) => {
-        const n = Number(v);
-        if (!cancelled && Number.isFinite(n) && n >= 1 && n <= TOTAL_PAGES) {
+    Promise.all([AsyncStorage.getItem(LAST_PAGE_KEY), AsyncStorage.getItem(LAST_COLOR_KEY)])
+      .then(([pageRaw, colorRaw]) => {
+        if (cancelled) return;
+        const n = Number(pageRaw);
+        if (Number.isFinite(n) && n >= 1 && n <= TOTAL_PAGES) {
           setPageTarget(n);
           setCurrentPage(n);
-          setVisibleSurahId(surahForPage(n));
-          setSelectedSurahId(surahForPage(n));
         }
+        if (colorRaw && colorRaw in BOOKMARK_COLORS) setLastColor(colorRaw as BookmarkColor);
       })
+      .catch(() => {})
       .finally(() => !cancelled && setRestored(true));
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Persist the page as the user reads (after restore, so we don't overwrite with 1).
   useEffect(() => {
     if (restored) AsyncStorage.setItem(LAST_PAGE_KEY, String(currentPage)).catch(() => {});
   }, [currentPage, restored]);
 
-  const [sections, setSections] = useState<ReaderSection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [bookmarkOpen, setBookmarkOpen] = useState(false);
-
-  const sectionsRef = useRef<ReaderSection[]>([]);
-  sectionsRef.current = sections;
-  const loadingMoreRef = useRef(false);
-
-  const loadSelected = useCallback((id: number) => {
-    setLoading(true);
-    setError(false);
-    setSections([]);
-    let cancelled = false;
-    fetchChapterVerses(id)
-      .then((v) => {
-        if (cancelled) return;
-        const s = getSurah(id);
-        if (s) setSections([{ surah: s, verses: v }]);
-      })
-      .catch(() => !cancelled && setError(true))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Both reading modes now render the printed page images, so no chapter text is
-  // fetched for display. (loadSelected is retained for potential future use.)
-  void loadSelected;
-
-  const onRequestMore = useCallback(() => {
-    if (loadingMoreRef.current) return;
-    const cur = sectionsRef.current;
-    if (cur.length === 0) return;
-    const lastId = cur[cur.length - 1].surah.id;
-    if (lastId >= LAST_SURAH) return;
-    const nextId = lastId + 1;
-    loadingMoreRef.current = true;
-    fetchChapterVerses(nextId)
-      .then((v) => {
-        const s = getSurah(nextId);
-        if (s) setSections((p) => (p.some((x) => x.surah.id === nextId) ? p : [...p, { surah: s, verses: v }]));
-      })
-      .catch(() => {})
-      .finally(() => {
-        loadingMoreRef.current = false;
-      });
-  }, []);
-
-  const onMushafPageChange = useCallback((p: number) => {
-    setCurrentPage(p);
-    setVisibleSurahId(surahForPage(p));
-  }, []);
-
-  const selectSurah = useCallback((id: number) => {
-    const p = pageForSurah(id);
-    setSelectedSurahId(id);
-    setVisibleSurahId(id);
-    setCurrentPage(p);
-    setPageTarget(p);
-  }, []);
-
-  // Jump to a "surah:ayah" reference from search.
-  const goToVerse = useCallback(async (verseKey: string) => {
-    const surahId = Number(verseKey.split(':')[0]);
-    const page = await pageForVerse(verseKey).catch(() => undefined);
-    if (page) {
-      setPageTarget(page);
-      setCurrentPage(page);
-      setVisibleSurahId(surahForPage(page));
-    }
-    setSelectedSurahId(surahId);
-  }, []);
-
-  // Bookmark a specific ayah (used by mushaf long-press); stores the current page.
-  const bookmarkVerse = useCallback(
-    (surahId: number, ayah: number) => {
-      toggleBookmark(surahId, ayah, getSurah(surahId)?.transliteration ?? '', currentPage);
-    },
-    [toggleBookmark, currentPage],
+  // ---- Immersive reading: tap the page to hide the bars and the tab bar ----
+  const [chromeHidden, setChromeHidden] = useState(false);
+  const chrome = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.timing(chrome, { toValue: chromeHidden ? 0 : 1, duration: reduceMotion ? 0 : 200, useNativeDriver: true }).start();
+    setImmersive(chromeHidden);
+  }, [chromeHidden, chrome, reduceMotion]);
+  // Never leave the tab bar hidden when the reader loses focus.
+  useFocusEffect(
+    useCallback(() => {
+      setImmersive(chromeHidden);
+      return () => setImmersive(false);
+    }, [chromeHidden]),
   );
+  const toggleChrome = useCallback(() => {
+    setTrayOpen(false);
+    setChromeHidden((h) => !h);
+  }, []);
 
-  // Jump straight to a page number (from the general search).
-  const goToPage = useCallback((page: number) => {
+  const jumpTo = useCallback((page: number) => {
     setPageTarget(page);
     setCurrentPage(page);
-    setVisibleSurahId(surahForPage(page));
-    setSelectedSurahId(surahForPage(page));
+    setChromeHidden(false);
   }, []);
 
-  const selectBookmark = useCallback((b: Bookmark) => {
-    if (b.page) {
-      setPageTarget(b.page);
-      setCurrentPage(b.page);
-      setVisibleSurahId(surahForPage(b.page));
-    } else {
-      const p = pageForSurah(b.surahId);
-      setSelectedSurahId(b.surahId);
-      setVisibleSurahId(b.surahId);
-      setPageTarget(p);
-      setCurrentPage(p);
-    }
-  }, []);
+  const goToVerse = useCallback(
+    async (verseKey: string) => {
+      const page = await pageForVerse(verseKey).catch(() => undefined);
+      jumpTo(page ?? pageForSurah(Number(verseKey.split(':')[0])));
+    },
+    [jumpTo],
+  );
 
-  const headerSurah = useMemo(() => getSurah(visibleSurahId) ?? getSurah(selectedSurahId)!, [visibleSurahId, selectedSurahId]);
-  const juz = useMemo(() => juzForPage(currentPage), [currentPage]);
-  const tabBarH = insets.bottom + TAB_BAR_H_ESTIMATE;
+  const selectBookmark = useCallback((b: Bookmark) => jumpTo(b.page ?? pageForSurah(b.surahId)), [jumpTo]);
 
-  // Page-based bookmarking in both modes (the printed page is the unit).
-  const currentlyBookmarked = bookmarks.some((b) => b.page === currentPage);
+  const surahId = surahForPage(currentPage);
+  const surah = useMemo(() => getSurah(surahId)!, [surahId]);
+  const juz = juzForPage(currentPage);
+  const pageMark = bookmarkForPage(currentPage);
 
-  // One tap sets/removes a bookmark at the current page.
-  const quickBookmark = useCallback(async () => {
-    haptic.medium();
-    {
+  const markPage = useCallback(
+    async (color: BookmarkColor) => {
+      haptic.success();
+      setTrayOpen(false);
+      setLastColor(color);
+      AsyncStorage.setItem(LAST_COLOR_KEY, color).catch(() => {});
+      const page = currentPage;
+      // The first verse on the page names the bookmark; fall back to the page's surah if offline.
+      let spot = { surahId: surahForPage(page), ayah: 1 };
       try {
-        const data = await fetchMushafPage(currentPage);
-        const fw = data.lines.flatMap((l) => l.words).find((w) => w.verse_key);
-        const [s, a] = fw?.verse_key ? fw.verse_key.split(':').map(Number) : [visibleSurahId, 1];
-        toggleBookmark(s, a, getSurah(s)?.transliteration ?? '', currentPage);
+        const data = await fetchMushafPage(page);
+        const key = data.lines.flatMap((l) => l.words).find((w) => w.verse_key)?.verse_key;
+        if (key) {
+          const [s, a] = key.split(':').map(Number);
+          spot = { surahId: s, ayah: a };
+        }
       } catch {
-        toggleBookmark(visibleSurahId, 1, headerSurah.transliteration, currentPage);
+        // keep the fallback
       }
-    }
-  }, [currentPage, visibleSurahId, headerSurah, toggleBookmark]);
+      setPageBookmark({ page, ...spot, surahName: getSurah(spot.surahId)?.transliteration ?? '' }, color);
+    },
+    [currentPage, setPageBookmark],
+  );
 
-  const renderBody = () => {
-    // Wait for the saved page to load so we open where the user left off (no page-1 flash).
-    if (!restored) {
-      return (
-        <View style={styles.center}>
-          <ActivityIndicator color={pageColors.textTertiary} />
-        </View>
-      );
-    }
-    // The actual printed King Fahd Madani pages, horizontal page turning.
-    return (
-      <MushafImageReader
-        vertical={!isMushaf}
-        initialPage={pageTarget}
-        topInset={insets.top + HEADER_CONTENT_H}
-        bottomInset={tabBarH + FOOTER_CONTENT_H}
-        colors={pageColors}
-        dark={false}
-        onPageChange={onMushafPageChange}
-      />
-    );
-  };
+  const tabBarH = insets.bottom + TAB_BAR_H;
+  const topInset = insets.top + HEADER_H;
+  const bottomInset = tabBarH + FOOTER_H;
+  const chromePointer = chromeHidden ? 'none' : 'auto';
 
   return (
-    <View style={[styles.container, { backgroundColor: pageColors.background }]}>
-      <View style={styles.body}>{renderBody()}</View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {restored ? (
+        <MushafImageReader
+          initialPage={pageTarget}
+          topInset={topInset}
+          bottomInset={bottomInset}
+          colors={colors}
+          onPageChange={setCurrentPage}
+          onTap={toggleChrome}
+        />
+      ) : (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.textTertiary} />
+        </View>
+      )}
 
-      {/* Header bar — surah, page, Juz. Always visible, no immersive mode. */}
-      <View
+      {/* Header: surah, page, juz. */}
+      <Animated.View
+        pointerEvents={chromePointer}
         accessible
         accessibilityRole="header"
-        accessibilityLabel={`${headerSurah.transliteration}, page ${currentPage}, Juz ${juz}`}
-        style={[
-          styles.header,
-          {
-            height: insets.top + HEADER_CONTENT_H,
-            paddingTop: insets.top,
-            backgroundColor: pageColors.surface,
-            borderBottomColor: pageColors.separator,
-          },
-        ]}
+        accessibilityLabel={`${surah.transliteration}, page ${currentPage}, Juz ${juz}`}
+        style={[styles.header, { height: topInset, paddingTop: insets.top, backgroundColor: colors.background, borderBottomColor: colors.separator, opacity: chrome }]}
       >
-        <Text style={[styles.headerSurah, { color: pageColors.textPrimary }]} numberOfLines={1}>
-          {headerSurah.transliteration}
+        <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+          {surah.transliteration}
         </Text>
-        <Text style={[styles.headerMeta, { color: pageColors.textSecondary }]}>{currentPage}</Text>
-        <Text style={[styles.headerMeta, styles.headerMetaRight, { color: pageColors.textSecondary }]} numberOfLines={1}>
-          Juz {juz}
+        <Text style={[styles.headerMeta, { color: colors.textSecondary }]}>
+          Page {currentPage} · Juz {juz}
         </Text>
-      </View>
+      </Animated.View>
 
-      {/* Footer bar — a compact icon-only quick-bookmark toggle, plus separate
-          "All Bookmarks" and "Search" buttons, sitting just above the native
-          tab bar. Always visible, no immersive mode. */}
-      <View
-        style={[
-          styles.footerBar,
-          {
-            bottom: tabBarH,
-            height: FOOTER_CONTENT_H,
-            backgroundColor: pageColors.surface,
-            borderTopColor: pageColors.separator,
-          },
-        ]}
+      {/* Colour tray for the page ribbon. */}
+      {trayOpen && !chromeHidden && (
+        <View style={[styles.tray, { bottom: bottomInset, backgroundColor: colors.background, borderTopColor: colors.separator }]}>
+          {COLOR_ORDER.map((c) => {
+            const selected = pageMark?.color === c || (pageMark && !pageMark.color && c === 'red');
+            return (
+              <Pressable
+                key={c}
+                onPress={() => markPage(c)}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={`${BOOKMARK_COLOR_NAMES[c]} bookmark`}
+                accessibilityState={{ selected: !!selected }}
+                style={[styles.swatch, { backgroundColor: BOOKMARK_COLORS[c] }, selected && { borderColor: colors.textPrimary }]}
+              />
+            );
+          })}
+          {pageMark && (
+            <Pressable
+              onPress={() => {
+                haptic.light();
+                removeBookmark(pageMark);
+                setTrayOpen(false);
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              style={styles.trayRemove}
+            >
+              <Text style={[styles.footerLabel, { color: colors.textSecondary }]}>Remove</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {/* Footer: ribbon, bookmarks list, search. Solid paper, one icon style. */}
+      <Animated.View
+        pointerEvents={chromePointer}
+        style={[styles.footer, { bottom: tabBarH, height: FOOTER_H, backgroundColor: colors.background, borderTopColor: colors.separator, opacity: chrome }]}
       >
-        <FooterIconButton
-          colors={pageColors}
-          onPress={quickBookmark}
-          label={currentlyBookmarked ? 'Remove bookmark from this page' : 'Bookmark this page'}
-          selected={currentlyBookmarked}
-        >
-          <SymbolView name={currentlyBookmarked ? 'bookmark.fill' : 'bookmark'} size={19} tintColor={pageColors.textPrimary} />
-        </FooterIconButton>
-
-        <FooterButton colors={pageColors} label="Bookmarks" onPress={() => setBookmarkOpen(true)}>
-          <SymbolView name="books.vertical.fill" size={18} tintColor={pageColors.textPrimary} />
-          <Text style={[styles.footerButtonText, { color: pageColors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
-            Bookmarks
-          </Text>
-        </FooterButton>
-
         <FooterButton
-          colors={pageColors}
+          label={pageMark ? 'Change or remove this page’s bookmark' : 'Bookmark this page'}
+          onPress={() => {
+            haptic.select();
+            // First tap on an unmarked page uses the last colour; tapping again offers the others.
+            if (!pageMark && !trayOpen) markPage(lastColor);
+            else setTrayOpen((o) => !o);
+          }}
+          onLongPress={() => setTrayOpen(true)}
+        >
+          <SymbolView name={pageMark ? 'bookmark.fill' : 'bookmark'} size={18} tintColor={pageMark ? bookmarkColor(pageMark) : colors.textPrimary} />
+        </FooterButton>
+        <FooterButton label="Bookmarks" onPress={() => setBookmarksOpen(true)}>
+          <SymbolView name="list.bullet" size={18} tintColor={colors.textPrimary} />
+          <Text style={[styles.footerLabel, { color: colors.textPrimary }]}>Bookmarks</Text>
+        </FooterButton>
+        <FooterButton
           label="Search the Quran"
           onPress={() => {
             haptic.select();
             setPickerOpen(true);
           }}
         >
-          <SymbolView name="magnifyingglass" size={18} tintColor={pageColors.textPrimary} />
-          <Text style={[styles.footerButtonText, { color: pageColors.textPrimary }]} numberOfLines={1}>
-            Search
-          </Text>
+          <SymbolView name="magnifyingglass" size={18} tintColor={colors.textPrimary} />
+          <Text style={[styles.footerLabel, { color: colors.textPrimary }]}>Search</Text>
         </FooterButton>
-      </View>
+      </Animated.View>
 
       <SurahPickerSheet
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        currentSurahId={visibleSurahId}
-        onSelect={selectSurah}
+        currentSurahId={surahId}
+        onSelect={(id) => jumpTo(pageForSurah(id))}
         onSelectVerse={goToVerse}
-        onSelectPage={goToPage}
-        palette={pageColors}
+        onSelectPage={jumpTo}
+        palette={colors}
       />
       <BookmarkSheet
-        visible={bookmarkOpen}
-        onClose={() => setBookmarkOpen(false)}
+        visible={bookmarksOpen}
+        onClose={() => setBookmarksOpen(false)}
         bookmarks={bookmarks}
         onSelect={selectBookmark}
         onRemove={removeBookmark}
-        palette={pageColors}
+        palette={colors}
       />
     </View>
   );
 }
 
-/** A fuller, flex-filling footer button (icon + label), not a small icon-only circle. */
-function FooterButton({
-  colors,
-  label,
-  onPress,
-  onLongPress,
-  children,
-}: {
-  colors: typeof readingPalette;
-  label: string;
-  onPress: () => void;
-  onLongPress?: () => void;
-  children: React.ReactNode;
-}) {
-  const content = (
-    <Pressable onPress={onPress} onLongPress={onLongPress} hitSlop={6} style={styles.footerButtonHit} accessibilityRole="button" accessibilityLabel={label}>
+function FooterButton({ label, onPress, onLongPress, children }: { label: string; onPress: () => void; onLongPress?: () => void; children: React.ReactNode }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.footerButton, pressed && { opacity: 0.5 }]}
+    >
       {children}
     </Pressable>
   );
-  if (isLiquidGlassSupported) {
-    return (
-      <LiquidGlassView interactive colorScheme="light" style={styles.footerButton}>
-        {content}
-      </LiquidGlassView>
-    );
-  }
-  return <View style={[styles.footerButton, styles.footerButtonFallback, { borderColor: colors.separator, backgroundColor: colors.surfaceElevated }]}>{content}</View>;
-}
-
-/** Compact icon-only footer button (fixed square), for the quick-bookmark toggle. */
-function FooterIconButton({ colors, onPress, label, selected, children }: { colors: typeof readingPalette; onPress: () => void; label: string; selected?: boolean; children: React.ReactNode }) {
-  const content = (
-    <Pressable onPress={onPress} hitSlop={6} style={styles.footerButtonHit} accessibilityRole="button" accessibilityLabel={label}>
-      {children}
-    </Pressable>
-  );
-  if (isLiquidGlassSupported) {
-    return (
-      <LiquidGlassView interactive colorScheme="light" style={styles.footerIcon}>
-        {content}
-      </LiquidGlassView>
-    );
-  }
-  return <View style={[styles.footerIcon, styles.footerButtonFallback, { borderColor: colors.separator, backgroundColor: colors.surfaceElevated }]}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  body: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     position: 'absolute',
     top: 0,
@@ -383,31 +288,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 12,
     paddingHorizontal: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerSurah: { flex: 1, ...textStyle('subhead'), fontWeight: '600' },
-  headerMeta: { ...textStyle('footnote') },
-  headerMetaRight: { flex: 1, textAlign: 'right' },
-  footerBar: {
+  headerTitle: { ...textStyle('headline'), flexShrink: 1 },
+  headerMeta: { ...textStyle('footnote'), fontVariant: ['tabular-nums'] },
+  footer: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
     zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  footerButton: { flex: 1, height: 44, borderRadius: 12, borderCurve: 'continuous', overflow: 'hidden' },
-  footerIcon: { width: 44, height: 44, borderRadius: 12, borderCurve: 'continuous', overflow: 'hidden' },
-  footerButtonFallback: { borderWidth: StyleSheet.hairlineWidth },
-  footerButtonHit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', height: '100%', paddingHorizontal: 10 },
-  footerButtonText: { ...textStyle('subhead'), fontWeight: '600', flexShrink: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, paddingHorizontal: 40 },
-  errorText: { ...textStyle('subhead'), textAlign: 'center' },
+  footerButton: { flex: 1, height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  footerLabel: { ...textStyle('subhead') },
+  tray: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 11,
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingHorizontal: 20,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: 'transparent' },
+  trayRemove: { marginLeft: 'auto' },
 });
