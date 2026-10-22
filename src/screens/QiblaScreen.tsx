@@ -1,13 +1,14 @@
 import { useIsFocused } from '@react-navigation/native';
 import { SymbolView } from 'expo-symbols';
-import React, { useEffect, useMemo, useRef } from 'react';
-import { AccessibilityInfo, ActivityIndicator, Animated, Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../design/Button';
 import { haptic } from '../design/haptics';
 import { useTheme as useDesignTheme } from '../design/theme';
 import { colorTokens, textStyle } from '../design/tokens';
+import { LocationSheet } from '../components/LocationSheet';
 import { useLocation } from '../context/LocationContext';
 import { useQibla } from '../hooks/useQibla';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
@@ -30,6 +31,11 @@ const MARKS = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) 
 
 const CARDINAL_8 = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const CARDINAL_WORDS: Record<string, string> = { N: 'north', NE: 'north-east', E: 'east', SE: 'south-east', S: 'south', SW: 'south-west', W: 'west', NW: 'north-west' };
+const cardinalWord = (code: string) => {
+  const w = CARDINAL_WORDS[code] ?? code;
+  return w.charAt(0).toUpperCase() + w.slice(1);
+};
+
 function toCardinal(deg: number): string {
   return CARDINAL_8[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
 }
@@ -152,7 +158,7 @@ function Readout({ heading, qiblaBearing, unavailable, calibrating, lock, under 
         <Text style={styles.readoutDeg} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} maxFontSizeMultiplier={1.2}>
           {Math.round(qiblaBearing)}°
         </Text>
-        <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{toCardinal(qiblaBearing)}</Text>
+        <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{cardinalWord(toCardinal(qiblaBearing))}</Text>
       </>
     );
   }
@@ -168,7 +174,7 @@ function Readout({ heading, qiblaBearing, unavailable, calibrating, lock, under 
           {deg}
         </Animated.Text>
       </View>
-      <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{toCardinal(heading)}</Text>
+      <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{cardinalWord(toCardinal(heading))}</Text>
     </>
   );
 }
@@ -246,12 +252,12 @@ function Compass({
 }
 
 export default function QiblaScreen() {
-  const { cityName, status, location, hasRestored } = useLocation();
+  const { cityName, status, location, hasRestored, permission } = useLocation();
+  const [locationSheetOpen, setLocationSheetOpen] = useState(false);
   useFocusedStatusBar('light');
   const latitude = location?.latitude ?? null;
   const longitude = location?.longitude ?? null;
   const qibla = useQibla(latitude, longitude);
-  const loading = !location && status === 'loading';
   // Unresolved location (denied, failed, or never resolved) must not present Mecca's bearing as the user's.
   const error = status === 'denied' || status === 'error' || (status === 'idle' && hasRestored && !location?.isManual);
   const compassUnavailable = qibla.compassAvailable === false;
@@ -289,10 +295,7 @@ export default function QiblaScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 }]}>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false} bounces={false}>
-        {loading ? (
-          <ActivityIndicator color={c.skyText} size="large" accessibilityLabel="Finding your location" />
-        ) : (
-          <>
+        <>
             <View style={{ transform: [{ scale: dialScale }] }}>
             <Compass
               headingAnim={qibla.headingAnim}
@@ -308,8 +311,11 @@ export default function QiblaScreen() {
             <View style={styles.infoBlock}>
               {error ? (
                 <View style={styles.errorState}>
-                  <Text style={styles.infoText}>Qibla needs to know where you are. Turn on location, or choose a city from the Athan tab.</Text>
-                  <Button label="Open Settings" variant="secondary" onPress={() => Linking.openSettings().catch(() => {})} />
+                  <Text style={styles.infoText}>The Qibla depends on where you are. Choose your city to see it.</Text>
+                  <View style={styles.errorActions}>
+                    <Button label="Choose city" variant="secondary" onPress={() => setLocationSheetOpen(true)} />
+                    {permission === 'denied' && <Button label="Turn on location" variant="secondary" onPress={() => Linking.openSettings().catch(() => {})} />}
+                  </View>
                 </View>
               ) : compassUnavailable ? (
                 <Text style={styles.infoText}>
@@ -331,16 +337,16 @@ export default function QiblaScreen() {
                 )
               )}
             </View>
-          </>
-        )}
+        </>
       </ScrollView>
+      <LocationSheet visible={locationSheetOpen} onClose={() => setLocationSheetOpen(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  body: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 44 },
+  body: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 32 },
 
   dialWrap: { width: DIAL + 24, height: DIAL + 24, alignItems: 'center', justifyContent: 'center' },
   // Concentric with the dial border (the rose is a child of `dial`, so no offset).
@@ -368,8 +374,8 @@ const styles = StyleSheet.create({
   },
   crossV: { position: 'absolute', width: 1, height: DIAL - 8, backgroundColor: c.hairline },
   crossH: { position: 'absolute', height: 1, width: DIAL - 8, backgroundColor: c.hairline },
-  markLetter: { color: c.skyText, fontSize: 18, fontWeight: '700' },
-  markNumber: { color: c.skyTextSecondary, fontSize: 12, fontWeight: '500', fontVariant: ['tabular-nums'] },
+  markLetter: { ...textStyle('headline'), color: c.skyText },
+  markNumber: { ...textStyle('caption'), color: c.skyTextSecondary },
   qiblaDot: {
     width: 16,
     height: 16,
@@ -381,10 +387,11 @@ const styles = StyleSheet.create({
   stack: { position: 'absolute', top: 0, left: 0, right: 0 },
   readout: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
   readoutDeg: { ...textStyle('hero'), color: c.skyText, width: 190, textAlign: 'center' },
-  readoutCard: { ...textStyle('subhead'), color: c.textSecondary, letterSpacing: 3, marginTop: -2 },
+  readoutCard: { ...textStyle('subhead'), color: c.textSecondary },
 
-  infoBlock: { alignItems: 'center', minHeight: 60, gap: 10, paddingHorizontal: 32 },
+  infoBlock: { alignItems: 'center', minHeight: 60, gap: 4, paddingHorizontal: 24 },
   errorState: { alignItems: 'center', justifyContent: 'center', gap: 16 },
+  errorActions: { flexDirection: 'row', gap: 12 },
   cityText: { ...textStyle('title3'), color: c.skyText },
   distanceText: { ...textStyle('footnote'), color: c.textSecondary },
   infoText: { ...textStyle('subhead'), color: c.textSecondary, textAlign: 'center' },

@@ -50,7 +50,7 @@ export function getCelestialConfig(prayerName: string): CelestialConfig {
 
 export function formatCountdown(now: Date, nextPrayerTime: Date): string {
   const diffMs = nextPrayerTime.getTime() - now.getTime();
-  if (diffMs <= 0) return "00m 00s";
+  if (diffMs <= 0) return "Now";
 
   const totalSecs = Math.floor(diffMs / 1000);
   const hours = Math.floor(totalSecs / 3600);
