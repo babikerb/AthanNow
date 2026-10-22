@@ -1,11 +1,8 @@
-import { SymbolView } from 'expo-symbols';
-import { SFSymbol } from 'sf-symbols-typescript';
 import React, { useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSettings } from '../context/SettingsContext';
-import { Badge } from '../design/Badge';
 import { Button } from '../design/Button';
 import { haptic } from '../design/haptics';
 import { Text } from '../design/Text';
@@ -16,7 +13,7 @@ import type { AppLocation } from '../hooks/useLocation';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { importantDateFor } from '../utils/islamicDates';
-import { getCelestialConfig, getHijriDate, getPrayerTimes, PRAYER_LIST_ICONS } from '../utils/prayerEngine';
+import { getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 
 // A window of days around today the user can scroll through.
@@ -28,19 +25,16 @@ const FUTURE_DAYS = DAYS.slice(RANGE);
 // The 5 real prayers plus the sunrise boundary marker, matching Athan's list
 // order. Arabic name comes from `getCelestialConfig`, the same source Athan
 // uses for its own row labels.
-const PRAYER_META: { id: string; icon: SFSymbol; arabic: string }[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'].map((id) => ({
+const PRAYER_META: { id: string; arabic: string }[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'].map((id) => ({
   id,
-  icon: PRAYER_LIST_ICONS[id],
   arabic: getCelestialConfig(id).arabicName,
 }));
 
-// Fallback height estimate for rows that haven't rendered/measured yet (the
-// measured-height cache in `CalendarScreen` is the source of truth once rows
-// lay out). day padding 16*2 + header (title2 30 + hijri 2+16 + 12) 60 +
-// 6 rows x (7*2 padding + body 24) 38 = 228 + 5 gaps x 2 = 10 + hairline ~ 330.
-const NORMAL_DAY_H = 331;
-// + occasion badge row (badge ~20 + margin 8).
-const IMPORTANT_DAY_H = NORMAL_DAY_H + 28;
+// Fallback height until a day has been measured (measured heights win once rows lay out):
+// padding 12*2 + header (headline 22 + footnote 18 + 8) + 6 rows x 44.
+const NORMAL_DAY_H = 336;
+// + the occasion line.
+const IMPORTANT_DAY_H = NORMAL_DAY_H + 18;
 
 function startOfToday(): Date {
   const d = new Date();
@@ -63,10 +57,8 @@ interface DayRowProps {
 }
 
 /**
- * One natural-height day in a continuous agenda: never a fixed-height card, so
- * it can never clip. Days are separated by a hairline and whitespace. Today is
- * marked by a small accent badge; the next prayer on today's row carries the
- * same apricot tick used on Home.
+ * One day: a date header, then the six times in a grouped card. Natural height, so it never clips.
+ * The next prayer today carries the same apricot tick as Home.
  */
 const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod, asrMadhab, use24Hour, tz, colors, onMeasured }: DayRowProps) {
   const data = useMemo(() => {
@@ -90,36 +82,26 @@ const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod
   }, [offset, location.latitude, location.longitude, tz, calcMethod, asrMadhab]);
 
   return (
-    <View
-      style={[styles.day, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.hairline }]}
-      onLayout={(e) => onMeasured(offset, e.nativeEvent.layout.height)}
-    >
-      {data.important && (
-        <View style={styles.importantRow}>
-          <Badge label={data.important} tone="info" />
-        </View>
-      )}
-
-      {/* Hijri stacked as a subtitle below the Gregorian date so neither string can squeeze the other. */}
+    <View style={styles.day} onLayout={(e) => onMeasured(offset, e.nativeEvent.layout.height)}>
       <View
         style={styles.dayHeader}
         accessible
         accessibilityRole="header"
-        accessibilityLabel={`${data.isToday ? 'Today, ' : ''}${data.label}, ${data.hijri}`}
+        accessibilityLabel={`${data.isToday ? 'Today, ' : ''}${data.label}, ${data.hijri}${data.important ? `, ${data.important}` : ''}`}
       >
-        <View style={styles.dateRow}>
-          <Text variant="title2" style={{ flexShrink: 1 }}>
-            {data.label}
-          </Text>
-          {data.isToday && <Badge label="Today" tone="accent" />}
-        </View>
-        <Text variant="caption" color="textSecondary" style={{ marginTop: 2 }}>
+        <Text variant="headline">{data.isToday ? `Today, ${data.label}` : data.label}</Text>
+        <Text variant="footnote" color="textSecondary">
           {data.hijri}
         </Text>
+        {data.important && (
+          <Text variant="footnote" color="accentText">
+            {data.important}
+          </Text>
+        )}
       </View>
 
-      <View style={styles.rows}>
-        {data.rows.map((r) => {
+      <View style={[styles.card, { backgroundColor: colors.surface1 }]}>
+        {data.rows.map((r, i) => {
           const active = r.id === data.nextId;
           const time = r.time ? formatClock(r.time, use24Hour, tz) : '--:--';
           return (
@@ -127,21 +109,18 @@ const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod
               key={r.id}
               accessible
               accessibilityLabel={`${r.label}, ${time}${active ? ', next prayer' : ''}`}
-              style={[styles.row, active && { backgroundColor: colors.accentSoft }]}
+              style={[styles.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.hairline }]}
             >
               {active && <View style={[styles.tick, { backgroundColor: colors.accent }]} />}
-              {data.isToday && <SymbolView name={r.icon} size={16} type="hierarchical" tintColor={colors.textSecondary} />}
               <View style={styles.rowLabelWrap}>
-                <Text variant="body" color="text" style={{ fontWeight: active ? '600' : '400' }}>
-                  {r.label}
-                </Text>
+                <Text variant={active ? 'bodyEmph' : 'body'}>{r.label}</Text>
                 {data.isToday && (
                   <Text variant="footnote" color="textTertiary" style={{ flexShrink: 1 }}>
                     {r.arabic}
                   </Text>
                 )}
               </View>
-              <Text variant="body" color="text" style={{ fontWeight: active ? '600' : '400', fontVariant: ['tabular-nums'], flexShrink: 0 }}>
+              <Text variant={active ? 'bodyEmph' : 'body'} style={{ flexShrink: 0 }}>
                 {time}
               </Text>
             </View>
@@ -241,7 +220,6 @@ export default function CalendarScreen() {
         </Text>
         <Button
           label="Today"
-          icon="calendar"
           variant="secondary"
           style={{ flexShrink: 0, marginLeft: dt.spacing.md }}
           accessibilityHint="Scrolls to today's prayer times"
@@ -296,21 +274,10 @@ export default function CalendarScreen() {
 }
 
 const styles = StyleSheet.create({
-  day: { paddingVertical: 16 },
-  importantRow: { alignSelf: 'flex-start', marginBottom: 8 },
-  dayHeader: { marginBottom: 12 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  rows: { gap: 2 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-  },
-  tick: { position: 'absolute', left: 0, top: 10, bottom: 10, width: 3, borderRadius: 2 },
-  rowLabelWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+  day: { paddingVertical: 12 },
+  dayHeader: { paddingHorizontal: 4, paddingBottom: 8 },
+  card: { borderRadius: 20, borderCurve: 'continuous', overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 16 },
+  tick: { position: 'absolute', left: 0, top: 12, bottom: 12, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
+  rowLabelWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flex: 1 },
 });

@@ -80,8 +80,8 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     statusBar: 'light',
   },
   night: {
-    sky: ['#110E1A', '#1A1528', '#241D36'],
-    ridges: ['#1F1A2C', '#1C1729', '#1A1524'],
+    sky: ['#141022', '#1E1832', '#2C2444'],
+    ridges: ['#251F38', '#211B31', '#1D1729'],
     body: { kind: 'crescent', x: 84, y: 66, r: 15, color: '#E4DDF0' },
     stars: 28,
     starOpacity: 0.75,

@@ -5,8 +5,8 @@ import { Linking, StyleSheet, Text } from 'react-native';
 
 import { getLocationPermissionState, requestLocationPermission } from '../../../hooks/useLocation';
 import { skyTextSecondary } from '../../../theme/colors';
-import { spacing } from '../../../theme/spacing';
-import { type } from '../../../theme/typography';
+import { spacing as space } from '../../../design/tokens';
+import { textStyle } from '../../../design/tokens';
 import { getNotificationPermissionState, requestNotificationPermissionState } from '../../../utils/notifications';
 import { classifyPermission, PermissionUIState } from '../../../utils/permissionState';
 import { onboardingGradient } from '../../../utils/timeOfDayGradient';
@@ -159,6 +159,6 @@ export function PermissionStep({ index, total, permission, refreshLocation, onNe
 }
 
 const st = StyleSheet.create({
-  title: { ...type.title3, color: colorTokens.dark.skyText } as any,
-  body: { ...type.body, color: skyTextSecondary, marginTop: spacing.xs } as any,
+  title: { ...textStyle('title3'), color: colorTokens.dark.skyText } as any,
+  body: { ...textStyle('body'), color: skyTextSecondary, marginTop: space.sm } as any,
 });

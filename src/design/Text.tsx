@@ -22,14 +22,12 @@ export type TextColor = Extract<
 export interface TextProps extends RNTextProps {
   variant?: TypeVariant;
   color?: TextColor;
-  /** Uppercase eyebrow styling (caption2/footnote labels only). */
-  eyebrow?: boolean;
   /** Marks the element as a heading for VoiceOver. */
   header?: boolean;
 }
 
 /** Themed text. Always scales with Dynamic Type; tabular + lining figures come from the variant. */
-export function Text({ variant = 'body', color = 'text', eyebrow, header, style, ...rest }: TextProps) {
+export function Text({ variant = 'body', color = 'text', header, style, ...rest }: TextProps) {
   const t = useTheme();
   return (
     <RNText
@@ -38,7 +36,7 @@ export function Text({ variant = 'body', color = 'text', eyebrow, header, style,
       // Display-family sizes are large and wide; cap them (BRAND.md section 2). Callers can override.
       maxFontSizeMultiplier={typeTokens.scale[variant].family === 'display' ? 1.3 : undefined}
       {...rest}
-      style={[t.type(variant), { color: t.c[color] }, eyebrow && { textTransform: 'uppercase', letterSpacing: 0.8 }, style]}
+      style={[t.type(variant), { color: t.c[color] }, style]}
     />
   );
 }

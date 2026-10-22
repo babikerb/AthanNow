@@ -8,12 +8,12 @@ import { PressableScale } from './PressableScale';
 import { Text } from './Text';
 import { useTheme } from './theme';
 
-/** Section label above an inset-grouped list. Uppercase eyebrow, optional trailing action text. */
+/** Section label above an inset-grouped list, with optional trailing action text. */
 export function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.xxl, paddingBottom: t.spacing.sm }}>
-      <Text variant="caption2" color="textSecondary" eyebrow header>
+      <Text variant="footnote" color="textSecondary" header>
         {title}
       </Text>
       {action ? (

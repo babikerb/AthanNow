@@ -12,8 +12,8 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { Palette } from '../theme/colors';
 import { hitSlopFor, iconSize } from '../theme/icons';
-import { spacing } from '../theme/spacing';
-import { type } from '../theme/typography';
+import { spacing as space } from '../design/tokens';
+import { textStyle } from '../design/tokens';
 
 interface SheetProps {
   visible: boolean;
@@ -72,21 +72,21 @@ export function Sheet({ visible, onClose, title, headerRight, children, palette 
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  grabberWrap: { alignItems: 'center', paddingTop: spacing.xs },
+  grabberWrap: { alignItems: 'center', paddingTop: space.sm },
   grabber: { width: 36, height: 5, borderRadius: 3 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: space.xl,
     // 10 sits exactly between the xs/sm tokens; kept as-is rather than
     // visibly tightening or loosening this header row.
     paddingTop: 10,
-    paddingBottom: spacing.sm,
+    paddingBottom: space.md,
   },
-  // Sheet titles use `type.title3` (20/600): a quiet title, not a heavy header.
-  title: { ...type.title3, flex: 1 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  closeButton: { marginLeft: spacing.xxs, alignItems: 'center', justifyContent: 'center' },
+  // Sheet titles use `textStyle('title3')` (20/600): a quiet title, not a heavy header.
+  title: { ...textStyle('title3'), flex: 1 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  closeButton: { marginLeft: space.xs, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1 },
 });

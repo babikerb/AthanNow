@@ -4,8 +4,8 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { skyTextSecondary } from '../../../theme/colors';
-import { spacing } from '../../../theme/spacing';
-import { type } from '../../../theme/typography';
+import { spacing as space } from '../../../design/tokens';
+import { textStyle } from '../../../design/tokens';
 import { onboardingGradient } from '../../../utils/timeOfDayGradient';
 import { OnboardingBeacon } from '../OnboardingBeacon';
 import { StaggerReveal } from '../StaggerReveal';
@@ -69,9 +69,9 @@ export function WidgetStep({ index, total, onNext, onClose }: Props) {
 }
 
 const st = StyleSheet.create({
-  title: { ...type.title3, color: colorTokens.dark.skyText } as any,
-  previewWrap: { marginTop: spacing.md, marginBottom: spacing.md, alignItems: 'center' },
-  stepRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  title: { ...textStyle('title3'), color: colorTokens.dark.skyText } as any,
+  previewWrap: { marginTop: space.lg, marginBottom: space.lg, alignItems: 'center' },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.md },
   stepBadge: {
     width: 24,
     height: 24,
@@ -80,6 +80,6 @@ const st = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepBadgeText: { ...type.caption2, color: colorTokens.dark.skyText } as any,
-  stepText: { ...type.body, color: skyTextSecondary, flex: 1 } as any,
+  stepBadgeText: { ...textStyle('caption2'), color: colorTokens.dark.skyText } as any,
+  stepText: { ...textStyle('body'), color: skyTextSecondary, flex: 1 } as any,
 });

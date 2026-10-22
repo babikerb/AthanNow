@@ -5,8 +5,8 @@ import { Image, StyleSheet, Text } from 'react-native';
 
 import { skyTextSecondary } from '../../../theme/colors';
 import { radii } from '../../../theme/radii';
-import { spacing } from '../../../theme/spacing';
-import { HEADLINE_FONT_FAMILY, type } from '../../../theme/typography';
+import { spacing as space } from '../../../design/tokens';
+import { textStyle } from '../../../design/tokens';
 import { onboardingGradient } from '../../../utils/timeOfDayGradient';
 import { OnboardingBeacon } from '../OnboardingBeacon';
 import { StaggerReveal } from '../StaggerReveal';
@@ -61,8 +61,8 @@ export function IntroStep({ index, total, onContinue, onClose }: Props) {
 }
 
 const st = StyleSheet.create({
-  logo: { width: 110, height: 110, borderRadius: radii.lg, marginBottom: spacing.xs, alignSelf: 'center' },
+  logo: { width: 110, height: 110, borderRadius: radii.lg, marginBottom: space.sm, alignSelf: 'center' },
   // One of the three reserved Fraunces-SemiBold moments app-wide.
-  wordmark: { ...type.hero, fontFamily: HEADLINE_FONT_FAMILY, color: colorTokens.dark.skyText, textAlign: 'center', alignSelf: 'stretch' } as any,
-  tagline: { ...type.body, color: skyTextSecondary, textAlign: 'center', maxWidth: 320, alignSelf: 'center' } as any,
+  wordmark: { ...textStyle('hero'), color: colorTokens.dark.skyText, textAlign: 'center', alignSelf: 'stretch' } as any,
+  tagline: { ...textStyle('body'), color: skyTextSecondary, textAlign: 'center', maxWidth: 320, alignSelf: 'center' } as any,
 });

@@ -9,8 +9,8 @@ import { AppLocation } from '../../../hooks/useLocation';
 import { skyTextSecondary } from '../../../theme/colors';
 import { PRESSED_OPACITY } from '../../../theme/motion';
 import { radii } from '../../../theme/radii';
-import { spacing } from '../../../theme/spacing';
-import { type } from '../../../theme/typography';
+import { spacing as space } from '../../../design/tokens';
+import { textStyle } from '../../../design/tokens';
 import { CALC_METHOD_WHY, CALC_METHODS, calcMethodForCountry, localeCountryCode } from '../../../utils/calcMethodDefaults';
 import { onboardingGradient } from '../../../utils/timeOfDayGradient';
 import { OnboardingBeacon } from '../OnboardingBeacon';
@@ -128,32 +128,32 @@ export function CalcMethodStep({ index, total, location, applyDefault, onNext, o
 }
 
 const st = StyleSheet.create({
-  title: { ...type.title3, color: colorTokens.dark.skyText } as any,
-  body: { ...type.body, color: skyTextSecondary, marginTop: spacing.xxs } as any,
+  title: { ...textStyle('title3'), color: colorTokens.dark.skyText } as any,
+  body: { ...textStyle('body'), color: skyTextSecondary, marginTop: space.xs } as any,
   selectedRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    padding: spacing.md,
+    gap: space.md,
+    marginTop: space.lg,
+    padding: space.lg,
     borderRadius: radii.md,
     backgroundColor: colorTokens.dark.skyWash,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colorTokens.dark.skyHairline,
   },
   selectedText: { flex: 1 },
-  selectedLabel: { ...type.bodyEmph, color: colorTokens.dark.skyText } as any,
-  selectedWhy: { ...type.footnote, color: skyTextSecondary } as any,
-  expandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xxs, marginTop: spacing.sm, alignSelf: 'flex-start' },
-  expandText: { ...type.footnote, color: skyTextSecondary } as any,
-  list: { marginTop: spacing.xs, maxHeight: 200 },
+  selectedLabel: { ...textStyle('bodyEmph'), color: colorTokens.dark.skyText } as any,
+  selectedWhy: { ...textStyle('footnote'), color: skyTextSecondary } as any,
+  expandRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: space.md, alignSelf: 'flex-start' },
+  expandText: { ...textStyle('footnote'), color: skyTextSecondary } as any,
+  list: { marginTop: space.sm, maxHeight: 200 },
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
+    paddingVertical: space.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colorTokens.dark.skyHairline,
   },
-  optionLabel: { ...type.body, color: colorTokens.dark.skyText } as any,
+  optionLabel: { ...textStyle('body'), color: colorTokens.dark.skyText } as any,
 });

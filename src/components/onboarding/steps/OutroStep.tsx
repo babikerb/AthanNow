@@ -4,8 +4,8 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { skyTextSecondary } from '../../../theme/colors';
-import { spacing } from '../../../theme/spacing';
-import { type } from '../../../theme/typography';
+import { spacing as space } from '../../../design/tokens';
+import { textStyle } from '../../../design/tokens';
 import { onboardingGradient } from '../../../utils/timeOfDayGradient';
 import { OnboardingMode } from '../steps';
 import { OnboardingBeacon } from '../OnboardingBeacon';
@@ -63,6 +63,6 @@ export function OutroStep({ index, total, cityName, methodLabel, mode, onFinish,
 }
 
 const st = StyleSheet.create({
-  headline: { ...type.title1, color: colorTokens.dark.skyText, textAlign: 'center' } as any,
-  body: { ...type.body, color: skyTextSecondary, textAlign: 'center', marginTop: spacing.sm, maxWidth: 320, alignSelf: 'center' } as any,
+  headline: { ...textStyle('title1'), color: colorTokens.dark.skyText, textAlign: 'center' } as any,
+  body: { ...textStyle('body'), color: skyTextSecondary, textAlign: 'center', marginTop: space.md, maxWidth: 320, alignSelf: 'center' } as any,
 });

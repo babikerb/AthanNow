@@ -7,8 +7,8 @@ import { darkPalette, skyTextSecondary } from '../../theme/colors';
 import { hitSlopFor } from '../../theme/icons';
 import { duration, easing, PRESSED_OPACITY } from '../../theme/motion';
 import { radii } from '../../theme/radii';
-import { spacing } from '../../theme/spacing';
-import { type } from '../../theme/typography';
+import { spacing as space } from '../../design/tokens';
+import { textStyle } from '../../design/tokens';
 import AmbientGradient from '../AmbientGradient';
 import { ProgressBar } from './ProgressBar';
 
@@ -116,7 +116,7 @@ export function OnboardingBeacon({
     <View style={st.overlay} accessibilityViewIsModal>
       {hero ? <AmbientGradient colors={gradient} scrimBottomOpacity={0.2} /> : <View style={[st.dim, StyleSheet.absoluteFill]} />}
 
-      <View style={[st.topBar, { top: insets.top + spacing.sm }]} pointerEvents="box-none">
+      <View style={[st.topBar, { top: insets.top + space.md }]} pointerEvents="box-none">
         <View style={[st.topBarPill, hero && st.topBarPillTransparent]}>
           <ProgressBar index={index} total={total} style={st.progress} />
           {onClose ? (
@@ -130,14 +130,14 @@ export function OnboardingBeacon({
       {hero ? (
         <Animated.View style={[st.heroWrap, { opacity: fade }]} pointerEvents="box-none">
           <View style={[st.heroContent, { paddingTop: insets.top + TOP_CLEARANCE }]}>{content}</View>
-          <View style={[st.heroFooter, { paddingBottom: insets.bottom + spacing.xl }]}>{footer}</View>
+          <View style={[st.heroFooter, { paddingBottom: insets.bottom + space.xxl }]}>{footer}</View>
         </Animated.View>
       ) : (
         <Animated.View
           pointerEvents="box-none"
           style={[
             st.cardWrap,
-            { top: insets.top + TOP_CLEARANCE, bottom: insets.bottom + spacing.xl, justifyContent: 'center' },
+            { top: insets.top + TOP_CLEARANCE, bottom: insets.bottom + space.xxl, justifyContent: 'center' },
             { opacity: fade },
           ]}
         >
@@ -157,30 +157,30 @@ const st = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000 },
   dim: { position: 'absolute', backgroundColor: DIM },
 
-  topBar: { position: 'absolute', left: 0, right: 0, paddingHorizontal: spacing.lg },
+  topBar: { position: 'absolute', left: 0, right: 0, paddingHorizontal: space.xl },
   topBarPill: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'stretch',
-    gap: spacing.sm,
+    gap: space.md,
     backgroundColor: DIM,
     borderRadius: radii.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
   },
   topBarPillTransparent: { backgroundColor: 'transparent', paddingHorizontal: 0 },
   progress: { flex: 1 },
-  closeText: { ...type.footnote, color: skyTextSecondary } as any,
+  closeText: { ...textStyle('footnote'), color: skyTextSecondary } as any,
 
   heroWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   heroContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
+    gap: space.lg,
+    paddingHorizontal: space.xxl,
   },
-  heroFooter: { paddingHorizontal: spacing.xl },
+  heroFooter: { paddingHorizontal: space.xxl },
 
   cardWrap: { position: 'absolute', left: 20, right: 20 },
   // Grows with content up to the available height, then scrolls (small phones, large Dynamic Type).
@@ -191,15 +191,15 @@ const st = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colorTokens.dark.skyHairline,
-    padding: spacing.lg,
-    gap: spacing.sm,
+    padding: space.xl,
+    gap: space.md,
   },
 
-  footerRow: { gap: spacing.sm, marginTop: spacing.xs },
-  primaryBtn: { backgroundColor: colorTokens.dark.accent, borderRadius: radii.pill, paddingVertical: spacing.lg, alignItems: 'center', minHeight: NEXT_BTN_HEIGHT, justifyContent: 'center' },
+  footerRow: { gap: space.md, marginTop: space.sm },
+  primaryBtn: { backgroundColor: colorTokens.dark.accent, borderRadius: radii.pill, paddingVertical: space.xl, alignItems: 'center', minHeight: NEXT_BTN_HEIGHT, justifyContent: 'center' },
   btnPressed: { opacity: PRESSED_OPACITY },
   btnDisabled: { opacity: 0.6 },
-  primaryText: { ...type.headline, color: colorTokens.dark.onAccent } as any,
-  secondaryBtn: { paddingVertical: spacing.sm, alignItems: 'center' },
-  secondaryText: { ...type.subhead, color: skyTextSecondary } as any,
+  primaryText: { ...textStyle('headline'), color: colorTokens.dark.onAccent } as any,
+  secondaryBtn: { paddingVertical: space.md, alignItems: 'center' },
+  secondaryText: { ...textStyle('subhead'), color: skyTextSecondary } as any,
 });

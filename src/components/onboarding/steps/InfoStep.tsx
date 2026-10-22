@@ -3,8 +3,8 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
 import { skyTextSecondary } from '../../../theme/colors';
-import { spacing } from '../../../theme/spacing';
-import { type } from '../../../theme/typography';
+import { spacing as space } from '../../../design/tokens';
+import { textStyle } from '../../../design/tokens';
 import { onboardingGradient } from '../../../utils/timeOfDayGradient';
 import { OnboardingBeacon } from '../OnboardingBeacon';
 import { StaggerReveal } from '../StaggerReveal';
@@ -56,6 +56,6 @@ export function InfoStep({ index, total, title, body, onNext, onSkip, onClose }:
 }
 
 const st = StyleSheet.create({
-  title: { ...type.title3, color: colorTokens.dark.skyText } as any,
-  body: { ...type.body, color: skyTextSecondary, marginTop: spacing.xs } as any,
+  title: { ...textStyle('title3'), color: colorTokens.dark.skyText } as any,
+  body: { ...textStyle('body'), color: skyTextSecondary, marginTop: space.sm } as any,
 });
