@@ -4,6 +4,7 @@ import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { useTheme } from '../design/theme';
 import { useResumeSnap } from '../hooks/useResumeSnap';
 import { SkyIllustration } from './sky/SkyIllustration';
+import { SkyLife } from './sky/SkyLife';
 import { ScenePeriod } from './sky/palettes';
 
 export type { ScenePeriod } from './sky/palettes';
@@ -70,6 +71,7 @@ export default function SkyScene({ period, width, height, clearTop, layout, zone
       {layers.map((l) => (
         <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.v }]}>
           <SkyIllustration period={l.period} width={width} height={height} clearTop={clearTop} layout={layout} zone={zone} arc={arc} groundLift={groundLift} />
+          {layout === 'full' && <SkyLife period={l.period} width={width} height={height} clearTop={clearTop ?? 0} groundLift={groundLift ?? 0} zone={zone} />}
         </Animated.View>
       ))}
     </View>

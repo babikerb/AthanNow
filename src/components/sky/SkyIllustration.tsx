@@ -69,13 +69,13 @@ interface Props {
 }
 
 // A small flock, drawn as soft "v" strokes. Offsets in authored units from the flock's anchor.
-const BIRDS = [
+export const BIRDS = [
   { x: 0, y: 0, w: 9 },
   { x: 14, y: -6, w: 7 },
   { x: 26, y: 2, w: 8 },
   { x: 8, y: 10, w: 6 },
 ];
-const bird = (x: number, y: number, w: number) => `M${x - w} ${y - w * 0.35} Q${x - w * 0.45} ${y - w * 0.55} ${x} ${y} Q${x + w * 0.45} ${y - w * 0.55} ${x + w} ${y - w * 0.35}`;
+export const bird = (x: number, y: number, w: number) => `M${x - w} ${y - w * 0.35} Q${x - w * 0.45} ${y - w * 0.55} ${x} ${y} Q${x + w * 0.45} ${y - w * 0.55} ${x + w} ${y - w * 0.35}`;
 /**
  * A cumulus outline: flat base, uneven rounded bumps over the top (no two the same size), so it reads
  * as a cloud rather than an ellipse. (x, y) is the left end of the base.
@@ -111,8 +111,18 @@ function Cloud({ x, y, w, h, tint, alpha }: { x: number; y: number; w: number; h
   );
 }
 
-const PLANE =
-  'M0 0 L14 -1.2 L18 -5 L20.5 -5 L18.5 -1 L26 -1.4 C28.5 -1.4 28.5 1.4 26 1.4 L18.5 1 L20.5 5 L18 5 L14 1.2 L0 0 Z M2 -0.6 L-1 -3.4 L1 -3.4 L5 -0.8 Z';
+/**
+ * Star positions (pt) for the full layout, spread over the sky between the chrome and the hills.
+ * Shared with the animated layer so twinkling stars sit exactly where the static ones would.
+ */
+export function starPoints(period: ScenePeriod, width: number, height: number, clearTop: number, groundLift: number) {
+  const scene = SCENES[period];
+  const s = width / 390;
+  const shift = height / s - 340 - groundLift / s;
+  const top = clearTop / s;
+  const span = shift + HORIZON - 30 - top;
+  return STAR_FIELD.slice(0, scene.stars).map((st) => ({ x: st.x * s, y: (top + ((st.y - 56) / 130) * span) * s, r: st.r * s, o: st.o * scene.starOpacity }));
+}
 
 function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'band', zone, arc, groundLift = 0 }: Props) {
   const scene = SCENES[period];
@@ -147,15 +157,10 @@ function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'ba
   }
 
   const stops: [string, number][] = full ? scene.full.sky : scene.sky.map((c, i) => [c, i / (scene.sky.length - 1)]);
-  // Full layout spreads the stars over the sky between the chrome and the hills.
-  const starTop = full ? clearTop / s : 0;
-  const starSpan = full ? shift + HORIZON - 30 - starTop : 0;
-  const tone = scene.full.tone;
   // Warm at sunrise, white by day; a little stronger on the pale daytime skies.
   const cloudTint = period === 'sunrise' ? '#F1C7B4' : '#FFFFFF';
   const cloudAlpha = period === 'sunrise' ? 0.3 : 0.42;
-  const mark = tone === 'dark' ? INK : '#F2EDF6';
-  const starY = (y: number) => (full ? starTop + ((y - 56) / 130) * starSpan : y);
+  const starY = (y: number) => y;
 
   return (
     <Svg width={width} height={height} viewBox={`0 0 390 ${vbH}`} preserveAspectRatio={full ? 'xMidYMax meet' : 'xMidYMax slice'}>
@@ -177,25 +182,10 @@ function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'ba
       <Rect x={0} y={-400} width={390} height={vbH + 400} fill={stops[0][0]} />
       <Rect x={0} y={0} width={390} height={vbH} fill={`url(#sky${id})`} />
 
-      {scene.stars > 0 && (
+      {!full && scene.stars > 0 && (
         <G opacity={scene.starOpacity}>
           {STAR_FIELD.slice(0, scene.stars).map((st, i) => (
             <Circle key={i} cx={st.x} cy={starY(st.y)} r={st.r} fill="#FFFFFF" opacity={st.o} />
-          ))}
-        </G>
-      )}
-
-      {full && zone && scene.plane && (
-        <G opacity={0.55}>
-          <Path d={`M24 ${zTop + zH * 0.62 + 12} L132 ${zTop + zH * 0.62 - 2}`} stroke="#FFFFFF" strokeWidth={1.4} strokeLinecap="round" opacity={0.7} />
-          <Path d={PLANE} fill={mark} transform={`translate(132 ${zTop + zH * 0.62 - 2}) rotate(-7) scale(0.8)`} />
-        </G>
-      )}
-
-      {full && zone && scene.birds && (
-        <G stroke={mark} strokeWidth={1.3} strokeLinecap="round" fill="none" opacity={0.55}>
-          {BIRDS.map((d, i) => (
-            <Path key={i} d={bird(64 + d.x, zTop + zH * 0.62 + d.y, d.w * 0.7)} />
           ))}
         </G>
       )}

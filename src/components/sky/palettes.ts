@@ -19,9 +19,9 @@ export interface ScenePalette {
   stars: number;
   starOpacity: number;
   clouds: boolean;
-  /** A small flock low in the open sky (full layout). */
+  /** A small flock flying across the open sky (full layout). */
   birds: boolean;
-  /** A plane with a contrail crossing the open sky (full layout). */
+  /** A red and white plane with a contrail flying across the open sky now and then (full layout). */
   plane: boolean;
   /** Status bar icons over the top of this sky (band layout). */
   statusBar: 'light' | 'dark';
@@ -87,7 +87,7 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     starOpacity: 0,
     clouds: true,
     birds: true,
-    plane: false,
+    plane: true,
     statusBar: 'light',
     full: { sky: [['#86A19B', 0], ['#A3B5A8', 0.55], ['#C9BFA5', 1]], tone: 'dark' },
   },
