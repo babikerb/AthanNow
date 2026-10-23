@@ -3,9 +3,7 @@
 // skyline paths, sun and sky colours, cropped tight on the mosque so buildings and ground fill the icon.
 // No dependencies: SVG paths are flattened and scanline-filled with supersampling, then PNG-encoded.
 //
-//   node scripts/make-brand.mjs [outDir]   writes icon.png, icon-dark.png, icon-tinted.png and splash-icon.png
-//   (default: assets/). splash-icon.png is the light icon as a rounded tile on transparency for the launch
-//   screen; src/components/LaunchSplash.tsx starts from exactly this tile, so keep CROP and TILE_RADIUS in sync.
+//   node scripts/make-brand.mjs [outDir]   writes icon.png, icon-dark.png, icon-tinted.png (default: assets/)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
@@ -32,9 +30,7 @@ new Function('exports', palJs)(pal);
 const maghrib = pal.SCENES.maghrib;
 
 // Square crop of the 390 x 340 scene around the main dome; extends below the art into ink ground.
-export const CROP = { x: 190, y: 160, size: 200 };
-/** Launch-screen tile corner radius as a fraction of its side. */
-export const TILE_RADIUS = 0.2237;
+const CROP = { x: 190, y: 160, size: 200 };
 const HORIZON = 318; // top of the ground strip in scene units
 const K = N / CROP.size;
 const toPx = (x, y) => [(x - CROP.x) * K, (y - CROP.y) * K];
@@ -176,27 +172,4 @@ const looks = {
 for (const [name, look] of Object.entries(looks)) {
   writeFileSync(join(outDir, name), png(render(look)));
   console.log('wrote ' + join(outDir, name));
-}
-
-// Launch-screen tile: the light icon with rounded corners (plain circular corners, matching the
-// borderRadius the in-app splash animates from).
-{
-  const px = render(looks['icon.png']);
-  const R = TILE_RADIUS * N;
-  for (let y = 0; y < N; y++) {
-    for (let x = 0; x < N; x++) {
-      const dx = Math.max(0, R - x, x + 1 - (N - R));
-      const dy = Math.max(0, R - y, y + 1 - (N - R));
-      if (dx === 0 || dy === 0) continue;
-      let c = 0;
-      for (let j = 0; j < SS; j++) for (let i = 0; i < SS; i++) {
-        const X = x + (i + 0.5) / SS, Y = y + (j + 0.5) / SS;
-        const cx = X < R ? R : N - R, cy = Y < R ? R : N - R;
-        if ((X - cx) ** 2 + (Y - cy) ** 2 <= R * R) c++;
-      }
-      px[(y * N + x) * 4 + 3] = Math.round((255 * c) / (SS * SS));
-    }
-  }
-  writeFileSync(join(outDir, 'splash-icon.png'), png(px, true));
-  console.log('wrote ' + join(outDir, 'splash-icon.png'));
 }

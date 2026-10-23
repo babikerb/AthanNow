@@ -1,5 +1,5 @@
-import { useIsFocused } from '@react-navigation/native';
-import React, { memo, useEffect, useMemo, useRef } from 'react';
+import { NavigationContext } from '@react-navigation/native';
+import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Svg, { G, Path, Rect } from 'react-native-svg';
@@ -26,7 +26,7 @@ interface Props {
 function SkyLifeImpl({ period, width, height, clearTop, groundLift, zone }: Props) {
   const scene = SCENES[period];
   const { reduceMotion } = useTheme();
-  const focused = useIsFocused();
+  const focused = useFocusedSafe();
   const still = reduceMotion || !focused;
   const stars = useMemo(() => starPoints(period, width, height, clearTop, groundLift), [period, width, height, clearTop, groundLift]);
   const mark = scene.full.tone === 'dark' ? INK : '#F2EDF6';
@@ -43,6 +43,22 @@ function SkyLifeImpl({ period, width, height, clearTop, groundLift, zone }: Prop
 }
 
 export const SkyLife = memo(SkyLifeImpl);
+
+/** Focus of the enclosing screen; true outside a navigator (the launch overlay). */
+function useFocusedSafe() {
+  const nav = useContext(NavigationContext);
+  const [focused, setFocused] = useState(() => nav?.isFocused() ?? true);
+  useEffect(() => {
+    if (!nav) return;
+    const a = nav.addListener('focus', () => setFocused(true));
+    const b = nav.addListener('blur', () => setFocused(false));
+    return () => {
+      a();
+      b();
+    };
+  }, [nav]);
+  return focused;
+}
 
 function Star({ index, x, y, r, opacity, still }: { index: number; x: number; y: number; r: number; opacity: number; still: boolean }) {
   const v = useRef(new Animated.Value(opacity)).current;

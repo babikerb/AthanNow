@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LocationSheet } from '../components/LocationSheet';
 import SkyScene, { ScenePeriod } from '../components/SkyScene';
 import { HILLS_UNITS } from '../components/sky/SkyIllustration';
+import { publishHomeSky } from '../components/sky/homeSky';
 import { SCENES, SKY_TONES } from '../components/sky/palettes';
 import { useLocation } from '../context/LocationContext';
 import { useSettings } from '../context/SettingsContext';
@@ -145,6 +146,11 @@ export default function AthanScreen() {
   const rowMin = level >= 1 ? rowTight : rowFull;
   const dropProgress = level >= 2;
   const minZone = level >= 3 ? 36 : 72;
+
+  // The launch overlay draws this same sky, so handing over to Home only reveals the text.
+  useEffect(() => {
+    if (hasRestored && prayerData && zone) publishHomeSky({ period, arc, zone, clearTop: chromeH, groundLift });
+  });
 
   if (!prayerData) {
     return (
