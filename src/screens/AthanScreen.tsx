@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationSheet } from '../components/LocationSheet';
@@ -24,6 +24,8 @@ const DEBUG_PERIODS: ScenePeriod[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghri
 // Representative arc positions when previewing a scene out of its real time.
 const DEBUG_ARC: Record<ScenePeriod, number> = { fajr: 0.92, sunrise: 0.08, dhuhr: 0.5, asr: 0.78, maghrib: 1, isha: 0.18, night: 0.55 };
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Home is one fixed screen; text grows with Dynamic Type up to this factor.
+const HOME_MAX_SCALE = 1.35;
 
 export default function AthanScreen() {
   const { location, cityName, status, hasRestored, travelMismatch, refreshLocation, dismissTravel } = useLocation();
@@ -36,9 +38,6 @@ export default function AthanScreen() {
 
   const [now, setNow] = useState(new Date());
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
-  // Measured heights of the hero and the list (with any notice); estimates until the first layout.
-  const [heroH, setHeroH] = useState(130);
-  const [listH, setListH] = useState(280);
   // The open sky between the chrome and the hero, where the sun or moon travels (pt, screen coords).
   const [zone, setZone] = useState<{ top: number; bottom: number } | null>(null);
   // Development only: cycle through every sky scene to review them.
@@ -121,21 +120,31 @@ export default function AthanScreen() {
 
   const locationSheet = <LocationSheet visible={locationSheetOpen} onClose={() => setLocationSheetOpen(false)} />;
 
-  // Layout. The sky fills the screen, with the hills and skyline along the bottom behind the tab
-  // bar. Text sits on the sky in a tone checked for contrast per period. Between the city/date strip
-  // and the hero is open sky for the sun or moon, so text never covers them. That open sky takes
-  // whatever height is left after the hero and the whole prayer list; if too little is left, the page
-  // scrolls instead of hiding Isha.
-  const dropArabic = winH < 700 || fontScale > 1.15;
-  const dropProgress = winH < 640;
-  const rowMin = winH < 700 ? 40 : 44;
+  // Layout. One screen, never scrolling. The sky fills it, with the hills and skyline sitting on
+  // solid ink above the tab bar. Text sits on the sky in a tone checked for contrast per period.
+  // Between the city/date strip and the hero is open sky for the sun or moon, so text never covers
+  // them. When space is short the page compresses in a fixed order (Arabic names, row height, the
+  // progress rule, then the open sky down to its floor), worked out from type sizes at the current
+  // text size so the list never ends up under the tab bar.
+  const fs = Math.min(fontScale, HOME_MAX_SCALE);
   const gutter = winW <= 375 ? t.spacing.lg : t.spacing.xl;
   const chromeH = insets.top + 52;
   // The whole illustration sits above the tab bar; under the bar is solid ground in the skyline's ink.
   const groundLift = tabBarHeight;
   const hillsH = Math.round((HILLS_UNITS * winW) / 390) + groundLift;
-  const minZone = 72;
-  const scrolls = fontScale >= 1.3 || chromeH + minZone + heroH + listH + hillsH > winH;
+  const unresolvedNow = !location.isManual && hasRestored;
+  const hasNotice = !!movedTo || (unresolvedNow ? status === 'denied' || status === 'error' || status === 'idle' : !!travelMismatch);
+  const noticeH = hasNotice ? t.spacing.md + 18 * fs * 2 + 4 + 44 : 0;
+  const heroText = 26 * fs + 68 * Math.min(fs, 1.3);
+  const rowFull = Math.max(44, 24 * fs + 16);
+  const rowTight = Math.max(36, 24 * fs + 8);
+  const fits = (row: number, rule: boolean, zoneMin: number) =>
+    chromeH + zoneMin + heroText + (rule ? t.spacing.sm + 2 : 0) + t.spacing.md + 6 * row + noticeH + hillsH <= winH;
+  const level = fits(rowFull, true, 72) ? 0 : fits(rowTight, true, 72) ? 1 : fits(rowTight, false, 72) ? 2 : 3;
+  const dropArabic = level >= 1 || winW <= 375 || fs > 1.15;
+  const rowMin = level >= 1 ? rowTight : rowFull;
+  const dropProgress = level >= 2;
+  const minZone = level >= 3 ? 36 : 72;
 
   if (!prayerData) {
     return (
@@ -193,8 +202,6 @@ export default function AthanScreen() {
     ? { text: `Times are now for ${movedTo}.`, actions: [{ label: 'OK', onPress: () => setMovedTo(null) }] }
     : stateNotice;
 
-  const Body: React.ComponentType<any> = scrolls ? ScrollView : View;
-  const bodyProps = scrolls ? { style: styles.flex, contentContainerStyle: { paddingBottom: hillsH } } : { style: styles.flex };
   const ink = { color: tone.text };
   const ink2 = { color: tone.secondary };
   const ink3 = { color: tone.tertiary };
@@ -205,7 +212,7 @@ export default function AthanScreen() {
         <SkyScene period={period} width={winW} height={winH} layout="full" clearTop={chromeH} zone={zone ?? undefined} arc={arc} groundLift={groundLift} />
       </View>
 
-      <Body {...bodyProps}>
+      <View style={styles.flex}>
         {/* City on the left, today's dates on the right. */}
         <View style={[styles.chrome, { paddingTop: insets.top + t.spacing.sm, paddingHorizontal: gutter }]}>
           <Pressable
@@ -234,7 +241,7 @@ export default function AthanScreen() {
 
         {/* Open sky for the sun or moon. */}
         <View
-          style={scrolls ? { height: 120 } : { flex: 1, minHeight: minZone }}
+          style={{ flex: 1, minHeight: minZone }}
           onLayout={(e) => {
             const { y, height } = e.nativeEvent.layout;
             setZone((z) => (z && Math.abs(z.top - y) < 1 && Math.abs(z.bottom - (y + height)) < 1 ? z : { top: y, bottom: y + height }));
@@ -256,9 +263,9 @@ export default function AthanScreen() {
         </View>
 
         {/* Hero: which prayer is next and how long until it. */}
-        <View style={{ paddingHorizontal: gutter }} onLayout={(e) => setHeroH(Math.ceil(e.nativeEvent.layout.height))}>
+        <View style={{ paddingHorizontal: gutter }}>
           <View style={styles.heroLine}>
-            <Text variant="title3" style={ink}>
+            <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="title3" style={ink}>
               {nextPrayer}
             </Text>
             <Text variant="subhead" style={ink2}>
@@ -275,7 +282,7 @@ export default function AthanScreen() {
           )}
         </View>
 
-        <View onLayout={(e) => setListH(Math.ceil(e.nativeEvent.layout.height))}>
+        <View>
           {/* Today's prayers. The next one's time is the only warm text; passed ones fade back. */}
           <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.md }}>
             {listRows.map((row, i) => {
@@ -291,7 +298,7 @@ export default function AthanScreen() {
                   style={[styles.row, { minHeight: rowMin }, i < listRows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: tone.hairline }]}
                 >
                   <View style={styles.rowLabel}>
-                    <Text variant={isNext ? 'bodyEmph' : 'body'} style={isPast ? ink3 : ink}>
+                    <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant={isNext ? 'bodyEmph' : 'body'} style={isPast ? ink3 : ink}>
                       {row.label}
                     </Text>
                     {!dropArabic && (
@@ -300,7 +307,7 @@ export default function AthanScreen() {
                       </Text>
                     )}
                   </View>
-                  <Text variant={isNext ? 'bodyEmph' : 'body'} style={isNext ? { color: tone.accent } : isPast ? ink3 : ink}>
+                  <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant={isNext ? 'bodyEmph' : 'body'} style={isNext ? { color: tone.accent } : isPast ? ink3 : ink}>
                     {time}
                   </Text>
                 </View>
@@ -327,8 +334,8 @@ export default function AthanScreen() {
         </View>
 
         {/* The hills and skyline show through here, under the tab bar. */}
-        {!scrolls && <View style={{ height: hillsH }} />}
-      </Body>
+        <View style={{ height: hillsH }} />
+      </View>
 
       {locationSheet}
     </View>
