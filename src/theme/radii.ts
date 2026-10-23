@@ -4,7 +4,7 @@
  * Four different "card" surfaces previously used four different radii for
  * the same conceptual role (Settings' group: 14, Calendar's day card: 22,
  * LocationSheet's hero card: 22, Spotlight's tooltip: 20). Consolidated to
- * one shared value per role below — this is the cheapest, highest-visibility
+ * one shared value per role below, this is the cheapest, highest-visibility
  * fix in the whole system: it makes the app's "this is a contained, elevated
  * thing" grammar read as one decision instead of four.
  */

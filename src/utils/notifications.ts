@@ -94,8 +94,8 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
   const mins = notifications.reminderMinutesBefore || 0;
 
   // Two independent things per prayer:
-  //   • the athan — fires at the prayer time (the per-prayer toggle), and
-  //   • the reminder — an optional heads-up `mins` before (0 = off).
+  //   • the athan, fires at the prayer time (the per-prayer toggle), and
+  //   • the reminder, an optional heads-up `mins` before (0 = off).
   // Both fire when both are on. Scheduled chronologically; we stop at the iOS cap.
   let count = 0;
   const schedule = async (content: Notifications.NotificationContentInput, date: Date): Promise<boolean> => {

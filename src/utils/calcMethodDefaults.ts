@@ -2,7 +2,7 @@ import { CalcMethod } from '../context/SettingsContext';
 
 /**
  * The 12 calculation methods the app supports, with their display labels.
- * Single source of truth — both Settings and onboarding's calc-method screen
+ * Single source of truth, both Settings and onboarding's calc-method screen
  * (plan §4.2 Screen 3) read from this instead of maintaining two lists that
  * can drift apart.
  */
@@ -27,16 +27,16 @@ export const CALC_METHODS: { key: CalcMethod; label: string }[] = [
  * language explanation, e.g. a future Settings annotation per plan §3.7).
  */
 export const CALC_METHOD_WHY: Record<CalcMethod, string> = {
-  NorthAmerica: 'ISNA — commonly used in North America.',
-  MuslimWorldLeague: 'Muslim World League — a widely used global standard.',
-  Egyptian: 'Egyptian General Authority — commonly used in Egypt.',
-  Karachi: 'University of Karachi — commonly used in South Asia.',
-  UmmAlQura: 'Umm al-Qura — used in Saudi Arabia.',
+  NorthAmerica: 'Common in North America.',
+  MuslimWorldLeague: 'A widely used global standard.',
+  Egyptian: 'Common in Egypt and parts of Africa.',
+  Karachi: 'Common in South Asia.',
+  UmmAlQura: 'Used in Saudi Arabia.',
   Dubai: 'Used in the United Arab Emirates.',
   Qatar: 'Used in Qatar.',
   Kuwait: 'Used in Kuwait.',
   Singapore: 'Used in Singapore.',
-  Turkey: 'Diyanet — used in Turkey.',
+  Turkey: 'Used in Turkey.',
   Tehran: 'Used in Iran.',
   MoonsightingCommittee: 'Based on local moonsighting committee criteria.',
 };
@@ -44,7 +44,7 @@ export const CALC_METHOD_WHY: Record<CalcMethod, string> = {
 /**
  * Country (ISO 3166-1 alpha-2) -> calculation-method smart default (plan §4.2
  * Screen 3). `DEFAULT_SETTINGS.calcMethod` used to apply 'NorthAmerica'
- * unconditionally regardless of where the user actually is — reasonable only
+ * unconditionally regardless of where the user actually is, reasonable only
  * for North American users, silently wrong-by-convention for everyone else.
  * This table is intentionally small (covers the common cases the app's own
  * 12 methods map to); anything not listed falls through to the most
@@ -86,7 +86,7 @@ export function calcMethodForCountry(countryCode?: string | null): CalcMethod {
 /**
  * Best-effort country code from the device locale (e.g. "en-US" -> "US"),
  * used as the calc-method screen's fallback when location was declined or
- * hasn't resolved yet by the time the user reaches screen 3 — approximate by
+ * hasn't resolved yet by the time the user reaches screen 3, approximate by
  * design, same spirit as the time-of-day gradient bucket (§4.4).
  */
 export function localeCountryCode(): string | null {

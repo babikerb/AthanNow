@@ -10,7 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // Keep the native splash (icon on its exact background color, see
 // app.json's `expo-splash-screen` config) on screen until settings + fonts
 // are actually ready, instead of letting it auto-hide the instant the first
-// JS frame draws — which would otherwise reveal the neutral loading `View`
+// JS frame draws, which would otherwise reveal the neutral loading `View`
 // below for a beat, a visible color swap right after the splash.
 SplashScreen.preventAutoHideAsync();
 
@@ -22,7 +22,7 @@ import { ThemeProvider } from './src/context/ThemeContext';
 import { ThemeProvider as DesignThemeProvider, useTheme as useDesignTheme } from './src/design/theme';
 import { colorTokens } from './src/design/tokens';
 import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
-import { OnboardingOverlay } from './src/components/onboarding/OnboardingOverlay';
+import { Onboarding } from './src/components/Onboarding';
 import { navigationRef } from './src/navigation/navigationRef';
 
 // Side-effect import: defines the background-refresh task at module scope so the
@@ -105,7 +105,7 @@ function MainTabs() {
         />
         </Tab.Navigator>
       </NavigationContainer>
-      <OnboardingOverlay />
+      <Onboarding />
     </View>
   );
 }
@@ -127,12 +127,7 @@ function Root() {
   // usual near-black) until persisted settings + the mushaf font load, so the
   // transition from native splash to this view is invisible.
   if (!appReady) return <View style={{ flex: 1, backgroundColor: colorTokens.dark.bg }} />;
-  // `MainTabs` always renders now — the merged onboarding flow
-  // (`OnboardingOverlay`, mounted inside it) overlays the real tab screens
-  // itself instead of preceding them with a separate full-screen flow, so it
-  // can navigate through and highlight the real UI as part of the same
-  // continuous experience. See `OnboardingContext`'s auto-start effect for
-  // where `!onboardingComplete` now drives activation.
+  // Onboarding renders inside MainTabs, over the tabs, so choices made there reach every screen at once.
   return <MainTabs />;
 }
 

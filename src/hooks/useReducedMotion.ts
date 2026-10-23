@@ -8,7 +8,7 @@ import { AccessibilityInfo } from 'react-native';
  * straight to its settled end-state when true instead of simply not
  * animating from a default (e.g. zero-opacity) state. One-shot settle-in
  * animations (a single fade/translate on mount) are not the kind of motion
- * `prefers-reduced-motion` users object to — only *looping* animations need
+ * `prefers-reduced-motion` users object to, only *looping* animations need
  * gating on this hook.
  */
 export function useReducedMotion(): boolean {

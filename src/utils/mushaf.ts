@@ -119,7 +119,7 @@ export function glyph(word: MushafWord): string {
   }
 }
 
-// ---- Juz (part) for a page — static, standard Madani-mushaf boundaries that
+// ---- Juz (part) for a page, static, standard Madani-mushaf boundaries that
 // never change, so this is a pure lookup with no network round-trip (unlike
 // `fetchPageMeta` below, which also needs hizb/rub data). Used by the header
 // bar for an instant, flicker-free Juz readout. ----

@@ -10,11 +10,11 @@ export const iconSize = {
   xs: 12,
   /** Secondary/inline icons (search field icon). */
   sm: 16,
-  /** Default row icon (Settings row icons already use exactly this — codify it). */
+  /** Default row icon (Settings row icons already use exactly this, codify it). */
   md: 20,
   /** Prominent standalone icon (LocationSheet icon badge glyph, Sheet close glyph target). */
   lg: 24,
-  /** Sheet close button glyph (already 28 — codify). */
+  /** Sheet close button glyph (already 28, codify). */
   xl: 28,
   /** Large hero badge icons (empty-state illustrations). */
   xxl: 40,
@@ -23,7 +23,7 @@ export const iconSize = {
 export type IconSizeToken = keyof typeof iconSize;
 
 /**
- * Every icon-bearing pressable — regardless of visual icon size — must
+ * Every icon-bearing pressable, regardless of visual icon size, must
  * resolve to at least a 44x44pt hit area (the Apple HIG minimum). Use this
  * instead of hand-picked `hitSlop` numbers (`8`, `10`, `12`, ...) scattered
  * across the app; it guarantees the floor by formula instead of eyeballing

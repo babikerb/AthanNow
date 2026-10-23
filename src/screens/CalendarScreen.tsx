@@ -19,7 +19,7 @@ import { formatClock, localDayAnchor } from '../utils/time';
 // A window of days around today the user can scroll through.
 const RANGE = 400;
 const DAYS = Array.from({ length: RANGE * 2 + 1 }, (_, i) => i - RANGE); // offsets from today
-// Today onward only — the initial data set (see `pastCount` below).
+// Today onward only, the initial data set (see `pastCount` below).
 const FUTURE_DAYS = DAYS.slice(RANGE);
 
 // The 5 real prayers plus the sunrise boundary marker, matching Athan's list
@@ -58,7 +58,7 @@ interface DayRowProps {
 
 /**
  * One day: a date header, then the six times in a grouped card. Natural height, so it never clips.
- * The next prayer today carries the same apricot tick as Home.
+ * The next prayer today shows its time in apricot, as on Home.
  */
 const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod, asrMadhab, use24Hour, tz, colors, onMeasured }: DayRowProps) {
   const data = useMemo(() => {
@@ -111,7 +111,6 @@ const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod
               accessibilityLabel={`${r.label}, ${time}${active ? ', next prayer' : ''}`}
               style={[styles.row, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.hairline }]}
             >
-              {active && <View style={[styles.tick, { backgroundColor: colors.accent }]} />}
               <View style={styles.rowLabelWrap}>
                 <Text variant={active ? 'bodyEmph' : 'body'}>{r.label}</Text>
                 {data.isToday && (
@@ -120,7 +119,7 @@ const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod
                   </Text>
                 )}
               </View>
-              <Text variant={active ? 'bodyEmph' : 'body'} style={{ flexShrink: 0 }}>
+              <Text variant={active ? 'bodyEmph' : 'body'} color={active ? 'accentText' : 'text'} style={{ flexShrink: 0 }}>
                 {time}
               </Text>
             </View>
@@ -278,6 +277,5 @@ const styles = StyleSheet.create({
   dayHeader: { paddingHorizontal: 4, paddingBottom: 8 },
   card: { borderRadius: 20, borderCurve: 'continuous', overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingHorizontal: 16 },
-  tick: { position: 'absolute', left: 0, top: 12, bottom: 12, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
   rowLabelWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flex: 1 },
 });

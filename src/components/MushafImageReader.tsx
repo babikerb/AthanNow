@@ -121,5 +121,5 @@ const styles = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 12 },
   msg: { ...textStyle('subhead') },
   retry: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
-  retryText: { ...textStyle('subhead'), fontWeight: '600' },
+  retryText: { ...textStyle('subhead') },
 });

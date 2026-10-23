@@ -31,7 +31,7 @@ export function useNotificationScheduler(location: AppLocation | null, settings:
   // Serialize reschedules. Each run does cancelAll() then schedules ~60 awaited
   // notifications; on launch the signature changes more than once (restored city ->
   // GPS city), so without this a later run's cancelAll() could fire mid-way through
-  // an earlier run's scheduling loop and wipe notifications it had already booked —
+  // an earlier run's scheduling loop and wipe notifications it had already booked,
   // which is why some athans "sometimes" didn't fire. Chaining keeps runs strictly
   // sequential, so the last (newest) signature always leaves the final state.
   const chain = useRef<Promise<void>>(Promise.resolve());

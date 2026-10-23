@@ -1,13 +1,13 @@
 /**
  * Significant Islamic calendar dates, matched against a Gregorian date via
  * the same `islamic-umalqura` (Umm al-Qura) calendar `getHijriDate` in
- * `prayerEngine.ts` already uses for display — one source of truth for Hijri
+ * `prayerEngine.ts` already uses for display, one source of truth for Hijri
  * conversion, not a second Hijri library or hand-rolled astronomical
  * calculation.
  *
  * These are *calculated* civil-calendar dates. Real observance of the
  * Islamic calendar is moon-sighting-based and can shift by a day from the
- * calculated date depending on region and authority — callers should present
+ * calculated date depending on region and authority, callers should present
  * these as "calculated" / approximate, not as a guaranteed-precise fact.
  */
 
@@ -44,7 +44,7 @@ function hijriMonthDay(date: Date): { month: number; day: number } {
   return { month, day };
 }
 
-/** The important-date label for this Gregorian date, if it lands on one —
+/** The important-date label for this Gregorian date, if it lands on one,
  *  null otherwise. At most one label per day (the table above has no
  *  collisions). */
 export function importantDateFor(date: Date): string | null {

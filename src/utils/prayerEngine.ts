@@ -5,17 +5,17 @@ import { CalculationMethod, Coordinates, HighLatitudeRule, Madhab, PrayerTimes }
  * Per-row icon for the 6 prayer-list entries (the 5 real prayers + the
  * sunrise boundary marker), shared between the Athan/home screen's list and
  * Calendar's day rows so the same prayer always shows the same glyph in both
- * places — one source, not two screens independently picking similar-looking
+ * places, one source, not two screens independently picking similar-looking
  * icons. Deliberately distinct from `getCelestialConfig`'s `symbol` field
  * below, which represents the *sky stage* (the celestial-arc body/animation)
- * rather than "which prayer is this row" — the two concepts overlap for some
+ * rather than "which prayer is this row", the two concepts overlap for some
  * prayers but not all (Fajr's sky-stage symbol is a moon, since it's before
  * sunrise; its list icon is a sunrise glyph, since Fajr the *prayer* marks
  * dawn approaching).
  */
 export const PRAYER_LIST_ICONS: Record<string, SFSymbol> = {
   fajr: 'sunrise.fill',
-  sunrise: 'sunrise', // outline variant — a boundary marker, not one of the 5 prayers
+  sunrise: 'sunrise', // outline variant, a boundary marker, not one of the 5 prayers
   dhuhr: 'sun.max.fill',
   asr: 'sun.min.fill',
   maghrib: 'sunset.fill',

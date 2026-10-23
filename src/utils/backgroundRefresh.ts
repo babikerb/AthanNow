@@ -25,7 +25,7 @@ function anyNotificationEnabled(s: Settings): boolean {
  * app is closed. Local notifications use exact DATE triggers and iOS caps pending
  * ones at 64, so a single app open only covers ~4-5 days; without this top-up,
  * athans stop firing if the app isn't opened for a while. iOS runs this
- * opportunistically (BGProcessingTask) — best-effort, not a hard guarantee.
+ * opportunistically (BGProcessingTask), best-effort, not a hard guarantee.
  *
  * Defined at module scope (not in a component) so the headless JS runtime can find
  * it; the task reconstructs location + settings straight from AsyncStorage.
@@ -50,7 +50,7 @@ TaskManager.defineTask(BACKGROUND_REFRESH_TASK, async () => {
     );
 
     // Only touch the notification schedule when something is enabled and permission
-    // was already granted — we can't prompt for permission from the background.
+    // was already granted, we can't prompt for permission from the background.
     if (anyNotificationEnabled(settings)) {
       const { status } = await Notifications.getPermissionsAsync();
       if (status === 'granted') {
@@ -73,6 +73,6 @@ export async function registerBackgroundRefresh(): Promise<void> {
       await BackgroundTask.registerTaskAsync(BACKGROUND_REFRESH_TASK, { minimumInterval: 360 });
     }
   } catch {
-    // Background tasks unavailable (e.g. Expo Go / unsupported environment) — ignore.
+    // Background tasks unavailable (e.g. Expo Go / unsupported environment), ignore.
   }
 }

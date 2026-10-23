@@ -16,7 +16,7 @@ const SMOOTHING = 0.18;
 // as a spherical cap of angular radius ρ, seen from central angle θ, that
 // half-width is Δ = asin(sin ρ / sin θ). It saturates at 90° as θ -> 0 (at/inside
 // the Kaaba) and as θ -> π (its antipode), where every direction faces the Kaaba
-// along the Earth's curvature, and is otherwise ~1e-4° — far below magnetometer
+// along the Earth's curvature, and is otherwise ~1e-4°, far below magnetometer
 // precision. So the practical tolerance is max(sensor floor, Δ): the sensor floor
 // rules everywhere normal, and Δ takes over near the two singular points.
 const KAABA_RADIUS_M = 8; // effective half-size of the Kaaba structure (~12.5 x 11 m base)
@@ -37,7 +37,7 @@ function centralAngleRad(lat: number, lng: number): number {
 function qiblaToleranceDeg(theta: number): number {
   const sinT = Math.sin(theta);
   // At/inside the Kaaba (θ→0) or its antipode (θ→π) every great circle reaches it,
-  // so the half-width is the whole circle — any direction is valid.
+  // so the half-width is the whole circle, any direction is valid.
   if (sinT <= Math.sin(KAABA_RHO)) return 180;
   const geom = (Math.asin(Math.min(1, Math.sin(KAABA_RHO) / sinT)) * 180) / Math.PI; // 0..90
   return Math.max(SENSOR_TOL_DEG, geom);
@@ -91,7 +91,7 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
 
     // If no heading event arrives shortly after subscribing, the device has no
     // usable compass (common on Wi-Fi iPads). That's distinct from "present but
-    // needs calibration", where events DO arrive with accuracy < 0 — so we can
+    // needs calibration", where events DO arrive with accuracy < 0, so we can
     // tell the user the compass is unavailable instead of looping a calibrate prompt.
     const noCompassTimer = setTimeout(() => {
       if (!cancelled && !sawHeading) setCompassAvailable(false);

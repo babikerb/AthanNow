@@ -31,7 +31,7 @@ func nextPrayer(_ data: WidgetData, now: Date) -> (name: String, date: Date)? {
   if let p = data.times.first(where: { $0.time > t }) {
     return (p.name, Date(timeIntervalSince1970: p.time))
   }
-  // Every stored time is in the past — the data is stale (app not opened in days).
+  // Every stored time is in the past, the data is stale (app not opened in days).
   // Return nil rather than the first (oldest) entry: a passed time would make the
   // `.timer` countdown count *up*, e.g. "Fajr in 56:00:00". The view shows an
   // "Open AthanNow" prompt instead so it never displays a bogus countdown.
@@ -57,7 +57,7 @@ func currentStage(_ data: WidgetData, now: Date) -> String {
 // The six prayers for the day that `now` falls in. The app bakes a week of times
 // (6 per day, ascending, each day starting at Fajr) so the widget keeps working
 // while the app is unopened. Without this the list views froze on the day the data
-// was written — so a few days later the hero countdown advanced correctly while the
+// was written, so a few days later the hero countdown advanced correctly while the
 // list kept showing the original day's (now all-past) times.
 func dayPrayers(_ data: WidgetData, now: Date) -> ArraySlice<PrayerTime> {
   let t = now.timeIntervalSince1970
@@ -141,7 +141,7 @@ struct Provider: TimelineProvider {
     let data = loadWidgetData()
     // One entry now, plus one at each upcoming prayer boundary. Each view renders
     // relative to its own entry.date, so the displayed prayer (and the sky stage)
-    // advances exactly when each athan passes — without depending on iOS issuing a
+    // advances exactly when each athan passes, without depending on iOS issuing a
     // just-in-time refresh. This is what stops the countdown from flipping to a
     // count-up ("Dhuhr in 1:27" rising) after a prayer's time has passed.
     var entries: [AthanEntry] = [AthanEntry(date: now, data: data)]
@@ -161,8 +161,8 @@ struct Provider: TimelineProvider {
 
 // MARK: - Views
 //
-// Mirrors the in-app reference widgets (src/widgets): next prayer's countdown is the hero, the next prayer in the list
-// is bold with a 3pt apricot tick, passed prayers are dimmed, and apricot appears only on the progress rule and the tick.
+// Next prayer's countdown is the hero; in the list the next prayer is bold with its time in apricot, passed prayers are
+// dimmed, and apricot appears only on the progress rule and that time.
 // WidgetKit constraints: no animation, the countdown is Text(date, style: .timer), the rule is ProgressView(timerInterval:).
 
 struct AthanWidgetView: View {
@@ -272,18 +272,11 @@ private struct PrayerRowView: View {
       Text(timeString(Date(timeIntervalSince1970: p.time), use24Hour))
         .font(DTFont.text(size, weight: isNext ? .semibold : .regular))
         .monospacedDigit()
+        .foregroundColor(isNext ? DTNight.accent : (isPast ? DTNight.skyTextSecondary : DTNight.skyText))
+        .widgetAccentable(isNext)
     }
     .foregroundColor(isPast ? DTNight.skyTextSecondary : DTNight.skyText)
     .opacity(isPast ? 0.62 : 1)
-    .padding(.leading, 8)
-    .overlay(alignment: .leading) {
-      if isNext {
-        RoundedRectangle(cornerRadius: 1.5)
-          .fill(DTNight.accent)
-          .frame(width: 3)
-          .widgetAccentable()
-      }
-    }
   }
 }
 
@@ -384,7 +377,7 @@ struct LargeView: View {
 // MARK: - Lock-screen (accessory) views
 //
 // Lock-screen widgets render monochrome/vibrant, so gradients and custom colors
-// are ignored — the system tints everything. We keep these to crisp text and an
+// are ignored, the system tints everything. We keep these to crisp text and an
 // AccessoryWidgetBackground, and rely on `.widgetAccentable()` for emphasis.
 
 // Lock-screen widgets must still declare a container background on iOS 17+.
@@ -407,7 +400,7 @@ struct CircularView: View {
     ZStack {
       AccessoryWidgetBackground()
       VStack(spacing: 1) {
-        Text(next?.name ?? "—")
+        Text(next?.name ?? "--")
           .font(.system(size: 12, weight: .semibold))
           .minimumScaleFactor(0.5)
           .lineLimit(1)
@@ -569,10 +562,10 @@ struct AthanWidgetBundle: WidgetBundle {
   }
 }
 
-// MARK: - Xcode canvas previews (DEBUG only — stripped from release builds)
+// MARK: - Xcode canvas previews (DEBUG only, stripped from release builds)
 //
 // Open this file in Xcode (after `npx expo prebuild`) and use the canvas (⌥⌘↵)
-// to see every size — including the lock-screen accessory widgets — with sample
+// to see every size, including the lock-screen accessory widgets, with sample
 // data, without an EAS build or a device.
 
 #if DEBUG

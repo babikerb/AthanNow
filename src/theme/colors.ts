@@ -13,7 +13,7 @@ export type Palette = {
   textSecondary: string;
   /**
    * @deprecated Fails AA contrast (4.5:1) against the background it's paired
-   * with (~3.27-3.30:1). Do not use for new real-text call sites — use
+   * with (~3.27-3.30:1). Do not use for new real-text call sites, use
    * `textSecondary` for de-emphasized real text, or `textQuaternary` for
    * decorative-only glyphs. Existing real-text usages are being migrated off
    * this field in a later pass; it stays defined until that migration is
@@ -21,8 +21,8 @@ export type Palette = {
    */
   textTertiary: string;
   /**
-   * Decorative glyphs only — e.g. a disclosure chevron sitting right next to
-   * the value it's pointing at — never real `<Text>` content. Same alpha
+   * Decorative glyphs only, e.g. a disclosure chevron sitting right next to
+   * the value it's pointing at, never real `<Text>` content. Same alpha
    * value as the legacy `textTertiary` (0.36), which fails AA for body text;
    * that's acceptable here specifically because these pixels don't carry
    * information on their own (the adjacent text/value does). If you're
@@ -38,7 +38,7 @@ export type Palette = {
   danger: string;
 };
 
-// The app is dark-mode only by design (no system-theme following) — near-
+// The app is dark-mode only by design (no system-theme following), near-
 // black greys, no purple tint.
 export const darkPalette: Palette = {
   background: colorTokens.dark.bg,
@@ -74,14 +74,14 @@ export const lightPalette: Palette = {
 // the light/dark theme system because they are "always night sky" / "always
 // instrument panel" interfaces by product design, not an oversight. Every
 // permanently-dark surface in the app (Athan, Onboarding, Qibla) must
-// reference this single constant — no screen may hardcode its own near-black.
+// reference this single constant, no screen may hardcode its own near-black.
 export const NIGHT_BG = colorTokens.dark.bg;
 
 // Shared state colors, previously duplicated ad hoc per screen (Qibla's
 // "aligned" green, Settings'/LocationSheet's destructive/error red).
 
 /**
- * Sky-text tokens — verified against the *scrimmed* Dhuhr sky background
+ * Sky-text tokens, verified against the *scrimmed* Dhuhr sky background
  * specifically (the binding worst case across all prayer gradients, once
  * `AmbientGradient`'s scrim is applied). Replaces the three unrelated ad hoc
  * translucent-white values previously hand-picked per label on the Athan
@@ -91,7 +91,7 @@ export const skyTextPrimary: string = colorTokens.dark.skyText;
 export const skyTextSecondary: string = colorTokens.dark.skyTextSecondary;
 
 /**
- * Reading-surface palette for the Quran mushaf reader — forced light,
+ * Reading-surface palette for the Quran mushaf reader, forced light,
  * independent of the rest of the app's forced-dark chrome palette above.
  * Warm ivory paper + soft warm-brown ink (not pure black), so a full page of
  * Arabic text doesn't read as stark/harsh the way white-on-black (or even

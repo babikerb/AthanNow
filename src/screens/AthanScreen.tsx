@@ -207,7 +207,7 @@ export default function AthanScreen() {
 
         {!scrolls && <View style={styles.flex} />}
 
-        {/* Today's prayers. The next one carries the only warm marker; passed ones fade back. */}
+        {/* Today's prayers. The next one's time is the only warm text; passed ones fade back. */}
         <View style={{ paddingHorizontal: gutter, paddingTop: scrolls ? t.spacing.xxl : t.spacing.md }}>
           {listRows.map((row, i) => {
             const isNext = i === nextIdx;
@@ -221,7 +221,6 @@ export default function AthanScreen() {
                 accessibilityLabel={`${row.label}, ${time}${isNext ? ', next prayer' : ''}${isCurrent ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
                 style={[styles.row, { minHeight: rowMin }, i < listRows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.c.hairline }]}
               >
-                {isNext && <View style={[styles.tick, { backgroundColor: t.c.accent, left: -gutter }]} />}
                 <View style={styles.rowLabel}>
                   <Text variant={isNext ? 'bodyEmph' : 'body'} color={isPast ? 'textTertiary' : 'text'}>
                     {row.label}
@@ -232,7 +231,7 @@ export default function AthanScreen() {
                     </Text>
                   )}
                 </View>
-                <Text variant={isNext ? 'bodyEmph' : 'body'} color={isPast ? 'textTertiary' : 'text'}>
+                <Text variant={isNext ? 'bodyEmph' : 'body'} color={isNext ? 'accentText' : isPast ? 'textTertiary' : 'text'}>
                   {time}
                 </Text>
               </View>
@@ -275,7 +274,6 @@ const styles = StyleSheet.create({
   ruleFill: { height: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rowLabel: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexShrink: 1 },
-  tick: { position: 'absolute', top: 10, bottom: 10, width: 3, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
   noticeActions: { flexDirection: 'row', gap: 20, marginTop: 4 },
   noticeAction: { minHeight: 44, justifyContent: 'center' },
 });

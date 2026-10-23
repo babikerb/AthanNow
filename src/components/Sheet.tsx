@@ -22,7 +22,7 @@ interface SheetProps {
   /** Optional trailing header action (e.g. a "Done" or refresh control). */
   headerRight?: React.ReactNode;
   children: React.ReactNode;
-  /** Overrides the app's default (dark) palette — used by the Quran tab's
+  /** Overrides the app's default (dark) palette, used by the Quran tab's
    *  sheets, which stay on the forced-light reading palette instead. */
   palette?: Palette;
 }

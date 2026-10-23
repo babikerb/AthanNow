@@ -19,7 +19,7 @@ interface SurahPickerSheetProps {
   onSelectVerse?: (verseKey: string) => void;
   /** Jump to a 1-based mushaf page number. */
   onSelectPage?: (page: number) => void;
-  /** Overrides the app's default (dark) palette — the Quran tab stays on the
+  /** Overrides the app's default (dark) palette, the Quran tab stays on the
    *  forced-light reading palette instead. */
   palette?: Palette;
 }
@@ -41,7 +41,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
   }, [query]);
 
   // Detect a page jump: "page 50" / "pg 50" / "p50", or a bare number that can't be a
-  // surah (115–604). Bare 1–114 stays ambiguous and is treated as a surah filter.
+  // surah (115 to 604). Bare 1 to 114 stays ambiguous and is treated as a surah filter.
   const pageRef = useMemo(() => {
     const q = query.trim().toLowerCase();
     let n: number | null = null;
@@ -87,7 +87,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
     );
   }, [query]);
 
-  // English word/meaning search (debounced) — only once nothing else matches
+  // English word/meaning search (debounced), only once nothing else matches
   // (no verse/page ref, no surah-name hit), so a surah search like "light"
   // (An-Nur's translation) still wins over ayah results.
   const wantsTranslationSearch = !isArabic && !verseRef && !pageRef && filtered.length === 0 && query.trim().length >= 3;

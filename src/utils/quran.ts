@@ -76,7 +76,7 @@ export interface AyahHit {
   translation?: string;
 }
 
-// `quran_en.json` (not the plain `quran.json`) — same Uthmani Arabic text, plus
+// `quran_en.json` (not the plain `quran.json`), same Uthmani Arabic text, plus
 // an English `translation` field per verse, needed for the word/meaning search.
 const ALL_CDN = 'https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/quran_en.json';
 const ALL_KEY = 'athannow.quran.all.v2';
