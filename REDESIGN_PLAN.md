@@ -13,7 +13,7 @@ Status column: [ ] todo, [x] done.
 
 ## 2. Home hierarchy
 - [x] Hero below the skyline, left-aligned: "Asr" + "at 3:42 PM", 64pt Fraunces countdown, hairline progress rule with an apricot elapsed segment. Drop the "NOW · DHUHR" eyebrow.
-- [x] Rows: the next prayer gets a tick + emphasis, with no wash pill.
+- [x] Rows: the next prayer is emphasised with its time in apricot (no left tick, no wash pill).
 - [x] Countdown never shows 00m 00s.
 - [x] Notice uses two visible text buttons (no hidden long-press).
 
@@ -34,7 +34,7 @@ Status column: [ ] todo, [x] done.
 - [x] Remove glass outside the tab bar and sheets, glows, and accent-on-decoration; replace Calendar badges with footnote text.
 - [x] Delete dead components and changelog-style comments.
 - [x] Settings: drop row icons except the notification status row; rewrite filler copy.
-- [x] Calendar: sticky month header, grouped day cards. Qibla: left-aligned info block, plain "Northeast".
+- [x] Calendar: grouped day cards. Qibla: plain "North-east" under the degrees; info stays centred under the centred dial.
 
 ## 6. Onboarding (added)
 - [x] Replaced the 9-step popup tour with a 3-step setup over the sky (dawn, midday, dusk): welcome, location, which athans to hear.
