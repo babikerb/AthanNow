@@ -23,8 +23,11 @@ import { fetchMushafPage, juzForPage, pageForVerse } from '../utils/mushaf';
 const LAST_PAGE_KEY = 'athannow.quran.lastpage.v1';
 const LAST_COLOR_KEY = 'athannow.quran.lastcolor.v1';
 
-// Header content height, below the status-bar inset.
-const HEADER_H = 48;
+// Running head (surah, juz) height below the status-bar inset, and the page-number row at the foot.
+const HEAD_H = 26;
+const FOOT_H = 30;
+// The native tab bar (react-native-bottom-tabs) draws over the screen instead of shrinking it.
+const TAB_BAR_H = 49;
 
 const COLOR_ORDER = Object.keys(BOOKMARK_COLORS) as BookmarkColor[];
 
@@ -138,11 +141,13 @@ export default function QuranScreen() {
     [currentPage, setPageBookmark],
   );
 
-  // The header (surah and page) always stays; the page fills everything below it, down to the home
-  // indicator, and is allowed to run under the tab bar when that is showing.
-  const topInset = insets.top + HEADER_H;
-  const bottomInset = insets.bottom;
+  // Laid out like a printed mushaf: a running head (surah left, juz right) and the page number at the
+  // foot, on the same paper as the page with no rule between them. Neither moves when the reading
+  // chrome hides; the page number only slides down from above the tab bar to the bottom edge.
+  const topInset = insets.top + HEAD_H;
+  const bottomInset = insets.bottom + FOOT_H;
   const chromePointer = chromeHidden ? 'none' : 'auto';
+  const footLift = chrome.interpolate({ inputRange: [0, 1], outputRange: [0, -TAB_BAR_H] });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -161,18 +166,23 @@ export default function QuranScreen() {
         </View>
       )}
 
-      {/* Header: surah and page, always visible. The actions fade out while reading full screen. */}
-      <View style={[styles.header, { height: topInset, paddingTop: insets.top, backgroundColor: colors.background, borderBottomColor: colors.separator }]}>
-        <View style={styles.headerText} accessible accessibilityRole="header" accessibilityLabel={`${surah.transliteration}, page ${currentPage}, Juz ${juz}`}>
-          <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-            {surah.transliteration}
-          </Text>
-          <Text style={[styles.headerMeta, { color: colors.textSecondary }]}>
-            Page {currentPage}, Juz {juz}
-          </Text>
-        </View>
-        <Animated.View pointerEvents={chromePointer} style={[styles.actions, { opacity: chrome }]}>
-          <HeaderButton
+      {/* Running head. */}
+      <View
+        style={[styles.head, { height: topInset, paddingTop: insets.top, backgroundColor: colors.background }]}
+        accessible
+        accessibilityRole="header"
+        accessibilityLabel={`${surah.transliteration}, Juz ${juz}, page ${currentPage}`}
+      >
+        <Text style={[styles.headSurah, { color: colors.textPrimary }]} numberOfLines={1}>
+          {surah.transliteration}
+        </Text>
+        <Text style={[styles.headJuz, { color: colors.textSecondary }]}>Juz {juz}</Text>
+      </View>
+
+      {/* Foot: page number in the middle; the reading actions either side fade out in full screen. */}
+      <Animated.View style={[styles.foot, { bottom: insets.bottom, height: FOOT_H + 14, transform: [{ translateY: footLift }] }]} pointerEvents="box-none">
+        <Animated.View pointerEvents={chromePointer} style={[styles.footSide, { opacity: chrome }]}>
+          <FootButton
             label={pageMark ? 'Change or remove this page’s bookmark' : 'Bookmark this page'}
             onPress={() => {
               haptic.select();
@@ -182,26 +192,31 @@ export default function QuranScreen() {
             }}
             onLongPress={() => setTrayOpen(true)}
           >
-            <SymbolView name={pageMark ? 'bookmark.fill' : 'bookmark'} size={19} tintColor={pageMark ? bookmarkColor(pageMark) : colors.textPrimary} />
-          </HeaderButton>
-          <HeaderButton label="Bookmarks" onPress={() => setBookmarksOpen(true)}>
-            <SymbolView name="list.bullet" size={19} tintColor={colors.textPrimary} />
-          </HeaderButton>
-          <HeaderButton
+            <SymbolView name={pageMark ? 'bookmark.fill' : 'bookmark'} size={18} tintColor={pageMark ? bookmarkColor(pageMark) : colors.textSecondary} />
+          </FootButton>
+          <FootButton label="Bookmarks" onPress={() => setBookmarksOpen(true)}>
+            <SymbolView name="list.bullet" size={18} tintColor={colors.textSecondary} />
+          </FootButton>
+        </Animated.View>
+        <Text style={[styles.pageNumber, { color: colors.textSecondary }]} accessibilityLabel={`Page ${currentPage}`}>
+          {currentPage}
+        </Text>
+        <Animated.View pointerEvents={chromePointer} style={[styles.footSide, styles.footRight, { opacity: chrome }]}>
+          <FootButton
             label="Search the Quran"
             onPress={() => {
               haptic.select();
               setPickerOpen(true);
             }}
           >
-            <SymbolView name="magnifyingglass" size={19} tintColor={colors.textPrimary} />
-          </HeaderButton>
+            <SymbolView name="magnifyingglass" size={18} tintColor={colors.textSecondary} />
+          </FootButton>
         </Animated.View>
-      </View>
+      </Animated.View>
 
-      {/* Colour tray for the page ribbon, just under the header. */}
+      {/* Colour tray for the page ribbon, just above the foot. */}
       {trayOpen && !chromeHidden && (
-        <View style={[styles.tray, { top: topInset, backgroundColor: colors.background, borderBottomColor: colors.separator }]}>
+        <View style={[styles.tray, { bottom: insets.bottom + TAB_BAR_H + FOOT_H + 14, backgroundColor: colors.surface }]}>
           {COLOR_ORDER.map((c) => {
             const selected = pageMark?.color === c || (pageMark && !pageMark.color && c === 'red');
             return (
@@ -254,7 +269,7 @@ export default function QuranScreen() {
   );
 }
 
-function HeaderButton({ label, onPress, onLongPress, children }: { label: string; onPress: () => void; onLongPress?: () => void; children: React.ReactNode }) {
+function FootButton({ label, onPress, onLongPress, children }: { label: string; onPress: () => void; onLongPress?: () => void; children: React.ReactNode }) {
   return (
     <Pressable
       onPress={onPress}
@@ -262,7 +277,7 @@ function HeaderButton({ label, onPress, onLongPress, children }: { label: string
       hitSlop={4}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.headerButton, pressed && { opacity: 0.5 }]}
+      style={({ pressed }) => [styles.footButton, pressed && { opacity: 0.5 }]}
     >
       {children}
     </Pressable>
@@ -272,7 +287,7 @@ function HeaderButton({ label, onPress, onLongPress, children }: { label: string
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: {
+  head: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -280,16 +295,17 @@ const styles = StyleSheet.create({
     zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingLeft: 20,
-    paddingRight: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 20,
   },
-  headerText: { flex: 1 },
-  headerTitle: { ...textStyle('headline') },
-  headerMeta: { ...textStyle('caption'), fontVariant: ['tabular-nums'] },
-  actions: { flexDirection: 'row' },
-  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  headSurah: { ...textStyle('footnote'), flexShrink: 1 },
+  headJuz: { ...textStyle('footnote') },
+  foot: { position: 'absolute', left: 0, right: 0, zIndex: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8 },
+  footSide: { flex: 1, flexDirection: 'row' },
+  footRight: { justifyContent: 'flex-end' },
+  footButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  pageNumber: { ...textStyle('footnote'), fontVariant: ['tabular-nums'], minWidth: 44, textAlign: 'center' },
   tray: {
     position: 'absolute',
     left: 0,
@@ -300,7 +316,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     paddingHorizontal: 20,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderRadius: 16,
+    marginHorizontal: 12,
   },
   swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: 'transparent' },
   trayRemove: { marginLeft: 'auto' },
