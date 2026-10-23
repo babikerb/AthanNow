@@ -14,6 +14,12 @@ interface Props {
   height: number;
   /** Height of chrome over the top of the scene; the sun or moon stays below it. */
   clearTop?: number;
+  layout?: 'band' | 'full';
+  /** Full layout: the open sky (pt) kept free of text. */
+  zone?: { top: number; bottom: number };
+  /** Full layout: 0..1 position of the sun or moon along its arc. */
+  arc?: number;
+  groundLift?: number;
 }
 
 interface Layer {
@@ -23,10 +29,10 @@ interface Layer {
 }
 
 /**
- * The illustrated sky band at the top of Home. Still within a period; a period change crossfades
+ * The illustrated sky (full screen on Home, a band in onboarding). Still within a period; a period change crossfades
  * the whole illustration once (shortened under Reduce Motion) and snaps if the app has just resumed.
  */
-export default function SkyScene({ period, width, height, clearTop }: Props) {
+export default function SkyScene({ period, width, height, clearTop, layout, zone, arc, groundLift }: Props) {
   const { motion, reduceMotion } = useTheme();
   const recentlyResumed = useResumeSnap();
   const nextId = useRef(1);
@@ -63,7 +69,7 @@ export default function SkyScene({ period, width, height, clearTop }: Props) {
     <View style={{ width, height }} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {layers.map((l) => (
         <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.v }]}>
-          <SkyIllustration period={l.period} width={width} height={height} clearTop={clearTop} />
+          <SkyIllustration period={l.period} width={width} height={height} clearTop={clearTop} layout={layout} zone={zone} arc={arc} groundLift={groundLift} />
         </Animated.View>
       ))}
     </View>

@@ -40,7 +40,7 @@ let SKY_SCENES: [String: SkyScenePalette] = [
       body: .sun(x: 112, y: 214, r: 28, color: Color(dtHex: 0xF6D7A8)),
       stars: 0,
       starOpacity: 0,
-      clouds: false
+      clouds: true
     ),
     "dhuhr": SkyScenePalette(
       sky: [Color(dtHex: 0x6A8AA1), Color(dtHex: 0x8FA9B9), Color(dtHex: 0xB5C4CB)],
@@ -61,7 +61,7 @@ let SKY_SCENES: [String: SkyScenePalette] = [
     "maghrib": SkyScenePalette(
       sky: [Color(dtHex: 0x3B2E4F), Color(dtHex: 0x8A5A6A), Color(dtHex: 0xD98C6A), Color(dtHex: 0xE9A27A)],
       ridges: [],
-      body: .sun(x: 282, y: 214, r: 60, color: Color(dtHex: 0xF7D9B0)),
+      body: .sun(x: 282, y: 238, r: 46, color: Color(dtHex: 0xF7D9B0)),
       stars: 5,
       starOpacity: 0.3,
       clouds: false
@@ -244,6 +244,18 @@ private func skyline() -> Path {
   return p
 }
 
+/// A cumulus: flat base plus uneven puffs, as one path so overlaps don't darken. (x, y) = left end of the base.
+private func cloud(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> Path {
+  var p = Path()
+  p.addRoundedRect(in: CGRect(x: x, y: y - h * 0.34, width: w, height: h * 0.34), cornerSize: CGSize(width: h * 0.17, height: h * 0.17))
+  let puffs: [(CGFloat, CGFloat, CGFloat)] = [(0.18, 0.34, 0.3), (0.4, 0.62, 0.42), (0.62, 0.6, 0.38), (0.82, 0.36, 0.26)]
+  for (fx, fy, fr) in puffs {
+    let r = h * fr * 1.25
+    p.addEllipse(in: CGRect(x: x + w * fx - r, y: y - h * fy - r * 0.8, width: r * 2, height: r * 1.8))
+  }
+  return p
+}
+
 /// The illustration, authored on a 390 x 340 box and drawn like SVG `xMidYMax slice`:
 /// it fills the frame, stays anchored to the bottom edge and crops sky (never ground).
 struct SkySceneView: View {
@@ -270,9 +282,11 @@ struct SkySceneView: View {
           }
         }
         if scene.clouds {
-          Path(ellipseIn: CGRect(x: 46, y: 141, width: 144, height: 18)).applying(t).fill(Color.white.opacity(0.16))
-          Path(ellipseIn: CGRect(x: 104, y: 154, width: 92, height: 12)).applying(t).fill(Color.white.opacity(0.12))
-          Path(ellipseIn: CGRect(x: 198, y: 166, width: 176, height: 20)).applying(t).fill(Color.white.opacity(0.12))
+          let tint = period == "sunrise" ? Color(dtHex: 0xF1C7B4) : Color.white
+          let alpha = period == "sunrise" ? 0.3 : 0.42
+          cloud(52, 156, 120, 26).applying(t).fill(tint.opacity(alpha))
+          cloud(70, 140, 50, 16).applying(t).fill(Color.white.opacity(alpha * 0.55))
+          cloud(236, 180, 110, 22).applying(t).fill(tint.opacity(alpha * 0.8))
         }
         bodyShape(placed(scene.body, visibleTop: 340 - geo.size.height / s), t)
         if scene.ridges.count == 3 {

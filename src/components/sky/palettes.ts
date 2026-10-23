@@ -19,9 +19,27 @@ export interface ScenePalette {
   stars: number;
   starOpacity: number;
   clouds: boolean;
-  /** Status bar icons over the top of this sky. */
+  /** A small flock low in the open sky (full layout). */
+  birds: boolean;
+  /** A plane with a contrail crossing the open sky (full layout). */
+  plane: boolean;
+  /** Status bar icons over the top of this sky (band layout). */
   statusBar: 'light' | 'dark';
+  /**
+   * Full-screen layout: the sky runs top to bottom with text on it, so these stops are tuned for the
+   * text that sits there (screen offsets 0 = top, 1 = bottom), with the tone of that text.
+   * Checked: primary text >= 6.5:1 and the next-prayer accent >= 4.6:1 over 3-80% of the height.
+   */
+  full: { sky: [string, number][]; tone: SkyTone };
 }
+
+export type SkyTone = 'light' | 'dark';
+
+/** Text colours for text drawn straight on the sky. */
+export const SKY_TONES: Record<SkyTone, { text: string; secondary: string; tertiary: string; hairline: string; track: string; accent: string }> = {
+  light: { text: '#F2EDF6', secondary: 'rgba(242,237,246,0.78)', tertiary: 'rgba(242,237,246,0.55)', hairline: 'rgba(242,237,246,0.16)', track: 'rgba(242,237,246,0.22)', accent: '#F0C08E' },
+  dark: { text: '#17121F', secondary: 'rgba(23,18,31,0.72)', tertiary: 'rgba(23,18,31,0.5)', hairline: 'rgba(23,18,31,0.14)', track: 'rgba(23,18,31,0.16)', accent: '#4E2606' },
+};
 
 // Coordinates are in the scene's 390 x 340 viewBox.
 export const SCENES: Record<ScenePeriod, ScenePalette> = {
@@ -32,7 +50,10 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 12,
     starOpacity: 0.45,
     clouds: false,
+    birds: false,
+    plane: false,
     statusBar: 'light',
+    full: { sky: [['#1B1830', 0], ['#2C2747', 0.45], ['#4A3B5E', 0.78], ['#6B4A63', 1]], tone: 'light' },
   },
   sunrise: {
     sky: ['#2E3352', '#5A5872', '#B88A86', '#E2A884'],
@@ -40,8 +61,11 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     body: { kind: 'sun', x: 112, y: 214, r: 28, color: '#F6D7A8' },
     stars: 0,
     starOpacity: 0,
-    clouds: false,
+    clouds: true,
+    birds: true,
+    plane: false,
     statusBar: 'light',
+    full: { sky: [['#2A2E4C', 0], ['#383A5A', 0.5], ['#544A68', 0.8], ['#E2A884', 1]], tone: 'light' },
   },
   dhuhr: {
     sky: ['#6A8AA1', '#8FA9B9', '#B5C4CB'],
@@ -50,7 +74,10 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 0,
     starOpacity: 0,
     clouds: true,
+    birds: false,
+    plane: true,
     statusBar: 'light',
+    full: { sky: [['#7E9DB2', 0], ['#9DB4C2', 0.55], ['#BCCAD0', 1]], tone: 'dark' },
   },
   asr: {
     sky: ['#5F7E7C', '#93A89E', '#C2B9A0'],
@@ -59,16 +86,22 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 0,
     starOpacity: 0,
     clouds: true,
+    birds: true,
+    plane: false,
     statusBar: 'light',
+    full: { sky: [['#86A19B', 0], ['#A3B5A8', 0.55], ['#C9BFA5', 1]], tone: 'dark' },
   },
   maghrib: {
     sky: ['#3B2E4F', '#8A5A6A', '#D98C6A', '#E9A27A'],
     ridges: [],
-    body: { kind: 'sun', x: 282, y: 214, r: 60, color: '#F7D9B0' },
+    body: { kind: 'sun', x: 282, y: 238, r: 46, color: '#F7D9B0' },
     stars: 5,
     starOpacity: 0.3,
     clouds: false,
+    birds: true,
+    plane: false,
     statusBar: 'light',
+    full: { sky: [['#33284A', 0], ['#463052', 0.45], ['#623C55', 0.8], ['#D98C6A', 0.92], ['#E9A27A', 1]], tone: 'light' },
   },
   isha: {
     sky: ['#1A1530', '#2A2148', '#3E2D63'],
@@ -77,7 +110,10 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 18,
     starOpacity: 0.7,
     clouds: false,
+    birds: false,
+    plane: false,
     statusBar: 'light',
+    full: { sky: [['#1A1530', 0], ['#2A2148', 0.6], ['#3E2D63', 1]], tone: 'light' },
   },
   night: {
     sky: ['#141022', '#1E1832', '#2C2444'],
@@ -86,7 +122,10 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 28,
     starOpacity: 0.75,
     clouds: false,
+    birds: false,
+    plane: false,
     statusBar: 'light',
+    full: { sky: [['#141022', 0], ['#1E1832', 0.6], ['#2C2444', 1]], tone: 'light' },
   },
 };
 

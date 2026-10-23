@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationSheet } from '../components/LocationSheet';
 import SkyScene, { ScenePeriod } from '../components/SkyScene';
-import { SCENES } from '../components/sky/palettes';
+import { HILLS_UNITS } from '../components/sky/SkyIllustration';
+import { SCENES, SKY_TONES } from '../components/sky/palettes';
 import { useLocation } from '../context/LocationContext';
 import { useSettings } from '../context/SettingsContext';
 import { haptic } from '../design/haptics';
@@ -20,6 +21,9 @@ import { refreshWidgetData } from '../utils/widgetData';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const DEBUG_PERIODS: ScenePeriod[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha', 'night'];
+// Representative arc positions when previewing a scene out of its real time.
+const DEBUG_ARC: Record<ScenePeriod, number> = { fajr: 0.92, sunrise: 0.08, dhuhr: 0.5, asr: 0.78, maghrib: 1, isha: 0.18, night: 0.55 };
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export default function AthanScreen() {
   const { location, cityName, status, hasRestored, travelMismatch, refreshLocation, dismissTravel } = useLocation();
@@ -35,6 +39,8 @@ export default function AthanScreen() {
   // Measured heights of the hero and the list (with any notice); estimates until the first layout.
   const [heroH, setHeroH] = useState(130);
   const [listH, setListH] = useState(280);
+  // The open sky between the chrome and the hero, where the sun or moon travels (pt, screen coords).
+  const [zone, setZone] = useState<{ top: number; bottom: number } | null>(null);
   // Development only: cycle through every sky scene to review them.
   const [debugPeriod, setDebugPeriod] = useState<ScenePeriod | null>(null);
 
@@ -76,7 +82,20 @@ export default function AthanScreen() {
   const overnight = !!currentStart && currentStart > now;
   const livePeriod: ScenePeriod = !prayerData ? 'night' : overnight ? 'night' : (prayerData.currentPrayer as ScenePeriod);
   const period = debugPeriod ?? livePeriod;
-  useFocusedStatusBar(SCENES[period].statusBar);
+  const tone = SKY_TONES[SCENES[period].full.tone];
+  useFocusedStatusBar(SCENES[period].full.tone === 'dark' ? 'dark' : 'light');
+
+  // Where the sun (sunrise to sunset) or the moon (sunset to sunrise) is along its arc right now.
+  // Rounded so the sky redraws about once a minute rather than every second.
+  const arc = useMemo(() => {
+    if (debugPeriod) return DEBUG_ARC[debugPeriod];
+    const rise = prayerData?.listRows.find((r) => r.id === 'sunrise')?.time.getTime();
+    const set = prayerData?.listRows.find((r) => r.id === 'maghrib')?.time.getTime();
+    if (!rise || !set) return 0.5;
+    const t0 = now.getTime();
+    const f = t0 < rise ? (t0 - (set - DAY_MS)) / (rise - (set - DAY_MS)) : t0 < set ? (t0 - rise) / (set - rise) : (t0 - set) / (rise + DAY_MS - set);
+    return Math.round(clamp(f, 0, 1) * 600) / 600;
+  }, [debugPeriod, prayerData, now]);
 
   const minutesToNext = prayerData ? Math.max(0, Math.round((prayerData.nextPrayerTime.getTime() - now.getTime()) / 60000)) : 0;
   const countdownLabel = useMemo(() => {
@@ -102,24 +121,26 @@ export default function AthanScreen() {
 
   const locationSheet = <LocationSheet visible={locationSheetOpen} onClose={() => setLocationSheetOpen(false)} />;
 
-  // Layout. The scene owns the top band; nothing but the location and date chrome crosses it.
-  // The band gets whatever height is left after the hero and the full prayer list (measured, so it
-  // holds for any phone and text size), between a floor that still fits the chrome and the art and
-  // a ceiling. If even the floor doesn't leave room, the page scrolls instead of hiding Isha.
+  // Layout. The sky fills the screen, with the hills and skyline along the bottom behind the tab
+  // bar. Text sits on the sky in a tone checked for contrast per period. Between the city/date strip
+  // and the hero is open sky for the sun or moon, so text never covers them. That open sky takes
+  // whatever height is left after the hero and the whole prayer list; if too little is left, the page
+  // scrolls instead of hiding Isha.
   const dropArabic = winH < 700 || fontScale > 1.15;
   const dropProgress = winH < 640;
   const rowMin = winH < 700 ? 40 : 44;
   const gutter = winW <= 375 ? t.spacing.lg : t.spacing.xl;
   const chromeH = insets.top + 52;
-  const sceneFloor = chromeH + 120;
-  const fitH = winH - tabBarHeight - t.spacing.sm - heroH - listH - t.spacing.md;
-  const scrolls = fontScale >= 1.3 || fitH < sceneFloor;
-  const sceneH = scrolls ? Math.max(sceneFloor, 280) : clamp(Math.round(fitH), sceneFloor, 360);
+  // The whole illustration sits above the tab bar; under the bar is solid ground in the skyline's ink.
+  const groundLift = tabBarHeight;
+  const hillsH = Math.round((HILLS_UNITS * winW) / 390) + groundLift;
+  const minZone = 72;
+  const scrolls = fontScale >= 1.3 || chromeH + minZone + heroH + listH + hillsH > winH;
 
   if (!prayerData) {
     return (
-      <View style={[styles.container, { backgroundColor: t.c.bg }]}>
-        <SkyScene period="night" width={winW} height={sceneH} clearTop={chromeH} />
+      <View style={[styles.container, { backgroundColor: SCENES.night.full.sky[0][0] }]}>
+        <SkyScene period="night" width={winW} height={winH} layout="full" clearTop={chromeH} groundLift={groundLift} />
         {locationSheet}
       </View>
     );
@@ -173,18 +194,52 @@ export default function AthanScreen() {
     : stateNotice;
 
   const Body: React.ComponentType<any> = scrolls ? ScrollView : View;
-  const bodyProps = scrolls
-    ? { style: styles.flex, contentContainerStyle: { paddingBottom: tabBarHeight + t.spacing.lg } }
-    : { style: [styles.flex, { paddingBottom: tabBarHeight + t.spacing.sm }] };
+  const bodyProps = scrolls ? { style: styles.flex, contentContainerStyle: { paddingBottom: hillsH } } : { style: styles.flex };
+  const ink = { color: tone.text };
+  const ink2 = { color: tone.secondary };
+  const ink3 = { color: tone.tertiary };
 
   return (
-    <View style={[styles.container, { backgroundColor: t.c.bg }]}>
+    <View style={[styles.container, { backgroundColor: SCENES[period].full.sky[0][0] }]}>
+      <View style={StyleSheet.absoluteFill}>
+        <SkyScene period={period} width={winW} height={winH} layout="full" clearTop={chromeH} zone={zone ?? undefined} arc={arc} groundLift={groundLift} />
+      </View>
+
       <Body {...bodyProps}>
-        {/* Scene band with its chrome strip: city on the left, today's dates on the right. */}
-        <View style={{ height: sceneH }}>
-          <View style={StyleSheet.absoluteFill}>
-            <SkyScene period={period} width={winW} height={sceneH} clearTop={chromeH} />
+        {/* City on the left, today's dates on the right. */}
+        <View style={[styles.chrome, { paddingTop: insets.top + t.spacing.sm, paddingHorizontal: gutter }]}>
+          <Pressable
+            onPress={openLocation}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`Location, ${cityName}`}
+            accessibilityHint="Changes the city"
+            style={({ pressed }) => [styles.pill, { opacity: pressed ? 0.6 : 1 }]}
+          >
+            {!location?.isManual && status === 'ready' && <SymbolView name="location.fill" size={12} tintColor={tone.text} />}
+            <Text variant="subhead" numberOfLines={1} style={[styles.pillText, ink]}>
+              {!hasRestored ? 'Locating…' : cityName}
+            </Text>
+            <SymbolView name="chevron.down" size={11} tintColor={tone.secondary} />
+          </Pressable>
+          <View style={styles.dates} accessible accessibilityLabel={`${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}, ${getHijriDate(now)}`}>
+            <Text variant="footnote" style={ink}>
+              {now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+            </Text>
+            <Text variant="caption" numberOfLines={1} style={ink2}>
+              {getHijriDate(now)}
+            </Text>
           </View>
+        </View>
+
+        {/* Open sky for the sun or moon. */}
+        <View
+          style={scrolls ? { height: 120 } : { flex: 1, minHeight: minZone }}
+          onLayout={(e) => {
+            const { y, height } = e.nativeEvent.layout;
+            setZone((z) => (z && Math.abs(z.top - y) < 1 && Math.abs(z.bottom - (y + height)) < 1 ? z : { top: y, bottom: y + height }));
+          }}
+        >
           {__DEV__ && (
             <Pressable
               onPress={() => setDebugPeriod((p) => (p === null ? DEBUG_PERIODS[0] : DEBUG_PERIODS[DEBUG_PERIODS.indexOf(p) + 1] ?? null))}
@@ -193,107 +248,86 @@ export default function AthanScreen() {
               accessibilityLabel="Cycle sky scenes (development only)"
               style={[styles.debug, { right: gutter }]}
             >
-              <Text variant="caption" color="skyText">
+              <Text variant="caption" style={{ color: '#F2EDF6' }}>
                 {debugPeriod ? `Sky: ${debugPeriod}` : 'Sky: live'}
               </Text>
             </Pressable>
           )}
-          <View style={[styles.chrome, { paddingTop: insets.top + t.spacing.sm, paddingHorizontal: gutter }]}>
-            <Pressable
-              onPress={openLocation}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel={`Location, ${cityName}`}
-              accessibilityHint="Changes the city"
-              style={({ pressed }) => [styles.pill, { opacity: pressed ? 0.6 : 1 }]}
-            >
-              {!location?.isManual && status === 'ready' && <SymbolView name="location.fill" size={12} tintColor={t.c.skyText} />}
-              <Text variant="subhead" color="skyText" numberOfLines={1} style={styles.pillText}>
-                {!hasRestored ? 'Locating…' : cityName}
-              </Text>
-              <SymbolView name="chevron.down" size={11} tintColor={t.c.skyTextSecondary} />
-            </Pressable>
-            <View style={styles.dates} accessible accessibilityLabel={`${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}, ${getHijriDate(now)}`}>
-              <Text variant="footnote" color="skyText">
-                {now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-              </Text>
-              <Text variant="caption" color="skyTextSecondary" numberOfLines={1}>
-                {getHijriDate(now)}
-              </Text>
-            </View>
-          </View>
         </View>
 
         {/* Hero: which prayer is next and how long until it. */}
-        <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.lg }} onLayout={(e) => setHeroH(Math.ceil(e.nativeEvent.layout.height))}>
+        <View style={{ paddingHorizontal: gutter }} onLayout={(e) => setHeroH(Math.ceil(e.nativeEvent.layout.height))}>
           <View style={styles.heroLine}>
-            <Text variant="title3">{nextPrayer}</Text>
-            <Text variant="subhead" color="textSecondary">
+            <Text variant="title3" style={ink}>
+              {nextPrayer}
+            </Text>
+            <Text variant="subhead" style={ink2}>
               {nextIsTomorrow ? `at ${nextClock} tomorrow` : `at ${nextClock}`}
             </Text>
           </View>
-          <Text variant="hero" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityRole="timer" accessibilityLabel={countdownLabel}>
+          <Text variant="hero" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityRole="timer" accessibilityLabel={countdownLabel} style={ink}>
             {formatCountdown(now, nextPrayerTime)}
           </Text>
           {progress != null && !dropProgress && (
-            <View accessibilityElementsHidden importantForAccessibility="no" style={[styles.rule, { backgroundColor: t.c.hairline, marginTop: t.spacing.sm }]}>
-              <View style={[styles.ruleFill, { width: `${progress * 100}%`, backgroundColor: t.c.accent }]} />
+            <View accessibilityElementsHidden importantForAccessibility="no" style={[styles.rule, { backgroundColor: tone.track, marginTop: t.spacing.sm }]}>
+              <View style={[styles.ruleFill, { width: `${progress * 100}%`, backgroundColor: tone.accent }]} />
             </View>
           )}
         </View>
 
-        {!scrolls && <View style={styles.flex} />}
-
         <View onLayout={(e) => setListH(Math.ceil(e.nativeEvent.layout.height))}>
-        {/* Today's prayers. The next one's time is the only warm text; passed ones fade back. */}
-        <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.md }}>
-          {listRows.map((row, i) => {
-            const isNext = i === nextIdx;
-            const isPast = row.time <= now;
-            const time = formatClock(row.time, use24Hour, tz);
-            const isCurrent = row.id === currentPrayer && !overnight;
-            return (
-              <View
-                key={row.id}
-                accessible
-                accessibilityLabel={`${row.label}, ${time}${isNext ? ', next prayer' : ''}${isCurrent ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
-                style={[styles.row, { minHeight: rowMin }, i < listRows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: t.c.hairline }]}
-              >
-                <View style={styles.rowLabel}>
-                  <Text variant={isNext ? 'bodyEmph' : 'body'} color={isPast ? 'textTertiary' : 'text'}>
-                    {row.label}
-                  </Text>
-                  {!dropArabic && (
-                    <Text variant="footnote" color="textTertiary">
-                      {getCelestialConfig(row.id).arabicName}
+          {/* Today's prayers. The next one's time is the only warm text; passed ones fade back. */}
+          <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.md }}>
+            {listRows.map((row, i) => {
+              const isNext = i === nextIdx;
+              const isPast = row.time <= now;
+              const time = formatClock(row.time, use24Hour, tz);
+              const isCurrent = row.id === currentPrayer && !overnight;
+              return (
+                <View
+                  key={row.id}
+                  accessible
+                  accessibilityLabel={`${row.label}, ${time}${isNext ? ', next prayer' : ''}${isCurrent ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
+                  style={[styles.row, { minHeight: rowMin }, i < listRows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: tone.hairline }]}
+                >
+                  <View style={styles.rowLabel}>
+                    <Text variant={isNext ? 'bodyEmph' : 'body'} style={isPast ? ink3 : ink}>
+                      {row.label}
                     </Text>
-                  )}
+                    {!dropArabic && (
+                      <Text variant="footnote" style={ink3}>
+                        {getCelestialConfig(row.id).arabicName}
+                      </Text>
+                    )}
+                  </View>
+                  <Text variant={isNext ? 'bodyEmph' : 'body'} style={isNext ? { color: tone.accent } : isPast ? ink3 : ink}>
+                    {time}
+                  </Text>
                 </View>
-                <Text variant={isNext ? 'bodyEmph' : 'body'} color={isNext ? 'accentText' : isPast ? 'textTertiary' : 'text'}>
-                  {time}
-                </Text>
+              );
+            })}
+          </View>
+
+          {notice && (
+            <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.md }}>
+              <Text variant="footnote" style={ink2}>
+                {notice.text}
+              </Text>
+              <View style={styles.noticeActions}>
+                {notice.actions.map((a) => (
+                  <Pressable key={a.label} onPress={a.onPress} hitSlop={8} accessibilityRole="button" style={({ pressed }) => [styles.noticeAction, { opacity: pressed ? 0.6 : 1 }]}>
+                    <Text variant="subhead" style={{ color: tone.accent }}>
+                      {a.label}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
-            );
-          })}
+            </View>
+          )}
         </View>
 
-        {notice && (
-          <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.md }}>
-            <Text variant="footnote" color="textSecondary">
-              {notice.text}
-            </Text>
-            <View style={styles.noticeActions}>
-              {notice.actions.map((a) => (
-                <Pressable key={a.label} onPress={a.onPress} hitSlop={8} accessibilityRole="button" style={({ pressed }) => [styles.noticeAction, { opacity: pressed ? 0.6 : 1 }]}>
-                  <Text variant="subhead" color="accentText">
-                    {a.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-        </View>
+        {/* The hills and skyline show through here, under the tab bar. */}
+        {!scrolls && <View style={{ height: hillsH }} />}
       </Body>
 
       {locationSheet}
@@ -315,5 +349,5 @@ const styles = StyleSheet.create({
   rowLabel: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexShrink: 1 },
   noticeActions: { flexDirection: 'row', gap: 20, marginTop: 4 },
   noticeAction: { minHeight: 44, justifyContent: 'center' },
-  debug: { position: 'absolute', bottom: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(23,18,31,0.6)' },
+  debug: { position: 'absolute', bottom: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(23,18,31,0.6)' },
 });
