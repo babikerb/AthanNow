@@ -9,7 +9,7 @@ import {
   SETTINGS_STORAGE_KEY,
   Settings,
 } from '../context/SettingsContext';
-import { AppLocation, LOCATION_STORAGE_KEY } from '../hooks/useLocation';
+import { AppLocation, detectMove, LOCATION_STORAGE_KEY } from '../hooks/useLocation';
 import { rescheduleNotifications } from './notifications';
 import { refreshWidgetData } from './widgetData';
 
@@ -36,9 +36,17 @@ TaskManager.defineTask(BACKGROUND_REFRESH_TASK, async () => {
       AsyncStorage.getItem(LOCATION_STORAGE_KEY),
       AsyncStorage.getItem(SETTINGS_STORAGE_KEY),
     ]);
-    const location: AppLocation | null = locRaw ? JSON.parse(locRaw) : null;
+    let location: AppLocation | null = locRaw ? JSON.parse(locRaw) : null;
     const settings = mergeSettings(DEFAULT_SETTINGS, setRaw ? JSON.parse(setRaw) : null);
     if (!location) return BackgroundTask.BackgroundTaskResult.Success;
+
+    // Travelled since the app was last open: switch to where the phone is now (GPS mode only, never prompts),
+    // so the widget and athans follow the user instead of staying on the old city.
+    const moved = await detectMove(location).catch(() => null);
+    if (moved) {
+      location = moved;
+      await AsyncStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(moved));
+    }
 
     // Keep the widget's week of times fresh regardless of notification settings.
     await refreshWidgetData(

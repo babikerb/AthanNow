@@ -38,7 +38,7 @@ func nextPrayer(_ data: WidgetData, now: Date) -> (name: String, date: Date)? {
   return nil
 }
 
-// MARK: - Sky stage (selects the ramp from DesignTokens.swift: DTSky)
+// MARK: - Sky stage
 
 // The prayer stage we're currently *in*, used to pick the backdrop so the widget
 // matches the Athan screen's sky. Based on the most recently passed prayer; before
@@ -93,31 +93,41 @@ private let ARABIC_NAMES: [String: String] = [
   "asr": "العصر", "maghrib": "المغرب", "isha": "العشاء",
 ]
 
-// Sky ramp for the stage + the stage scrim (validated for text contrast in design/tokens.json).
-struct SkyBackground: View {
-  let stage: String
+// Which illustrated sky to show: the prayer period we're in, or "night" between midnight and Fajr.
+func scenePeriod(_ data: WidgetData, now: Date) -> String {
+  let stage = currentStage(data, now: now)
+  guard stage == "isha" else { return stage }
+  let day = dayPrayers(data, now: now)
+  if let first = day.first, now.timeIntervalSince1970 < first.time { return "night" }
+  if let isha = day.last(where: { $0.name.lowercased() == "isha" }), isha.time <= now.timeIntervalSince1970,
+     !Calendar.current.isDate(Date(timeIntervalSince1970: isha.time), inSameDayAs: now) {
+    return "night"
+  }
+  return "isha"
+}
+
+// The sky band sits at the top of the widget and the rest is ink, like Home: text lives on the ink,
+// never over the illustration (only the small city label sits in the sky's empty upper area).
+struct SceneBackground: View {
+  let period: String
+  let band: CGFloat
   var body: some View {
-    LinearGradient(colors: DTSky.stops(stage), startPoint: .top, endPoint: .bottom)
-      .overlay(
-        LinearGradient(
-          colors: [Color.black.opacity(0.05), Color.black.opacity(DTSky.scrim(stage))],
-          startPoint: .top,
-          endPoint: .bottom
-        )
-      )
+    VStack(spacing: 0) {
+      SkySceneView(period: period).frame(height: band)
+      SKY_INK
+    }
+    .background(SKY_INK)
   }
 }
 
-// iOS 17 requires a container background; older versions just use padding. The prayer-stage sky is that background.
-// In tinted / clear Home Screen modes the system replaces it, so key shapes carry `.widgetAccentable()`.
 extension View {
   @ViewBuilder
-  func skyBackgroundCompat(stage: String) -> some View {
+  func sceneBackground(period: String, band: CGFloat) -> some View {
     if #available(iOS 17.0, *) {
-      // iOS 17+ already insets widget content by the system content margin (~16pt); adding our own padding would double it.
-      self.containerBackground(for: .widget) { SkyBackground(stage: stage) }
+      // iOS 17+ insets content by the system margin; the background stays full-bleed.
+      self.containerBackground(for: .widget) { SceneBackground(period: period, band: band) }
     } else {
-      self.padding(16).background(SkyBackground(stage: stage))
+      self.padding(16).background(SceneBackground(period: period, band: band))
     }
   }
 }
@@ -183,15 +193,11 @@ struct AthanWidgetView: View {
       default: SmallView(data: data, now: entry.date)
       }
     } else {
-      VStack(spacing: 4) {
-        Image(systemName: "moon.stars").foregroundColor(DTNight.skyText)
-        Text("No times yet. Open AthanNow to load them.")
-          .font(DTFont.text(12))
-          .foregroundColor(DTNight.skyTextSecondary)
-          .multilineTextAlignment(.center)
-      }
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .skyBackgroundCompat(stage: "isha")
+      Text("Open AthanNow to load prayer times.")
+        .font(DTFont.text(12))
+        .foregroundColor(DTNight.skyTextSecondary)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .sceneBackground(period: "night", band: 70)
     }
   }
 }
@@ -225,32 +231,23 @@ private struct CityLabel: View {
   let city: String
   var size: CGFloat = 11
   var body: some View {
-    HStack(spacing: 4) {
-      Image(systemName: "location.fill")
-        .font(.system(size: size - 2))
-        .foregroundColor(DTNight.skyTextSecondary)
-      Text(city)
-        .font(DTFont.text(size))
-        .foregroundColor(DTNight.skyTextSecondary)
-        .lineLimit(1)
-    }
+    Text(city)
+      .font(DTFont.text(size, weight: .medium))
+      .foregroundColor(DTNight.skyText)
+      .lineLimit(1)
   }
 }
 
 // Thin apricot progress rule through the current prayer window (the one filled accent element).
 private struct ProgressRule: View {
   let window: ClosedRange<Date>?
-  let width: CGFloat
   var body: some View {
     if let w = window {
       ProgressView(timerInterval: w, countsDown: false, label: { EmptyView() }, currentValueLabel: { EmptyView() })
         .progressViewStyle(.linear)
         .tint(DTNight.accent)
-        .frame(width: width)
         .widgetAccentable()
-        .padding(.top, 8)
-    } else {
-      Color.clear.frame(width: width, height: 3).padding(.top, 8)
+        .padding(.top, 6)
     }
   }
 }
@@ -286,19 +283,21 @@ struct SmallView: View {
   var body: some View {
     let next = nextPrayer(data, now: now)
     VStack(alignment: .leading, spacing: 0) {
-      CityLabel(city: data.city)
+      CityLabel(city: data.city, size: 12)
       Spacer(minLength: 0)
       if let n = next {
-        Text(n.name).font(DTFont.text(13, weight: .medium)).foregroundColor(DTNight.skyText)
-        countdown(n.date, size: 34)
-        Text("at " + timeString(n.date, data.use24Hour ?? false))
-          .font(DTFont.text(12))
-          .foregroundColor(DTNight.skyTextSecondary)
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+          Text(n.name).font(DTFont.text(13, weight: .semibold))
+          Text("at " + timeString(n.date, data.use24Hour ?? false)).font(DTFont.text(11)).foregroundColor(DTNight.skyTextSecondary)
+        }
+        .foregroundColor(DTNight.skyText)
+        .lineLimit(1)
+        countdown(n.date, size: 30)
       }
-      ProgressRule(window: prayerWindow(data, now: now), width: 64)
+      ProgressRule(window: prayerWindow(data, now: now))
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .skyBackgroundCompat(stage: currentStage(data, now: now))
+    .sceneBackground(period: scenePeriod(data, now: now), band: 74)
   }
 }
 
@@ -307,34 +306,40 @@ struct MediumView: View {
   let now: Date
   var body: some View {
     let next = nextPrayer(data, now: now)
-    HStack(spacing: 16) {
-      VStack(alignment: .leading, spacing: 0) {
-        CityLabel(city: data.city)
-        Spacer(minLength: 0)
-        if let n = next {
-          Text(n.name).font(DTFont.text(13, weight: .medium)).foregroundColor(DTNight.skyText)
-          countdown(n.date, size: 30)
-          Text("at " + timeString(n.date, data.use24Hour ?? false))
-            .font(DTFont.text(12))
-            .foregroundColor(DTNight.skyTextSecondary)
+    VStack(alignment: .leading, spacing: 0) {
+      CityLabel(city: data.city, size: 12)
+      Spacer(minLength: 0)
+      if let n = next {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+          Text(n.name).font(DTFont.text(13, weight: .semibold)).foregroundColor(DTNight.skyText)
+          Text(n.date, style: .timer)
+            .font(DTFont.display(22))
+            .monospacedDigit()
+            .foregroundColor(DTNight.skyText)
+            .lineLimit(1)
+          Spacer(minLength: 0)
         }
-        ProgressRule(window: prayerWindow(data, now: now), width: 56)
       }
-      VStack(alignment: .leading, spacing: 5) {
+      HStack(alignment: .top, spacing: 0) {
         ForEach(dayPrayers(data, now: now), id: \.name) { p in
           let isNext = isUpcoming(p, next)
-          PrayerRowView(
-            p: p,
-            isNext: isNext,
-            isPast: p.time <= now.timeIntervalSince1970 && !isNext,
-            use24Hour: data.use24Hour ?? false,
-            size: 13
-          )
+          let isPast = p.time <= now.timeIntervalSince1970 && !isNext
+          VStack(alignment: .leading, spacing: 1) {
+            Text(p.name).font(DTFont.text(10)).foregroundColor(DTNight.skyTextSecondary)
+            Text(shortTime(Date(timeIntervalSince1970: p.time), data.use24Hour ?? false))
+              .font(DTFont.text(13, weight: isNext ? .semibold : .regular))
+              .monospacedDigit()
+              .foregroundColor(isNext ? DTNight.accent : DTNight.skyText)
+              .widgetAccentable(isNext)
+          }
+          .opacity(isPast ? 0.55 : 1)
+          .frame(maxWidth: .infinity, alignment: .leading)
         }
       }
+      .padding(.top, 8)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .skyBackgroundCompat(stage: currentStage(data, now: now))
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    .sceneBackground(period: scenePeriod(data, now: now), band: 72)
   }
 }
 
@@ -343,34 +348,41 @@ struct LargeView: View {
   let now: Date
   var body: some View {
     let next = nextPrayer(data, now: now)
+    let rows = Array(dayPrayers(data, now: now))
     VStack(alignment: .leading, spacing: 0) {
       CityLabel(city: data.city, size: 13)
-      Color.clear.frame(height: 14)
+      Spacer(minLength: 0)
       if let n = next {
-        Text(n.name).font(DTFont.text(15, weight: .medium)).foregroundColor(DTNight.skyText)
-        countdown(n.date, size: 48)
-        Text("at " + timeString(n.date, data.use24Hour ?? false))
-          .font(DTFont.text(13))
-          .foregroundColor(DTNight.skyTextSecondary)
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+          Text(n.name).font(DTFont.text(15, weight: .semibold))
+          Text("at " + timeString(n.date, data.use24Hour ?? false)).font(DTFont.text(13)).foregroundColor(DTNight.skyTextSecondary)
+        }
+        .foregroundColor(DTNight.skyText)
+        countdown(n.date, size: 44)
       }
-      ProgressRule(window: prayerWindow(data, now: now), width: 96)
-      Rectangle().fill(DTNight.skyHairline).frame(height: 0.5).padding(.top, 14).padding(.bottom, 8)
-      VStack(alignment: .leading, spacing: 8) {
-        ForEach(dayPrayers(data, now: now), id: \.name) { p in
+      ProgressRule(window: prayerWindow(data, now: now))
+      VStack(alignment: .leading, spacing: 0) {
+        ForEach(rows.indices, id: \.self) { i in
+          let p = rows[i]
           let isNext = isUpcoming(p, next)
           PrayerRowView(
             p: p,
             isNext: isNext,
             isPast: p.time <= now.timeIntervalSince1970 && !isNext,
             use24Hour: data.use24Hour ?? false,
-            size: 15,
+            size: 14,
             showArabic: true
           )
+          .frame(height: 22)
+          .overlay(alignment: .top) {
+            if i > 0 { Rectangle().fill(DTNight.skyHairline).frame(height: 0.5) }
+          }
         }
       }
+      .padding(.top, 12)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .skyBackgroundCompat(stage: currentStage(data, now: now))
+    .sceneBackground(period: scenePeriod(data, now: now), band: 118)
   }
 }
 
@@ -435,7 +447,7 @@ struct RectangularView: View {
           .font(.system(size: 22, weight: .semibold))
           .monospacedDigit()
           .lineLimit(1)
-        Text("until " + timeString(n.date, data.use24Hour ?? false))
+        Text("at " + timeString(n.date, data.use24Hour ?? false))
           .font(.system(size: 11))
           .foregroundColor(.secondary)
       }
@@ -588,11 +600,11 @@ struct AthanWidget_Previews: PreviewProvider {
       SmallView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .systemSmall)).previewDisplayName("Small")
       MediumView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .systemMedium)).previewDisplayName("Medium")
       LargeView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .systemLarge)).previewDisplayName("Large")
-      CircularView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryCircular)).previewDisplayName("Lock · Circular")
-      RectangularView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · Rectangular")
-      PrayerGroupRectangularView(data: SAMPLE, ids: MORNING_IDS, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · 1/2 Prayers")
-      PrayerGroupRectangularView(data: SAMPLE, ids: EVENING_IDS, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock · 2/2 Prayers")
-      InlineView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryInline)).previewDisplayName("Lock · Inline")
+      CircularView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryCircular)).previewDisplayName("Lock, Circular")
+      RectangularView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock, Rectangular")
+      PrayerGroupRectangularView(data: SAMPLE, ids: MORNING_IDS, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock, 1/2 Prayers")
+      PrayerGroupRectangularView(data: SAMPLE, ids: EVENING_IDS, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryRectangular)).previewDisplayName("Lock, 2/2 Prayers")
+      InlineView(data: SAMPLE, now: Date()).previewContext(WidgetPreviewContext(family: .accessoryInline)).previewDisplayName("Lock, Inline")
     }
   }
 }

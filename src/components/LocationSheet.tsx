@@ -18,7 +18,7 @@ type Search = { state: 'idle' } | { state: 'searching' } | { state: 'done'; plac
  */
 export function LocationSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const t = useTheme();
-  const { location, status, permission, recents, refreshLocation, setLocationByPlace, selectRecent, removeRecent } = useLocation();
+  const { location, status, permission, approximate, recents, refreshLocation, setLocationByPlace, selectRecent, removeRecent } = useLocation();
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState<Search>({ state: 'idle' });
   const [attempt, setAttempt] = useState(0);
@@ -79,7 +79,9 @@ export function LocationSheet({ visible, onClose }: { visible: boolean; onClose:
           : permission === 'undetermined'
             ? 'Allow access to find your city'
             : usingGps
-              ? location.city
+              ? approximate
+                ? `${location.city}, approximate. Fine for prayer times.`
+                : location.city
               : 'Use where you are now';
 
   const groupStyle = [styles.group, { backgroundColor: t.c.surface1 }];

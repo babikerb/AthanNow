@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Linking, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -31,6 +31,15 @@ export default function AthanScreen() {
 
   const [now, setNow] = useState(new Date());
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+
+  // When the app follows the user to a new city on its own (GPS mode), say so once.
+  const [movedTo, setMovedTo] = useState<string | null>(null);
+  const lastGpsCity = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasRestored || location.isManual || status !== 'ready') return;
+    if (lastGpsCity.current && lastGpsCity.current !== location.city && location.city !== 'Current location') setMovedTo(location.city);
+    lastGpsCity.current = location.city;
+  }, [hasRestored, location.isManual, location.city, status]);
 
   // Gate on `hasRestored`: `location` is seeded with Mecca, and scheduling off that seed before the
   // saved city is read back would book a week of Mecca athans.
@@ -112,7 +121,8 @@ export default function AthanScreen() {
 
   // Unresolved states never pass Mecca off as the user's city.
   const unresolved = !!location && !location.isManual && hasRestored;
-  const notice: { text: string; actions: { label: string; onPress: () => void }[] } | null = !unresolved
+  type Notice = { text: string; actions: { label: string; onPress: () => void }[] };
+  const stateNotice: Notice | null = !unresolved
     ? travelMismatch
       ? {
           text: `Your phone is on ${travelMismatch} time, but times are for ${cityName}.`,
@@ -147,6 +157,9 @@ export default function AthanScreen() {
               ],
             }
           : null;
+  const notice: Notice | null = movedTo
+    ? { text: `Times are now for ${movedTo}.`, actions: [{ label: 'OK', onPress: () => setMovedTo(null) }] }
+    : stateNotice;
 
   const Body: React.ComponentType<any> = scrolls ? ScrollView : View;
   const bodyProps = scrolls

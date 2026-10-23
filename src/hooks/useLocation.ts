@@ -67,18 +67,67 @@ export type PermissionKind = 'granted' | 'undetermined' | 'denied';
 export interface LocationPermissionState {
   status: Location.PermissionStatus;
   canAskAgain: boolean;
+  /** iOS "Precise Location" switched off: fixes are a few km off. Fine for prayer times. */
+  approximate?: boolean;
 }
 
 /** Checks the current foreground location permission without prompting. */
 export async function getLocationPermissionState(): Promise<LocationPermissionState> {
-  const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
-  return { status, canAskAgain };
+  const r = await Location.getForegroundPermissionsAsync();
+  return { status: r.status, canAskAgain: r.canAskAgain, approximate: r.ios?.accuracy === 'reduced' };
 }
 
 /** Prompts for foreground location permission (only shows the OS dialog when it still can). */
 export async function requestLocationPermission(): Promise<LocationPermissionState> {
-  const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
-  return { status, canAskAgain };
+  const r = await Location.requestForegroundPermissionsAsync();
+  return { status: r.status, canAskAgain: r.canAskAgain, approximate: r.ios?.accuracy === 'reduced' };
+}
+
+/** Great-circle distance in km. */
+export function distanceKm(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.latitude - a.latitude) * rad;
+  const dLon = (b.longitude - a.longitude) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** Prayer times shift by about a minute per ~15 km east-west; past this we treat the user as somewhere new. */
+export const MOVED_KM = 10;
+
+/**
+ * Builds a GPS location for a fix. Naming needs the network; offline, a fix near the previous one keeps
+ * its name, and a far one is called "Current location" until the next refresh names it.
+ */
+export async function locationFromFix(latitude: number, longitude: number, prev?: AppLocation | null): Promise<AppLocation> {
+  const geocode = await Location.reverseGeocodeAsync({ latitude, longitude }).catch(() => []);
+  const g = geocode[0];
+  const near = !!prev && !prev.isManual && distanceKm(prev, { latitude, longitude }) < MOVED_KM;
+  return {
+    latitude,
+    longitude,
+    city: g?.city || g?.district || g?.subregion || g?.region || (near ? prev!.city : 'Current location'),
+    region: [g?.region, g?.country].filter(Boolean).join(', ') || (near ? prev!.region : undefined),
+    timezone: timeZoneFor(latitude, longitude),
+    isManual: false,
+    countryCode: g?.isoCountryCode || (near ? prev!.countryCode : undefined),
+    updatedAt: Date.now(),
+  };
+}
+
+/**
+ * Cheap travel check for the background task and app resume: the OS's cached position, no new fix.
+ * Returns the new location if the user is now somewhere else, otherwise null.
+ */
+export async function detectMove(prev: AppLocation): Promise<AppLocation | null> {
+  if (prev.isManual) return null;
+  const perm = await Location.getForegroundPermissionsAsync().catch(() => null);
+  if (perm?.status !== 'granted') return null;
+  const last = await Location.getLastKnownPositionAsync({ maxAge: 6 * 60 * 60 * 1000 }).catch(() => null);
+  if (!last) return null;
+  const { latitude, longitude } = last.coords;
+  if (distanceKm(prev, { latitude, longitude }) < MOVED_KM) return null;
+  return locationFromFix(latitude, longitude, prev);
 }
 
 // 'denied' means iOS will no longer show the prompt: only Settings can change it.
@@ -182,6 +231,7 @@ export function useLocationState() {
   const [status, setStatus] = useState<LocationStatus>('idle');
   const [hasRestored, setHasRestored] = useState(false);
   const [permission, setPermission] = useState<PermissionKind>('undetermined');
+  const [approximate, setApproximate] = useState(false);
   const [recents, setRecents] = useState<AppLocation[]>([]);
   const [travelDismissedFor, setTravelDismissedFor] = useState<string | null>(null);
   const [deviceTz, setDeviceTz] = useState(deviceTimeZone);
@@ -204,7 +254,10 @@ export function useLocationState() {
 
   const checkPermission = useCallback(async () => {
     const p = await getLocationPermissionState().catch(() => null);
-    if (p) setPermission(toKind(p));
+    if (p) {
+      setPermission(toKind(p));
+      setApproximate(!!p.approximate);
+    }
     return p;
   }, []);
 
@@ -217,26 +270,15 @@ export function useLocationState() {
     try {
       const p = await requestLocationPermission();
       setPermission(toKind(p));
+      setApproximate(!!p.approximate);
       if (p.status !== 'granted') {
         setStatus('denied');
         return;
       }
-      const fix = await withTimeout(Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), 10000);
-      const { latitude, longitude } = fix.coords;
-      const geocode = await Location.reverseGeocodeAsync({ latitude, longitude }).catch(() => []);
-      const g = geocode[0];
-      const prev = locationRef.current;
-      const sameSpotAsBefore = !prev.isManual && sameLocation(prev, { ...prev, latitude, longitude });
-      persist({
-        latitude,
-        longitude,
-        // Offline: keep the previous name if we haven't moved, otherwise a neutral label.
-        city: g?.city || g?.district || g?.region || (sameSpotAsBefore ? prev.city : 'Current location'),
-        region: [g?.region, g?.country].filter(Boolean).join(', ') || (sameSpotAsBefore ? prev.region : undefined),
-        timezone: timeZoneFor(latitude, longitude),
-        isManual: false,
-        countryCode: g?.isoCountryCode || (sameSpotAsBefore ? prev.countryCode : undefined),
-      });
+      // A recent cached fix is instant and plenty for prayer times; only ask the GPS when there isn't one.
+      const cached = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60 * 1000, requiredAccuracy: 1000 }).catch(() => null);
+      const fix = cached ?? (await withTimeout(Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }), 10000));
+      persist(await locationFromFix(fix.coords.latitude, fix.coords.longitude, locationRef.current));
     } catch {
       setStatus('error');
     }
@@ -278,13 +320,23 @@ export function useLocationState() {
     const sub = AppState.addEventListener('change', async (s) => {
       if (s !== 'active') return;
       setDeviceTz(deviceTimeZone());
+      const savedRaw = await AsyncStorage.getItem(STORAGE_KEY).catch(() => null);
+      if (savedRaw) {
+        const saved: AppLocation = JSON.parse(savedRaw);
+        if ((saved.updatedAt ?? 0) > (locationRef.current.updatedAt ?? 0)) {
+          locationRef.current = saved;
+          setLocation(saved);
+        }
+      }
       const p = await checkPermission();
       const loc = locationRef.current;
       if (loc.isManual || p?.status !== 'granted') return;
-      if (!loc.updatedAt || Date.now() - loc.updatedAt > STALE_FIX_MS) refreshLocation();
+      const moved = await detectMove(loc);
+      if (moved) persist(moved);
+      else if (!loc.updatedAt || Date.now() - loc.updatedAt > STALE_FIX_MS) refreshLocation();
     });
     return () => sub.remove();
-  }, [checkPermission, refreshLocation]);
+  }, [checkPermission, refreshLocation, persist]);
 
   const setLocationByPlace = useCallback(
     (p: PlaceSuggestion) => {
@@ -330,6 +382,7 @@ export function useLocationState() {
     status,
     hasRestored,
     permission,
+    approximate,
     recents,
     travelMismatch,
     refreshLocation,
