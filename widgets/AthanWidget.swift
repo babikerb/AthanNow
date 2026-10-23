@@ -113,7 +113,7 @@ struct SceneBackground: View {
   let band: CGFloat
   var body: some View {
     VStack(spacing: 0) {
-      SkySceneView(period: period).frame(height: band)
+      SkySceneView(period: period, labelTopLeft: true).frame(height: band)
       SKY_INK
     }
     .background(SKY_INK)

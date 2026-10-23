@@ -19,6 +19,7 @@ import { formatClock, localDayAnchor } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+const DEBUG_PERIODS: ScenePeriod[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha', 'night'];
 
 export default function AthanScreen() {
   const { location, cityName, status, hasRestored, travelMismatch, refreshLocation, dismissTravel } = useLocation();
@@ -31,6 +32,11 @@ export default function AthanScreen() {
 
   const [now, setNow] = useState(new Date());
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+  // Measured heights of the hero and the list (with any notice); estimates until the first layout.
+  const [heroH, setHeroH] = useState(130);
+  const [listH, setListH] = useState(280);
+  // Development only: cycle through every sky scene to review them.
+  const [debugPeriod, setDebugPeriod] = useState<ScenePeriod | null>(null);
 
   // When the app follows the user to a new city on its own (GPS mode), say so once.
   const [movedTo, setMovedTo] = useState<string | null>(null);
@@ -68,7 +74,8 @@ export default function AthanScreen() {
   const currentStart = prayerData?.listRows.find((r) => r.id === prayerData.currentPrayer)?.time;
   // Between midnight and Fajr the stage is still Isha but today's Isha row is ahead: that's night.
   const overnight = !!currentStart && currentStart > now;
-  const period: ScenePeriod = !prayerData ? 'night' : overnight ? 'night' : (prayerData.currentPrayer as ScenePeriod);
+  const livePeriod: ScenePeriod = !prayerData ? 'night' : overnight ? 'night' : (prayerData.currentPrayer as ScenePeriod);
+  const period = debugPeriod ?? livePeriod;
   useFocusedStatusBar(SCENES[period].statusBar);
 
   const minutesToNext = prayerData ? Math.max(0, Math.round((prayerData.nextPrayerTime.getTime() - now.getTime()) / 60000)) : 0;
@@ -96,19 +103,23 @@ export default function AthanScreen() {
   const locationSheet = <LocationSheet visible={locationSheetOpen} onClose={() => setLocationSheetOpen(false)} />;
 
   // Layout. The scene owns the top band; nothing but the location and date chrome crosses it.
-  // Short screens shrink the band to its floor first, then drop Arabic names, then the progress rule.
-  // At large text sizes the whole page scrolls so Dynamic Type applies in full.
-  const scrolls = fontScale >= 1.3;
-  const sceneH = scrolls ? 280 : clamp(Math.round(winH * 0.4), 240, 360);
+  // The band gets whatever height is left after the hero and the full prayer list (measured, so it
+  // holds for any phone and text size), between a floor that still fits the chrome and the art and
+  // a ceiling. If even the floor doesn't leave room, the page scrolls instead of hiding Isha.
   const dropArabic = winH < 700 || fontScale > 1.15;
-  const dropProgress = !scrolls && winH < 640;
-  const rowMin = scrolls ? 44 : winH < 700 ? 40 : 44;
+  const dropProgress = winH < 640;
+  const rowMin = winH < 700 ? 40 : 44;
   const gutter = winW <= 375 ? t.spacing.lg : t.spacing.xl;
+  const chromeH = insets.top + 52;
+  const sceneFloor = chromeH + 120;
+  const fitH = winH - tabBarHeight - t.spacing.sm - heroH - listH - t.spacing.md;
+  const scrolls = fontScale >= 1.3 || fitH < sceneFloor;
+  const sceneH = scrolls ? Math.max(sceneFloor, 280) : clamp(Math.round(fitH), sceneFloor, 360);
 
   if (!prayerData) {
     return (
       <View style={[styles.container, { backgroundColor: t.c.bg }]}>
-        <SkyScene period="night" width={winW} height={sceneH} />
+        <SkyScene period="night" width={winW} height={sceneH} clearTop={chromeH} />
         {locationSheet}
       </View>
     );
@@ -172,8 +183,21 @@ export default function AthanScreen() {
         {/* Scene band with its chrome strip: city on the left, today's dates on the right. */}
         <View style={{ height: sceneH }}>
           <View style={StyleSheet.absoluteFill}>
-            <SkyScene period={period} width={winW} height={sceneH} />
+            <SkyScene period={period} width={winW} height={sceneH} clearTop={chromeH} />
           </View>
+          {__DEV__ && (
+            <Pressable
+              onPress={() => setDebugPeriod((p) => (p === null ? DEBUG_PERIODS[0] : DEBUG_PERIODS[DEBUG_PERIODS.indexOf(p) + 1] ?? null))}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Cycle sky scenes (development only)"
+              style={[styles.debug, { right: gutter }]}
+            >
+              <Text variant="caption" color="skyText">
+                {debugPeriod ? `Sky: ${debugPeriod}` : 'Sky: live'}
+              </Text>
+            </Pressable>
+          )}
           <View style={[styles.chrome, { paddingTop: insets.top + t.spacing.sm, paddingHorizontal: gutter }]}>
             <Pressable
               onPress={openLocation}
@@ -201,7 +225,7 @@ export default function AthanScreen() {
         </View>
 
         {/* Hero: which prayer is next and how long until it. */}
-        <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.lg }}>
+        <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.lg }} onLayout={(e) => setHeroH(Math.ceil(e.nativeEvent.layout.height))}>
           <View style={styles.heroLine}>
             <Text variant="title3">{nextPrayer}</Text>
             <Text variant="subhead" color="textSecondary">
@@ -220,8 +244,9 @@ export default function AthanScreen() {
 
         {!scrolls && <View style={styles.flex} />}
 
+        <View onLayout={(e) => setListH(Math.ceil(e.nativeEvent.layout.height))}>
         {/* Today's prayers. The next one's time is the only warm text; passed ones fade back. */}
-        <View style={{ paddingHorizontal: gutter, paddingTop: scrolls ? t.spacing.xxl : t.spacing.md }}>
+        <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.md }}>
           {listRows.map((row, i) => {
             const isNext = i === nextIdx;
             const isPast = row.time <= now;
@@ -268,6 +293,7 @@ export default function AthanScreen() {
             </View>
           </View>
         )}
+        </View>
       </Body>
 
       {locationSheet}
@@ -289,4 +315,5 @@ const styles = StyleSheet.create({
   rowLabel: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexShrink: 1 },
   noticeActions: { flexDirection: 'row', gap: 20, marginTop: 4 },
   noticeAction: { minHeight: 44, justifyContent: 'center' },
+  debug: { position: 'absolute', bottom: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(23,18,31,0.6)' },
 });

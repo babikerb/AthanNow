@@ -41,10 +41,20 @@ const SKYLINE = [
   'M364 300 C364 290 370 284 377 283 C384 284 390 290 390 300 Z',
 ].join(' ');
 
-function SkyIllustrationImpl({ period, width, height }: { period: ScenePeriod; width: number; height: number }) {
+// Top of the far ridge in viewBox units; a body pushed lower than this sinks behind the hills.
+const HORIZON = 200;
+
+/**
+ * `clearTop` is the height (pt) of chrome drawn over the top of the scene (city, date). The sun or
+ * moon is kept below it, so on a short band it sits low over the hills instead of behind the text.
+ */
+function SkyIllustrationImpl({ period, width, height, clearTop = 0 }: { period: ScenePeriod; width: number; height: number; clearTop?: number }) {
   const scene = SCENES[period];
   const id = useId().replace(/:/g, '');
-  const body = scene.body;
+  const s = Math.max(width / 390, height / 340);
+  const visibleTop = 340 - height / s;
+  const minY = visibleTop + clearTop / s + scene.body.r + 6;
+  const body = scene.body.y < HORIZON && scene.body.y < minY ? { ...scene.body, y: Math.min(minY, HORIZON - scene.body.r * 0.3) } : scene.body;
   const stops = scene.sky;
 
   return (

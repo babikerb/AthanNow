@@ -141,6 +141,8 @@ ${swiftPath(skyline)}
 /// it fills the frame, stays anchored to the bottom edge and crops sky (never ground).
 struct SkySceneView: View {
   let period: String
+  /// Set when a label sits over the top-left of the scene: a sun or moon there moves to the right side.
+  var labelTopLeft: Bool = false
 
   var body: some View {
     GeometryReader { geo in
@@ -165,7 +167,7 @@ struct SkySceneView: View {
           Path(ellipseIn: CGRect(x: 104, y: 154, width: 92, height: 12)).applying(t).fill(Color.white.opacity(0.12))
           Path(ellipseIn: CGRect(x: 198, y: 166, width: 176, height: 20)).applying(t).fill(Color.white.opacity(0.12))
         }
-        bodyShape(scene.body, t)
+        bodyShape(placed(scene.body, visibleTop: 340 - geo.size.height / s), t)
         if scene.ridges.count == 3 {
           ridgeFar().applying(t).fill(scene.ridges[0])
           ridgeMid().applying(t).fill(scene.ridges[1])
@@ -173,6 +175,23 @@ struct SkySceneView: View {
         }
         skyline().applying(t).fill(SKY_INK)
       }
+    }
+  }
+
+  /// Keeps the body inside the visible part of the band and clear of a top-left label.
+  private func placed(_ b: SkyBody, visibleTop: CGFloat) -> SkyBody {
+    func fit(_ x: CGFloat, _ y: CGFloat, _ r: CGFloat) -> (CGFloat, CGFloat) {
+      let nx = labelTopLeft && x < 195 ? 390 - x : x
+      guard y < 200 else { return (nx, y) }
+      return (nx, min(max(y, visibleTop + r + 6), 200 - r * 0.3))
+    }
+    switch b {
+    case let .sun(x, y, r, color):
+      let p = fit(x, y, r)
+      return .sun(x: p.0, y: p.1, r: r, color: color)
+    case let .crescent(x, y, r, color, waning):
+      let p = fit(x, y, r)
+      return .crescent(x: p.0, y: p.1, r: r, color: color, waning: waning)
     }
   }
 

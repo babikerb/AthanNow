@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { setStatusBarHidden } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -22,11 +23,8 @@ import { fetchMushafPage, juzForPage, pageForVerse } from '../utils/mushaf';
 const LAST_PAGE_KEY = 'athannow.quran.lastpage.v1';
 const LAST_COLOR_KEY = 'athannow.quran.lastcolor.v1';
 
-// Content heights of the header/footer bars, excluding the safe-area inset each also carries.
-const HEADER_H = 44;
-const FOOTER_H = 52;
-// The native tab bar (react-native-bottom-tabs) draws over the screen instead of shrinking it.
-const TAB_BAR_H = 49;
+// Header content height, below the status-bar inset.
+const HEADER_H = 48;
 
 const COLOR_ORDER = Object.keys(BOOKMARK_COLORS) as BookmarkColor[];
 
@@ -77,12 +75,17 @@ export default function QuranScreen() {
   useEffect(() => {
     Animated.timing(chrome, { toValue: chromeHidden ? 0 : 1, duration: reduceMotion ? 0 : 200, useNativeDriver: true }).start();
     setImmersive(chromeHidden);
+    setStatusBarHidden(chromeHidden, reduceMotion ? 'none' : 'fade');
   }, [chromeHidden, chrome, reduceMotion]);
   // Never leave the tab bar hidden when the reader loses focus.
   useFocusEffect(
     useCallback(() => {
       setImmersive(chromeHidden);
-      return () => setImmersive(false);
+      setStatusBarHidden(chromeHidden, 'none');
+      return () => {
+        setImmersive(false);
+        setStatusBarHidden(false, 'none');
+      };
     }, [chromeHidden]),
   );
   const toggleChrome = useCallback(() => {
@@ -135,9 +138,10 @@ export default function QuranScreen() {
     [currentPage, setPageBookmark],
   );
 
-  const tabBarH = insets.bottom + TAB_BAR_H;
+  // The header (surah and page) always stays; the page fills everything below it, down to the home
+  // indicator, and is allowed to run under the tab bar when that is showing.
   const topInset = insets.top + HEADER_H;
-  const bottomInset = tabBarH + FOOTER_H;
+  const bottomInset = insets.bottom;
   const chromePointer = chromeHidden ? 'none' : 'auto';
 
   return (
@@ -157,25 +161,47 @@ export default function QuranScreen() {
         </View>
       )}
 
-      {/* Header: surah, page, juz. */}
-      <Animated.View
-        pointerEvents={chromePointer}
-        accessible
-        accessibilityRole="header"
-        accessibilityLabel={`${surah.transliteration}, page ${currentPage}, Juz ${juz}`}
-        style={[styles.header, { height: topInset, paddingTop: insets.top, backgroundColor: colors.background, borderBottomColor: colors.separator, opacity: chrome }]}
-      >
-        <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-          {surah.transliteration}
-        </Text>
-        <Text style={[styles.headerMeta, { color: colors.textSecondary }]}>
-          Page {currentPage}, Juz {juz}
-        </Text>
-      </Animated.View>
+      {/* Header: surah and page, always visible. The actions fade out while reading full screen. */}
+      <View style={[styles.header, { height: topInset, paddingTop: insets.top, backgroundColor: colors.background, borderBottomColor: colors.separator }]}>
+        <View style={styles.headerText} accessible accessibilityRole="header" accessibilityLabel={`${surah.transliteration}, page ${currentPage}, Juz ${juz}`}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+            {surah.transliteration}
+          </Text>
+          <Text style={[styles.headerMeta, { color: colors.textSecondary }]}>
+            Page {currentPage}, Juz {juz}
+          </Text>
+        </View>
+        <Animated.View pointerEvents={chromePointer} style={[styles.actions, { opacity: chrome }]}>
+          <HeaderButton
+            label={pageMark ? 'Change or remove this page’s bookmark' : 'Bookmark this page'}
+            onPress={() => {
+              haptic.select();
+              // First tap on an unmarked page uses the last colour; tapping again offers the others.
+              if (!pageMark && !trayOpen) markPage(lastColor);
+              else setTrayOpen((o) => !o);
+            }}
+            onLongPress={() => setTrayOpen(true)}
+          >
+            <SymbolView name={pageMark ? 'bookmark.fill' : 'bookmark'} size={19} tintColor={pageMark ? bookmarkColor(pageMark) : colors.textPrimary} />
+          </HeaderButton>
+          <HeaderButton label="Bookmarks" onPress={() => setBookmarksOpen(true)}>
+            <SymbolView name="list.bullet" size={19} tintColor={colors.textPrimary} />
+          </HeaderButton>
+          <HeaderButton
+            label="Search the Quran"
+            onPress={() => {
+              haptic.select();
+              setPickerOpen(true);
+            }}
+          >
+            <SymbolView name="magnifyingglass" size={19} tintColor={colors.textPrimary} />
+          </HeaderButton>
+        </Animated.View>
+      </View>
 
-      {/* Colour tray for the page ribbon. */}
+      {/* Colour tray for the page ribbon, just under the header. */}
       {trayOpen && !chromeHidden && (
-        <View style={[styles.tray, { bottom: bottomInset, backgroundColor: colors.background, borderTopColor: colors.separator }]}>
+        <View style={[styles.tray, { top: topInset, backgroundColor: colors.background, borderBottomColor: colors.separator }]}>
           {COLOR_ORDER.map((c) => {
             const selected = pageMark?.color === c || (pageMark && !pageMark.color && c === 'red');
             return (
@@ -201,44 +227,11 @@ export default function QuranScreen() {
               accessibilityRole="button"
               style={styles.trayRemove}
             >
-              <Text style={[styles.footerLabel, { color: colors.textSecondary }]}>Remove</Text>
+              <Text style={[styles.trayLabel, { color: colors.textSecondary }]}>Remove</Text>
             </Pressable>
           )}
         </View>
       )}
-
-      {/* Footer: ribbon, bookmarks list, search. Solid paper, one icon style. */}
-      <Animated.View
-        pointerEvents={chromePointer}
-        style={[styles.footer, { bottom: tabBarH, height: FOOTER_H, backgroundColor: colors.background, borderTopColor: colors.separator, opacity: chrome }]}
-      >
-        <FooterButton
-          label={pageMark ? 'Change or remove this page’s bookmark' : 'Bookmark this page'}
-          onPress={() => {
-            haptic.select();
-            // First tap on an unmarked page uses the last colour; tapping again offers the others.
-            if (!pageMark && !trayOpen) markPage(lastColor);
-            else setTrayOpen((o) => !o);
-          }}
-          onLongPress={() => setTrayOpen(true)}
-        >
-          <SymbolView name={pageMark ? 'bookmark.fill' : 'bookmark'} size={18} tintColor={pageMark ? bookmarkColor(pageMark) : colors.textPrimary} />
-        </FooterButton>
-        <FooterButton label="Bookmarks" onPress={() => setBookmarksOpen(true)}>
-          <SymbolView name="list.bullet" size={18} tintColor={colors.textPrimary} />
-          <Text style={[styles.footerLabel, { color: colors.textPrimary }]}>Bookmarks</Text>
-        </FooterButton>
-        <FooterButton
-          label="Search the Quran"
-          onPress={() => {
-            haptic.select();
-            setPickerOpen(true);
-          }}
-        >
-          <SymbolView name="magnifyingglass" size={18} tintColor={colors.textPrimary} />
-          <Text style={[styles.footerLabel, { color: colors.textPrimary }]}>Search</Text>
-        </FooterButton>
-      </Animated.View>
 
       <SurahPickerSheet
         visible={pickerOpen}
@@ -261,7 +254,7 @@ export default function QuranScreen() {
   );
 }
 
-function FooterButton({ label, onPress, onLongPress, children }: { label: string; onPress: () => void; onLongPress?: () => void; children: React.ReactNode }) {
+function HeaderButton({ label, onPress, onLongPress, children }: { label: string; onPress: () => void; onLongPress?: () => void; children: React.ReactNode }) {
   return (
     <Pressable
       onPress={onPress}
@@ -269,7 +262,7 @@ function FooterButton({ label, onPress, onLongPress, children }: { label: string
       hitSlop={4}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.footerButton, pressed && { opacity: 0.5 }]}
+      style={({ pressed }) => [styles.headerButton, pressed && { opacity: 0.5 }]}
     >
       {children}
     </Pressable>
@@ -287,25 +280,16 @@ const styles = StyleSheet.create({
     zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 20,
+    gap: 8,
+    paddingLeft: 20,
+    paddingRight: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { ...textStyle('headline'), flexShrink: 1 },
-  headerMeta: { ...textStyle('footnote'), fontVariant: ['tabular-nums'] },
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  footerButton: { flex: 1, height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  footerLabel: { ...textStyle('subhead') },
+  headerText: { flex: 1 },
+  headerTitle: { ...textStyle('headline') },
+  headerMeta: { ...textStyle('caption'), fontVariant: ['tabular-nums'] },
+  actions: { flexDirection: 'row' },
+  headerButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   tray: {
     position: 'absolute',
     left: 0,
@@ -316,8 +300,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
     paddingHorizontal: 20,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: 'transparent' },
   trayRemove: { marginLeft: 'auto' },
+  trayLabel: { ...textStyle('subhead') },
 });

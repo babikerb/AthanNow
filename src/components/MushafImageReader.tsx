@@ -23,16 +23,25 @@ const PAGES = Array.from({ length: TOTAL_PAGES }, (_, i) => i + 1);
 const viewabilityConfig = { itemVisiblePercentThreshold: 55 };
 
 /** One printed page with its own load/error state. Ink is tinted to the reading text colour. */
+// Source pages are 1024 x 1656 with roughly 45px of empty paper either side of the text block.
+// Scaling to the text block (not the whole image) crops that paper, so the page reads edge to edge.
+const SRC_W = 1024;
+const SRC_H = 1656;
+const INK_W = 934;
+
 function PageImage({ page, width, height, colors }: { page: number; width: number; height: number; colors: Palette }) {
+  const scale = Math.min(width / INK_W, height / SRC_H);
+  const imgW = SRC_W * scale;
+  const imgH = SRC_H * scale;
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   // Bumping the attempt remounts the image so Retry actually re-requests it.
   const [attempt, setAttempt] = useState(0);
   return (
-    <View style={{ width, height, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width, height, alignItems: 'center', justifyContent: 'flex-start', overflow: 'hidden' }}>
       <Image
         key={attempt}
         source={{ uri: pageUrl(page) }}
-        style={{ width, height }}
+        style={{ width: imgW, height: imgH }}
         tintColor={colors.textPrimary}
         contentFit="contain"
         cachePolicy="disk"
@@ -88,8 +97,8 @@ export function MushafImageReader({ initialPage, topInset, bottomInset, colors, 
     }
   }).current;
 
-  // The page area stays the same size whether or not the chrome is showing, so toggling
-  // it never reflows the page under the reader's eyes.
+  // The page area stays the same size whether or not the chrome is showing, so toggling it never
+  // reflows the page under the reader's eyes. It may run under the tab bar while that is visible.
   const pageHeight = height - topInset - bottomInset;
 
   return (

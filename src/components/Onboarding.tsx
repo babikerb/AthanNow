@@ -166,7 +166,7 @@ export function Onboarding() {
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.root, { backgroundColor: t.c.bg }]} accessibilityViewIsModal>
-      <SkyScene period={STEP_SKY[step]} width={width} height={sceneH} />
+      <SkyScene period={STEP_SKY[step]} width={width} height={sceneH} clearTop={insets.top + 40} />
 
       {step > 0 && (
         <Pressable

@@ -12,6 +12,8 @@ interface Props {
   period: ScenePeriod;
   width: number;
   height: number;
+  /** Height of chrome over the top of the scene; the sun or moon stays below it. */
+  clearTop?: number;
 }
 
 interface Layer {
@@ -24,7 +26,7 @@ interface Layer {
  * The illustrated sky band at the top of Home. Still within a period; a period change crossfades
  * the whole illustration once (shortened under Reduce Motion) and snaps if the app has just resumed.
  */
-export default function SkyScene({ period, width, height }: Props) {
+export default function SkyScene({ period, width, height, clearTop }: Props) {
   const { motion, reduceMotion } = useTheme();
   const recentlyResumed = useResumeSnap();
   const nextId = useRef(1);
@@ -61,7 +63,7 @@ export default function SkyScene({ period, width, height }: Props) {
     <View style={{ width, height }} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {layers.map((l) => (
         <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.v }]}>
-          <SkyIllustration period={l.period} width={width} height={height} />
+          <SkyIllustration period={l.period} width={width} height={height} clearTop={clearTop} />
         </Animated.View>
       ))}
     </View>
