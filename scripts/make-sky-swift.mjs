@@ -196,7 +196,7 @@ struct SkySceneView: View {
 const target = path.join(root, 'widgets/SkyScene.swift');
 if (process.argv.includes('--check')) {
   const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : '';
-  if (current !== swift) {
+  if (current.replace(/\r\n/g, '\n') !== swift) {
     console.error('widgets/SkyScene.swift is out of date. Run: node scripts/make-sky-swift.mjs');
     process.exit(1);
   }
