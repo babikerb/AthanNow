@@ -196,7 +196,7 @@ function Compass({
   calibrating: boolean;
   unavailable: boolean;
 }) {
-  // One warm moment: the apricot accent appears only when the phone is facing the Qibla, earned with a short native-driver
+  // One warm moment: the gold accent appears only when the phone is facing the Qibla, earned with a short native-driver
   // crossfade (ring, lubber, crosshair, dot, readout) and a spring on the dot instead of an instant swap.
   const { reduceMotion, motion } = useDesignTheme();
   const lock = useRef(new Animated.Value(isAligned ? 1 : 0)).current;

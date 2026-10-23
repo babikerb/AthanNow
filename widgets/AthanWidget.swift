@@ -171,8 +171,8 @@ struct Provider: TimelineProvider {
 
 // MARK: - Views
 //
-// Next prayer's countdown is the hero; in the list the next prayer is bold with its time in apricot, passed prayers are
-// dimmed, and apricot appears only on the progress rule and that time.
+// Next prayer's countdown is the hero; in the list the next prayer is bold with its time in gold, passed prayers are
+// dimmed, and gold appears only on the progress rule and that time.
 // WidgetKit constraints: no animation, the countdown is Text(date, style: .timer), the rule is ProgressView(timerInterval:).
 
 struct AthanWidgetView: View {
@@ -238,7 +238,7 @@ private struct CityLabel: View {
   }
 }
 
-// Thin apricot progress rule through the current prayer window (the one filled accent element).
+// Thin gold progress rule through the current prayer window (the one filled accent element).
 private struct ProgressRule: View {
   let window: ClosedRange<Date>?
   var body: some View {

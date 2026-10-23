@@ -28,7 +28,7 @@ export interface ScenePalette {
   /**
    * Full-screen layout: the sky runs top to bottom with text on it, so these stops are tuned for the
    * text that sits there (screen offsets 0 = top, 1 = bottom), with the tone of that text.
-   * Checked: primary text >= 6.5:1 and the next-prayer accent >= 4.6:1 over 3-80% of the height.
+   * Checked: primary text >= 6.5:1 and the next-prayer accent >= 4.6:1 (gold) over 3-80% of the height.
    */
   full: { sky: [string, number][]; tone: SkyTone };
 }
@@ -37,8 +37,8 @@ export type SkyTone = 'light' | 'dark';
 
 /** Text colours for text drawn straight on the sky. */
 export const SKY_TONES: Record<SkyTone, { text: string; secondary: string; tertiary: string; hairline: string; track: string; accent: string }> = {
-  light: { text: '#F2EDF6', secondary: 'rgba(242,237,246,0.78)', tertiary: 'rgba(242,237,246,0.55)', hairline: 'rgba(242,237,246,0.16)', track: 'rgba(242,237,246,0.22)', accent: '#F0C08E' },
-  dark: { text: '#17121F', secondary: 'rgba(23,18,31,0.72)', tertiary: 'rgba(23,18,31,0.5)', hairline: 'rgba(23,18,31,0.14)', track: 'rgba(23,18,31,0.16)', accent: '#4E2606' },
+  light: { text: '#F2EDF6', secondary: 'rgba(242,237,246,0.78)', tertiary: 'rgba(242,237,246,0.55)', hairline: 'rgba(242,237,246,0.16)', track: 'rgba(242,237,246,0.22)', accent: '#F5CF6A' },
+  dark: { text: '#17121F', secondary: 'rgba(23,18,31,0.72)', tertiary: 'rgba(23,18,31,0.5)', hairline: 'rgba(23,18,31,0.14)', track: 'rgba(23,18,31,0.16)', accent: '#3F2E00' },
 };
 
 // Coordinates are in the scene's 390 x 340 viewBox.

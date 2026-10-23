@@ -18,7 +18,7 @@
 | `textSecondary` | `#9C93AB` | 6.3:1 bg, 4.8:1 surface3 |
 | `textTertiary` | `#8A819B` | 5.0:1 bg, 4.7:1 s1. **Only on bg/surface1, never over the Home sky** (sky screens use `skyTextSecondary` only). On s2/s3 use secondary. |
 | `glyphQuiet` | `#6E6680` | **chevrons and decorative dividers only** (3.4:1, meets 3:1 non-text). Disabled controls use `textTertiary`, never this. |
-| `accent` | `#E8B07A` | soft apricot; 9.6:1 on bg. Ink text on accent fill = 9.6:1 |
+| `accent` | `#F2C14E` | sunlit gold (Oct 2026 refresh, the sun on the arc); ink text on accent fill passes AA (checked by `npm run tokens`) |
 | `accentSoft` | accent @ 14% | selected wash on *surfaces* (lists/segments), never decoration |
 | `skyFill` / `skyHairline` / `skyWash` | sky-text @ 10% / 16% / 8% | translucent fills on the always-night sky (location pill, progress track, current-row wash). Home's current row uses `skyWash` (8%) + a 3pt `accent` tick; not `accentSoft`. |
 | `success` | `#7FB89A` · `warning #D9A25E` · `danger #E08A8A` · `info #8FA6D6` | desaturated; ≥ 6.2:1 on every dark surface |

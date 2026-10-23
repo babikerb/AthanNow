@@ -20,8 +20,8 @@ import { LocationProvider } from './src/context/LocationContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { ThemeProvider as DesignThemeProvider, useTheme as useDesignTheme } from './src/design/theme';
-import { colorTokens } from './src/design/tokens';
 import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { LaunchSplash, SPLASH_BG } from './src/components/LaunchSplash';
 import { Onboarding } from './src/components/Onboarding';
 import { navigationRef } from './src/navigation/navigationRef';
 
@@ -119,16 +119,17 @@ function Root() {
   });
 
   const appReady = ready && fontsLoaded;
-  useEffect(() => {
-    if (appReady) SplashScreen.hideAsync();
-  }, [appReady]);
 
-  // Hold on the same background color as the native splash (not the app's
-  // usual near-black) until persisted settings + the mushaf font load, so the
-  // transition from native splash to this view is invisible.
-  if (!appReady) return <View style={{ flex: 1, backgroundColor: colorTokens.dark.bg }} />;
+  // The native launch screen stays up until settings and fonts load. Then the app renders under an
+  // identical overlay (LaunchSplash), which hides the native screen and animates into the app.
+  if (!appReady) return <View style={{ flex: 1, backgroundColor: SPLASH_BG }} />;
   // Onboarding renders inside MainTabs, over the tabs, so choices made there reach every screen at once.
-  return <MainTabs />;
+  return (
+    <View style={{ flex: 1 }}>
+      <MainTabs />
+      <LaunchSplash />
+    </View>
+  );
 }
 
 /** Feeds the saved Appearance preference to the design theme and the native window (tab bar, keyboard, alerts). */

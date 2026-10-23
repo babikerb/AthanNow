@@ -58,7 +58,7 @@ interface DayRowProps {
 
 /**
  * One day: a date header, then the six times in a grouped card. Natural height, so it never clips.
- * The next prayer today shows its time in apricot, as on Home.
+ * The next prayer today shows its time in gold, as on Home.
  */
 const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod, asrMadhab, use24Hour, tz, colors, onMeasured }: DayRowProps) {
   const data = useMemo(() => {

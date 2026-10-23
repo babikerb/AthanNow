@@ -3,7 +3,7 @@
 Merged from the art-director and ux-strategist proposals, plus an Ayah (iOS) review of the Quran screen.
 Status column: [ ] todo, [x] done.
 
-**Brand ruling:** the UI stays ink #17121F + apricot #E8B07A (BRAND.md). The reference's sage green appears only in the Asr illustration palette, never as a UI accent.
+**Brand ruling:** the UI is ink #17121F + sunlit gold #F2C14E (accent changed from apricot in the refresh). The reference's sage green appears only in the Asr illustration palette, never as a UI accent.
 
 ## 1. Sky scene: "scene band + ink ground"
 - [x] New `src/components/sky/` SVG illustration (react-native-svg) in the reference style: gradient sky, static stars, a celestial body in a fixed lane, 3 ridges (atmospheric perspective), and one mosque skyline (main dome + 2 minarets in the right third, lower dome and arcade on the left). Nearest layer filled with #17121F so it melts into the UI.
