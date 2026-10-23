@@ -120,15 +120,14 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
           onSelect(item.id);
           onClose();
         }}
+        accessibilityState={{ selected }}
         style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
       >
-        <View style={[styles.numberBadge, { backgroundColor: selected ? colors.accent : colors.accentSoft }]}>
-          <Text style={[styles.numberText, { color: selected ? colors.onAccent : colors.accent }]}>{item.id}</Text>
-        </View>
+        <Text style={[styles.numberText, { color: selected ? colors.accent : colors.textTertiary }]}>{item.id}</Text>
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: colors.textPrimary }]}>{item.transliteration}</Text>
           <Text style={[styles.sub, { color: colors.textTertiary }]}>
-            {item.translation} · {item.totalVerses} ayat
+            {item.translation}, {item.totalVerses} ayat
           </Text>
         </View>
         <Text style={[styles.arabic, { color: colors.textSecondary }]}>{item.arabicName}</Text>
@@ -206,7 +205,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
                     {item.text}
                   </Text>
                   <Text style={[styles.sub, { color: colors.textTertiary }]}>
-                    {item.surahName} · {item.surahId}:{item.ayah}
+                    {item.surahName} {item.surahId}:{item.ayah}
                   </Text>
                 </View>
               </Pressable>
@@ -242,7 +241,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
                     {item.translation}
                   </Text>
                   <Text style={[styles.sub, { color: colors.textTertiary }]}>
-                    {item.surahName} · {item.surahId}:{item.ayah}
+                    {item.surahName} {item.surahId}:{item.ayah}
                   </Text>
                 </View>
               </Pressable>
@@ -267,27 +266,26 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     borderRadius: radiiTokens.control,
     borderCurve: 'continuous',
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
-    height: 50,
+    height: 44,
     marginHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 14,
+    marginTop: 16,
+    marginBottom: 12,
   },
   input: { flex: 1, ...textStyle('body'), lineHeight: undefined },
   gotoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: radiiTokens.control, borderCurve: 'continuous' },
   gotoText: { ...textStyle('bodyEmph') },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
-  numberBadge: { width: 36, height: 36, borderRadius: 10, borderCurve: 'continuous', alignItems: 'center', justifyContent: 'center' },
-  numberText: { ...textStyle('subhead') },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  numberText: { ...textStyle('subhead'), width: 32, fontVariant: ['tabular-nums'] },
   name: { ...textStyle('bodyEmph') },
   sub: { ...textStyle('footnote'), marginTop: 2 },
   arabic: { fontSize: 20, writingDirection: 'rtl' },
   ayahText: { fontSize: 19, lineHeight: 32, fontFamily: QURAN_FONT, writingDirection: 'rtl', textAlign: 'right' },
-  translationText: { ...textStyle('subhead'), fontWeight: '400' },
-  searchState: { paddingTop: 30, alignItems: 'center', gap: 10 },
+  translationText: { ...textStyle('subhead') },
+  searchState: { paddingTop: 32, alignItems: 'center', gap: 8 },
   emptyText: { ...textStyle('footnote') },
 });

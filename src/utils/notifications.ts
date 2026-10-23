@@ -134,7 +134,7 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
           // The athan itself, exactly at prayer time (with the adhan sound if enabled).
           await schedule(
             {
-              title: `${label} · ${clock}`,
+              title: `${label} at ${clock}`,
               body:
                 key === 'fajr'
                   ? `Fajr time has begun. It ends at sunrise${sunriseClock ? `, ${sunriseClock}` : ''}.`
@@ -155,7 +155,7 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
             );
           }
           await schedule(
-            { title: `Sunrise · ${clock}`, body: 'Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
+            { title: `Sunrise at ${clock}`, body: 'Fajr time has ended.', sound: 'default', interruptionLevel: 'timeSensitive' },
             time,
           );
         }

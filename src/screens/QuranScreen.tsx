@@ -169,7 +169,7 @@ export default function QuranScreen() {
           {surah.transliteration}
         </Text>
         <Text style={[styles.headerMeta, { color: colors.textSecondary }]}>
-          Page {currentPage} · Juz {juz}
+          Page {currentPage}, Juz {juz}
         </Text>
       </Animated.View>
 
