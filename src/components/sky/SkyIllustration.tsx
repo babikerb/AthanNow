@@ -66,6 +66,8 @@ interface Props {
   arc?: number;
   /** Full layout: raise the hills by this much (pt) so the skyline sits on top of the tab bar. */
   groundLift?: number;
+  /** Replaces the period's sky stops (screen offsets 0..1). The launch splash uses it to match the app icon. */
+  skyStops?: [string, number][];
 }
 
 // A small flock, drawn as soft "v" strokes. Offsets in authored units from the flock's anchor.
@@ -124,7 +126,7 @@ export function starPoints(period: ScenePeriod, width: number, height: number, c
   return STAR_FIELD.slice(0, scene.stars).map((st) => ({ x: st.x * s, y: (top + ((st.y - 56) / 130) * span) * s, r: st.r * s, o: st.o * scene.starOpacity }));
 }
 
-function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'band', zone, arc, groundLift = 0 }: Props) {
+function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'band', zone, arc, groundLift = 0, skyStops }: Props) {
   const scene = SCENES[period];
   const id = useId().replace(/:/g, '');
   const full = layout === 'full';
@@ -156,7 +158,7 @@ function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'ba
     }
   }
 
-  const stops: [string, number][] = full ? scene.full.sky : scene.sky.map((c, i) => [c, i / (scene.sky.length - 1)]);
+  const stops: [string, number][] = skyStops ?? (full ? scene.full.sky : scene.sky.map((c, i) => [c, i / (scene.sky.length - 1)]));
   // Warm at sunrise, white by day; a little stronger on the pale daytime skies.
   const cloudTint = period === 'sunrise' ? '#F1C7B4' : '#FFFFFF';
   const cloudAlpha = period === 'sunrise' ? 0.3 : 0.42;
@@ -219,8 +221,8 @@ function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'ba
           </>
         )}
         <Path d={SKYLINE} fill={INK} />
-        {/* Ground under a lifted skyline. */}
-        <Rect x={0} y={340} width={390} height={400} fill={INK} />
+        {/* Ground under a lifted skyline, overlapping the skyline's own ground so no seam shows. */}
+        <Rect x={-1} y={318} width={392} height={422} fill={INK} />
       </G>
     </Svg>
   );

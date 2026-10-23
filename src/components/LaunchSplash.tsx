@@ -1,132 +1,129 @@
 import * as SplashScreen from 'expo-splash-screen';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Must match the native splash (app.json: expo-splash-screen backgroundColor and imageWidth) and the
-// mark drawn by scripts/make-brand.mjs, so the hand-off from the native launch screen is invisible.
-export const SPLASH_BG = '#2E2450';
-const MARK_W = 200;
-const GOLD = '#F2C14E';
-const INK = '#0E0B16';
+import { INK, SCENES } from './sky/palettes';
+import { SkyIllustration } from './sky/SkyIllustration';
 
-// Geometry on the 1024 canvas (scripts/make-brand.mjs).
-const GROUND = 806;
-const ARC = { cx: 512, cy: GROUND, r: 340, w: 22 };
-const SUN_R = 66;
-const START_DEG = 70;
-const END_DEG = 24;
-const DOME = { cx: 512, cy: GROUND - 28, r: 156 };
-const MINARETS = [318, 678];
-const TOP = GROUND - 196;
-const TIP = TOP - 44;
-// The dome is a circle whose centre sits just above the ground; this is where it meets the ground.
-const DOME_HALF = Math.sqrt(DOME.r ** 2 - (GROUND - DOME.cy) ** 2);
-
-const sunAt = (deg: number) => [ARC.cx + ARC.r * Math.cos((deg * Math.PI) / 180), ARC.cy - ARC.r * Math.sin((deg * Math.PI) / 180)];
-
-/** The mosque, arc and base, without the sun (the sun is animated separately). */
-function MarkArt() {
-  const minaret = (mx: number) =>
-    `M${mx} ${GROUND} V${TOP} H${mx + 28} V${GROUND} Z M${mx - 7} ${TOP + 46} H${mx + 35} V${TOP + 57} H${mx - 7} Z M${mx} ${TOP} L${mx + 14} ${TIP} L${mx + 28} ${TOP} Z`;
-  return (
-    <Svg width={MARK_W} height={MARK_W} viewBox="0 0 1024 1024">
-      <Path
-        d={`M${ARC.cx - ARC.r} ${ARC.cy} A${ARC.r} ${ARC.r} 0 0 1 ${ARC.cx + ARC.r} ${ARC.cy}`}
-        stroke={GOLD}
-        strokeWidth={ARC.w}
-        fill="none"
-        opacity={0.9}
-      />
-      <Path
-        d={`M${DOME.cx - DOME_HALF} ${GROUND} A${DOME.r} ${DOME.r} 0 1 1 ${DOME.cx + DOME_HALF} ${GROUND} Z`}
-        fill={INK}
-      />
-      <Rect x={508.5} y={DOME.cy - DOME.r - 40} width={7} height={44} fill={INK} />
-      <Circle cx={512} cy={DOME.cy - DOME.r - 46} r={9} fill={INK} />
-      {MINARETS.map((mx) => (
-        <Path key={mx} d={minaret(mx)} fill={INK} />
-      ))}
-      <Rect x={262} y={GROUND} width={500} height={18} fill={INK} />
-    </Svg>
-  );
-}
+// Must match the native launch screen (app.json: expo-splash-screen backgroundColor and imageWidth)
+// and the tile drawn by scripts/make-brand.mjs (CROP, TILE_RADIUS), so the hand-off is invisible.
+export const SPLASH_BG = INK;
+const ICON = 128;
+const TILE_RADIUS = 0.2237;
+const CROP = { x: 190, y: 160, size: 200 };
+const HORIZON = 318;
+// The icon's faint early stars (scene units).
+const STARS = [
+  [214, 176, 1.1],
+  [256, 168, 0.8],
+  [372, 182, 1],
+];
+// Home's tab bar height when the navigator hasn't measured it (same fallback as useTabBarHeight).
+const TAB_BAR = 49;
 
 /**
- * Picks up exactly where the native launch screen leaves off (same colour, same mark), hides it, then
- * plays a short animation: the sun travels along its arc and the mark opens onto the app. With Reduce
- * Motion it simply fades.
+ * The launch: starts as the app icon (the native launch screen shows the same tile), then the tile
+ * opens out and the view pulls back from the icon's close crop to the full Maghrib scene, with the
+ * skyline landing exactly where Home draws it. The scene then fades, leaving Home in its place.
+ * Native-driver transforms throughout; with Reduce Motion the tile simply fades.
  */
 export function LaunchSplash() {
-  const { width, height } = useWindowDimensions();
+  const { width: W, height: H } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [done, setDone] = useState(false);
-  const progress = useRef(new Animated.Value(0)).current;
-  const exit = useRef(new Animated.Value(0)).current;
+  const open = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(1)).current;
   const started = useRef(false);
+
+  // The scene laid out exactly as Home lays it out (full layout, hills on the tab bar).
+  const groundLift = insets.bottom + TAB_BAR;
+  const s = W / 390;
+  const shift = H / s - 340 - groundLift / s;
+  const side = CROP.size * s;
+  const dx = (CROP.x + CROP.size / 2) * s - W / 2;
+  const dy = (CROP.y + CROP.size / 2 + shift) * s - H / 2;
+  const Q = Math.max(W, H);
+  const c0 = ICON / Q; // tile scale
+  const S0 = Q / side; // zoom on the crop
+
+  // Sky stops that reproduce the icon's gradient: Maghrib's sky from the crop's top edge to the horizon.
+  const skyStops = useMemo<[string, number][]>(() => {
+    const t0 = ((CROP.y + shift) * s) / H;
+    const t1 = ((HORIZON + shift) * s) / H;
+    const cols = SCENES.maghrib.sky;
+    const stops: [string, number][] = cols.map((c, i) => [c, t0 + ((t1 - t0) * i) / (cols.length - 1)]);
+    return [[cols[0], 0], ...stops.filter(([, o]) => o > 0 && o < 1), [cols[cols.length - 1], 1]];
+  }, [shift, s, H]);
 
   const start = useCallback(async () => {
     if (started.current) return;
     started.current = true;
     await SplashScreen.hideAsync().catch(() => {});
     const reduce = await AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
-    const fade = Animated.timing(exit, { toValue: 1, duration: reduce ? 250 : 380, easing: Easing.out(Easing.cubic), useNativeDriver: true });
+    const out = Animated.timing(fade, { toValue: 0, duration: reduce ? 300 : 520, easing: Easing.out(Easing.quad), useNativeDriver: true });
     const anim = reduce
-      ? fade
-      : Animated.sequence([Animated.timing(progress, { toValue: 1, duration: 720, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }), fade]);
+      ? out
+      : Animated.sequence([
+          Animated.delay(120),
+          Animated.timing(open, { toValue: 1, duration: 1050, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
+          Animated.delay(160),
+          out,
+        ]);
     anim.start(() => setDone(true));
-  }, [exit, progress]);
+  }, [fade, open]);
 
   // Safety net: never leave the overlay up if layout never reports.
   useEffect(() => {
-    const t = setTimeout(start, 600);
+    const t = setTimeout(start, 700);
     return () => clearTimeout(t);
   }, [start]);
 
   if (done) return null;
 
-  // The sun's path in screen points, sampled along the arc for a native-driver interpolation.
-  const k = MARK_W / 1024;
-  const steps = 8;
-  const input = Array.from({ length: steps + 1 }, (_, i) => i / steps);
-  const pts = input.map((p) => sunAt(START_DEG + (END_DEG - START_DEG) * p));
-  const tx = progress.interpolate({ inputRange: input, outputRange: pts.map(([x]) => (x - 512) * k) });
-  const ty = progress.interpolate({ inputRange: input, outputRange: pts.map(([, y]) => (y - 512) * k) });
-  const sunD = SUN_R * 2 * k;
-
   return (
-    <Animated.View
-      pointerEvents="none"
-      onLayout={start}
-      style={[
-        StyleSheet.absoluteFill,
-        styles.root,
-        {
-          backgroundColor: SPLASH_BG,
-          opacity: exit.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-        },
-      ]}
-    >
-      <Animated.View style={{ width: MARK_W, height: MARK_W, transform: [{ scale: exit.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }] }}>
-        <MarkArt />
+    <Animated.View pointerEvents="none" onLayout={start} style={[StyleSheet.absoluteFill, styles.root, { opacity: fade }]}>
+      {/* The tile: a square window that grows from icon size until it covers the screen. */}
+      <Animated.View
+        style={{
+          width: Q,
+          height: Q,
+          borderRadius: TILE_RADIUS * Q,
+          overflow: 'hidden',
+          transform: [{ scale: open.interpolate({ inputRange: [0, 1], outputRange: [c0, 1] }) }],
+        }}
+      >
+        {/* The scene, zoomed onto the icon's crop and easing back to Home's framing. */}
         <Animated.View
           style={{
             position: 'absolute',
-            left: MARK_W / 2 - sunD / 2,
-            top: MARK_W / 2 - sunD / 2,
-            width: sunD,
-            height: sunD,
-            borderRadius: sunD / 2,
-            backgroundColor: GOLD,
-            transform: [{ translateX: tx }, { translateY: ty }],
+            left: (Q - W) / 2,
+            top: (Q - H) / 2,
+            width: W,
+            height: H,
+            transform: [
+              { translateX: open.interpolate({ inputRange: [0, 1], outputRange: [-S0 * dx, 0] }) },
+              { translateY: open.interpolate({ inputRange: [0, 1], outputRange: [-S0 * dy, 0] }) },
+              { scale: open.interpolate({ inputRange: [0, 1], outputRange: [S0, 1] }) },
+            ],
           }}
-        />
+        >
+          <SkyIllustration period="maghrib" width={W} height={H} layout="full" groundLift={groundLift} skyStops={skyStops} />
+          {STARS.map(([x, y, r], i) => {
+            const d = Math.max(1.2, r * 2 * s);
+            return (
+              <View
+                key={i}
+                style={{ position: 'absolute', left: x * s - d / 2, top: (y + shift) * s - d / 2, width: d, height: d, borderRadius: d / 2, backgroundColor: '#FFFFFF', opacity: 0.5 }}
+              />
+            );
+          })}
+        </Animated.View>
       </Animated.View>
-      {/* Keeps the full-screen layer measured even before the mark lays out. */}
-      <View style={{ position: 'absolute', width, height }} />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { zIndex: 1000, alignItems: 'center', justifyContent: 'center' },
+  root: { zIndex: 1000, alignItems: 'center', justifyContent: 'center', backgroundColor: SPLASH_BG },
 });
