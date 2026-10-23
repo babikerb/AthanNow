@@ -1,7 +1,7 @@
 import { colorTokens } from '../../../design/tokens.generated';
 import { haptic } from '../../../design/haptics';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Linking, StyleSheet, Text } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Linking, StyleSheet, Text } from 'react-native';
 
 import { getLocationPermissionState, requestLocationPermission } from '../../../hooks/useLocation';
 import { skyTextSecondary } from '../../../theme/colors';
@@ -27,11 +27,11 @@ interface Copy {
 const COPY: Record<Kind, Copy> = {
   location: {
     headline: 'Prayer times for where you are',
-    ask: "AthanNow uses your location to work out prayer times. It stays on your phone; nothing is sent anywhere.",
+    ask: "Used on this phone to work out prayer times and the Qibla. We don't collect or store it.",
     granted: 'Location is already enabled.',
     deniedPermanent:
       "Location is turned off for AthanNow. Enable it in Settings to get prayer times for your exact location, or continue and we'll use Mecca's times for now.",
-    declined: "Showing Mecca's times for now. Search any city from the location pill.",
+    declined: "Showing Mecca's times for now. Tap the city name at the top of Home to search.",
     allowLabel: 'Allow Location',
   },
   notifications: {
@@ -72,16 +72,33 @@ export function PermissionStep({ index, total, permission, refreshLocation, onNe
   const [permState, setPermState] = useState<PermissionUIState>('checking');
   const [declined, setDeclined] = useState(false);
 
+  // Check on mount and again whenever the app comes back (e.g. from "Open Settings").
   useEffect(() => {
     let mounted = true;
-    const getState = permission === 'location' ? getLocationPermissionState : getNotificationPermissionState;
-    getState().then(({ status, canAskAgain }) => {
-      if (mounted) setPermState(classifyPermission(status, canAskAgain));
-    });
+    const check = () => {
+      const getState = permission === 'location' ? getLocationPermissionState : getNotificationPermissionState;
+      getState()
+        .then(({ status, canAskAgain }) => mounted && setPermState(classifyPermission(status, canAskAgain)))
+        .catch(() => {});
+    };
+    check();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && check());
     return () => {
       mounted = false;
+      sub.remove();
     };
   }, [permission]);
+
+  // Nothing to ask: move on instead of showing a step with nothing to do.
+  const advanced = useRef(false);
+  useEffect(() => {
+    if (permState === 'granted' && !declined && !advanced.current) {
+      advanced.current = true;
+      if (permission === 'location') refreshLocation?.().catch(() => {});
+      onNext();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permState]);
 
   const canDecline = !declined && (permState === 'undetermined' || permState === 'denied-permanent');
 
@@ -108,12 +125,8 @@ export function PermissionStep({ index, total, permission, refreshLocation, onNe
     const { status, canAskAgain } = await request();
     const next = classifyPermission(status, canAskAgain);
     setPermState(next);
-    if (next === 'granted') {
-      if (permission === 'location') refreshLocation?.().catch(() => {});
-      onNext();
-    } else {
-      setDeclined(true);
-    }
+    // Granted is handled by the effect above (it advances once).
+    if (next !== 'granted') setDeclined(true);
   };
 
   let body: string;

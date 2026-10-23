@@ -45,11 +45,11 @@ export function OutroStep({ index, total, cityName, methodLabel, mode, onFinish,
       content={
         <>
           <StaggerReveal index={0} count={3}>
-            <Text style={st.headline}>Your prayer times are ready</Text>
+            <Text style={st.headline}>Set for {cityName}</Text>
           </StaggerReveal>
           <StaggerReveal index={1} count={3}>
             <Text style={st.body}>
-              Prayer times for {cityName}, calculated with {methodLabel}.
+              Calculated with {methodLabel}. Change the city from the top of Home.
             </Text>
           </StaggerReveal>
         </>

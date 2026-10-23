@@ -48,7 +48,7 @@ export function IntroStep({ index, total, onContinue, onClose }: Props) {
             <Text style={st.wordmark} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>AthanNow</Text>
           </StaggerReveal>
           <StaggerReveal index={2} count={3}>
-            <Text style={st.tagline}>Prayer times, Quran, and Qibla, built around where you actually are.</Text>
+            <Text style={st.tagline}>Prayer times, Qibla and Quran for wherever you are.</Text>
           </StaggerReveal>
         </>
       }

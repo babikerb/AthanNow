@@ -5,6 +5,7 @@ import { Alert, AppState, Linking, ScrollView, View } from 'react-native';
 
 import { useOnboarding } from '../context/OnboardingContext';
 import { Appearance, AsrMadhab, PrayerKey, useSettings } from '../context/SettingsContext';
+import { LocationSheet } from '../components/LocationSheet';
 import { Sheet } from '../components/Sheet';
 import { haptic } from '../design/haptics';
 import { ListGroup, ListRow, SectionHeader } from '../design/List';
@@ -23,6 +24,7 @@ import {
   rescheduleNotifications,
   type ScheduledSummary,
 } from '../utils/notifications';
+import { downloadAllPages, isOfflineDownloaded } from '../utils/mushafCache';
 import { classifyPermission, type PermissionUIState } from '../utils/permissionState';
 
 const PRIVACY_URL = 'https://athannow.bbabiker.com/privacy';
@@ -117,7 +119,7 @@ function NotificationStatus() {
     const detail = !anyOn
       ? 'Every prayer is switched off.'
       : summary && summary.count > 0
-        ? `${summary.count} reminders scheduled. They are refreshed whenever you open the app.`
+        ? `${summary.count} scheduled. Refreshed each time you open the app.`
         : 'Scheduling your reminders.';
     return <ListRow icon="bell.badge" title="Notifications are on" subtitle={detail} />;
   }
@@ -137,7 +139,7 @@ function NotificationStatus() {
     <ListRow
       icon="bell.slash"
       title="Notifications are off"
-      subtitle="Allow them to get a nudge at each prayer."
+      subtitle="Allow them to hear the athan at each prayer."
       value="Allow"
       accessibilityHint="Shows the iOS permission prompt"
       onPress={async () => {
@@ -148,12 +150,56 @@ function NotificationStatus() {
   );
 }
 
+/** Download every mushaf page so the reader works with no connection (about 60 MB). */
+function OfflineQuranRow() {
+  const [state, setState] = useState<'unknown' | 'none' | 'done' | 'failed' | { done: number; total: number }>('unknown');
+  const cancel = useRef({ cancelled: false });
+  useEffect(() => {
+    isOfflineDownloaded().then((d) => setState(d ? 'done' : 'none'));
+    return () => {
+      cancel.current.cancelled = true;
+    };
+  }, []);
+  const start = async () => {
+    haptic.light();
+    cancel.current = { cancelled: false };
+    setState({ done: 0, total: 604 });
+    const ok = await downloadAllPages((done, total) => setState({ done, total }), cancel.current);
+    if (!cancel.current.cancelled) {
+      if (ok) haptic.success();
+      setState(ok ? 'done' : 'failed');
+    }
+  };
+  const footer = 'About 60 MB. Pages you open are kept for offline reading either way.';
+  if (typeof state === 'object') {
+    return (
+      <ListGroup footer={footer}>
+        <ListRow title="Downloading pages" value={`${Math.round((state.done / state.total) * 100)}%`} />
+      </ListGroup>
+    );
+  }
+  return (
+    <ListGroup footer={footer}>
+      {state === 'done' ? (
+        <ListRow title="All pages downloaded" />
+      ) : (
+        <ListRow
+          title={state === 'failed' ? 'Some pages didn’t download' : 'Download all pages'}
+          value={state === 'failed' ? 'Try again' : undefined}
+          onPress={state === 'unknown' ? undefined : start}
+        />
+      )}
+    </ListGroup>
+  );
+}
+
 export default function SettingsScreen() {
   const dt = useDesignTheme();
   const settings = useSettings();
   const onboarding = useOnboarding();
-  const { location } = useLocation();
+  const { location, cityName } = useLocation();
   useFocusedStatusBar(dt.scheme === 'dark' ? 'light' : 'dark');
+  const [locationSheetOpen, setLocationSheetOpen] = useState(false);
   const [methodSheetOpen, setMethodSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
   // Collapsed by default: six near-identical toggles at once felt intimidating. The six independent per-prayer
@@ -209,6 +255,11 @@ export default function SettingsScreen() {
   return (
     <>
       <ScreenContainer title="Settings">
+        <SectionHeader title="Location" />
+        <ListGroup footer={location?.isManual ? 'Chosen by you.' : 'Follows where you are.'}>
+          <ListRow title="City" value={cityName} onPress={() => setLocationSheetOpen(true)} />
+        </ListGroup>
+
         <SectionHeader title="Appearance" />
         <ListGroup footer="Home and Qibla always show the night sky. Appearance changes everything else.">
           <SegmentBlock title="Theme">
@@ -219,7 +270,6 @@ export default function SettingsScreen() {
         <SectionHeader title="Time" />
         <ListGroup>
           <ListRow
-            icon="clock"
             title="24-hour time"
             accessory={<Toggle label="24-hour time" value={settings.use24Hour} onValueChange={(v) => settings.update({ use24Hour: v })} />}
           />
@@ -227,7 +277,7 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Prayer calculation" />
         <ListGroup>
-          <ListRow icon="globe" title="Calculation method" value={methodLabel} onPress={() => setMethodSheetOpen(true)} />
+          <ListRow title="Calculation method" value={methodLabel} onPress={() => setMethodSheetOpen(true)} />
           <SegmentBlock title="Asr method">
             <SegmentedControl options={ASR_OPTIONS} value={settings.asrMadhab} onChange={(v) => settings.update({ asrMadhab: v })} />
           </SegmentBlock>
@@ -237,7 +287,6 @@ export default function SettingsScreen() {
         <ListGroup footer="Time sensitive, so they can break through Focus when you allow it.">
           <NotificationStatus />
           <ListRow
-            icon="bell"
             title="Prayer notifications"
             value={`${enabledCount} of ${PRAYER_LABELS.length} on`} // read by VoiceOver; the visible copy is in the accessory
             accessory={
@@ -268,14 +317,12 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Reminders" />
         <ListGroup footer="A reminder gives you an extra heads-up before each athan.">
-          <ListRow icon="timer" title="Reminder time" value={minutesLabel(settings.notifications.reminderMinutesBefore)} onPress={() => setReminderSheetOpen(true)} />
+          <ListRow title="Reminder time" value={minutesLabel(settings.notifications.reminderMinutesBefore)} onPress={() => setReminderSheetOpen(true)} />
           <ListRow
-            icon="speaker.wave.2"
             title="Play adhan sound"
             accessory={<Toggle label="Play adhan sound" value={settings.notifications.athanSound} onValueChange={(v) => settings.updateNotifications({ athanSound: v })} />}
           />
           <ListRow
-            icon="book"
             title="Morning Quran reminder"
             accessory={
               <Toggle label="Morning Quran reminder" value={settings.notifications.quranMorningEnabled} onValueChange={(v) => settings.updateNotifications({ quranMorningEnabled: v })} />
@@ -283,14 +330,19 @@ export default function SettingsScreen() {
           />
         </ListGroup>
 
+        <SectionHeader title="Quran" />
+        <OfflineQuranRow />
+
         <SectionHeader title="About" />
         <ListGroup>
-          <ListRow icon="hand.raised" title="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} />
-          <ListRow icon="arrow.clockwise" title="Replay onboarding" onPress={() => onboarding.start('replay')} />
-          {versionLabel ? <ListRow icon="info.circle" title="Version" value={versionLabel} /> : null}
-          <ListRow icon="trash" title="Reset all data" destructive onPress={confirmReset} />
+          <ListRow title="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} />
+          <ListRow title="Replay onboarding" onPress={() => onboarding.start('replay')} />
+          {versionLabel ? <ListRow title="Version" value={versionLabel} /> : null}
+          <ListRow title="Reset all data" destructive onPress={confirmReset} />
         </ListGroup>
       </ScreenContainer>
+
+      <LocationSheet visible={locationSheetOpen} onClose={() => setLocationSheetOpen(false)} />
 
       <Sheet visible={methodSheetOpen} onClose={() => setMethodSheetOpen(false)} title="Calculation method">
         <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingBottom: dt.spacing.xxl }}>
