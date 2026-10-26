@@ -3,6 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Linking, ScrollView, View } from 'react-native';
 
+import { QURAN_ENABLED } from '../config/features';
 import { useOnboarding } from '../context/OnboardingContext';
 import { Appearance, AsrMadhab, PrayerKey, useSettings } from '../context/SettingsContext';
 import { LocationSheet } from '../components/LocationSheet';
@@ -105,7 +106,7 @@ function NotificationStatus() {
   useEffect(() => {
     const was = prev.current;
     prev.current = perm;
-    const anyOn = Object.values(settings.notifications.athanEnabled).some(Boolean) || settings.notifications.quranMorningEnabled;
+    const anyOn = Object.values(settings.notifications.athanEnabled).some(Boolean) || (QURAN_ENABLED && settings.notifications.quranMorningEnabled);
     if (perm === 'granted' && was !== 'granted' && was !== 'checking' && anyOn && location) {
       rescheduleNotifications(location, settings).then(refresh).catch(() => {});
     }
@@ -115,7 +116,7 @@ function NotificationStatus() {
   if (perm === 'checking') return <ListRow icon="bell" title="Checking notifications" />;
 
   if (perm === 'granted') {
-    const anyOn = Object.values(settings.notifications.athanEnabled).some(Boolean) || settings.notifications.quranMorningEnabled;
+    const anyOn = Object.values(settings.notifications.athanEnabled).some(Boolean) || (QURAN_ENABLED && settings.notifications.quranMorningEnabled);
     const detail = !anyOn
       ? 'Every prayer is switched off.'
       : summary && summary.count > 0
@@ -322,16 +323,22 @@ export default function SettingsScreen() {
             title="Play adhan sound"
             accessory={<Toggle label="Play adhan sound" value={settings.notifications.athanSound} onValueChange={(v) => settings.updateNotifications({ athanSound: v })} />}
           />
-          <ListRow
-            title="Morning Quran reminder"
-            accessory={
-              <Toggle label="Morning Quran reminder" value={settings.notifications.quranMorningEnabled} onValueChange={(v) => settings.updateNotifications({ quranMorningEnabled: v })} />
-            }
-          />
+          {QURAN_ENABLED && (
+            <ListRow
+              title="Morning Quran reminder"
+              accessory={
+                <Toggle label="Morning Quran reminder" value={settings.notifications.quranMorningEnabled} onValueChange={(v) => settings.updateNotifications({ quranMorningEnabled: v })} />
+              }
+            />
+          )}
         </ListGroup>
 
-        <SectionHeader title="Quran" />
-        <OfflineQuranRow />
+        {QURAN_ENABLED && (
+          <>
+            <SectionHeader title="Quran" />
+            <OfflineQuranRow />
+          </>
+        )}
 
         <SectionHeader title="About" />
         <ListGroup>

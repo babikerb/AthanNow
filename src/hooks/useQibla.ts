@@ -7,8 +7,11 @@ const MAKKAH_LAT = 21.4225;
 const MAKKAH_LNG = 39.8262;
 const EARTH_R_KM = 6371;
 
-// Low-pass factor: lower = smoother but laggier. 0.18 reads steady without feeling sluggish.
-const SMOOTHING = 0.18;
+// The dial follows the sensor with a time-based ease (time constant in ms): smooth at display rate
+// whatever the sensor's own rate, without feeling sluggish.
+const FOLLOW_MS = 75;
+// Readings closer than this to the current target are sensor noise.
+const NOISE_DEG = 0.4;
 
 // --- Qibla "aligned" tolerance ---------------------------------------------
 // The Qibla is the Kaaba itself, not a zero-dimensional point, so the set of
@@ -48,10 +51,6 @@ function toCardinal(deg: number): string {
   return CARDINALS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
 }
 
-function angularDiff(a: number, b: number): number {
-  const d = Math.abs(a - b) % 360;
-  return d > 180 ? 360 - d : d;
-}
 
 export interface QiblaData {
   headingAnim: Animated.Value;
@@ -70,37 +69,67 @@ export interface QiblaData {
   compassAvailable: boolean | null;
 }
 
-/** Native iOS compass via expo-location heading + adhan Qibla bearing. */
-export function useQibla(latitude: number | null, longitude: number | null): QiblaData {
+/**
+ * Native iOS compass via expo-location heading + adhan Qibla bearing.
+ *
+ * Runs only while `active` (the Qibla tab is on screen): the sensor, the GPS watch and the per-frame
+ * follower all stop otherwise, so the compass costs nothing on other tabs. The dial's rotation is an
+ * Animated.Value driven once per display frame toward the latest reading, so it glides instead of
+ * restarting an animation per sensor event; React state only changes when the shown degree or the
+ * calibration state actually changes.
+ */
+export function useQibla(latitude: number | null, longitude: number | null, active = true): QiblaData {
   const [heading, setHeading] = useState(0);
   const [usingTrueHeading, setUsingTrueHeading] = useState(false);
   const [headingAccuracy, setHeadingAccuracy] = useState(-1);
   const [compassAvailable, setCompassAvailable] = useState<boolean | null>(null);
 
   const headingAnim = useRef(new Animated.Value(0)).current;
-  const lastAnimAngle = useRef(0);
-  const lastHeadingRef = useRef(0);
-  // Low-pass filtered heading (degrees, 0..360) to kill sensor jitter.
-  const smoothed = useRef<number | null>(null);
+  // Unwrapped angles (degrees, can run past 360) so the dial always turns the short way.
+  const target = useRef<number | null>(null);
+  const shown = useRef(0);
+  const frame = useRef<number | null>(null);
+  const lastFrameAt = useRef(0);
+  const lastStateDeg = useRef<number | null>(null);
+  const calibrating = useRef<boolean | null>(null);
 
   useEffect(() => {
+    if (!active) return;
     let headingSub: Location.LocationSubscription | null = null;
     let gpsSub: Location.LocationSubscription | null = null;
     let cancelled = false;
     let sawHeading = false;
 
-    // If no heading event arrives shortly after subscribing, the device has no
-    // usable compass (common on Wi-Fi iPads). That's distinct from "present but
-    // needs calibration", where events DO arrive with accuracy < 0, so we can
-    // tell the user the compass is unavailable instead of looping a calibrate prompt.
+    // Eases `shown` toward `target` each frame; stops itself once settled.
+    const step = (now: number) => {
+      frame.current = null;
+      if (cancelled || target.current == null) return;
+      const dt = lastFrameAt.current ? Math.min(64, now - lastFrameAt.current) : 16;
+      lastFrameAt.current = now;
+      const delta = target.current - shown.current;
+      shown.current += delta * (1 - Math.exp(-dt / FOLLOW_MS));
+      if (Math.abs(delta) < 0.02) shown.current = target.current;
+      headingAnim.setValue(-shown.current);
+      if (shown.current !== target.current) frame.current = requestAnimationFrame(step);
+      else lastFrameAt.current = 0;
+    };
+    const kick = () => {
+      if (frame.current == null) frame.current = requestAnimationFrame(step);
+    };
+
+    // If no heading arrives shortly after subscribing, the device has no usable compass (Wi-Fi
+    // iPads). Distinct from "needs calibration", where events arrive with accuracy < 0.
     const noCompassTimer = setTimeout(() => {
       if (!cancelled && !sawHeading) setCompassAvailable(false);
     }, 4000);
 
-    Location.watchPositionAsync({ accuracy: Location.Accuracy.High, distanceInterval: 500 }, () => {}).then((s) => {
-      if (!cancelled) gpsSub = s;
-      else s.remove();
-    });
+    // Keeps location running so iOS can report true (not magnetic) north.
+    Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, distanceInterval: 1000 }, () => {})
+      .then((sub) => {
+        if (!cancelled) gpsSub = sub;
+        else sub.remove();
+      })
+      .catch(() => {});
 
     Location.watchHeadingAsync((data) => {
       if (cancelled) return;
@@ -108,50 +137,53 @@ export function useQibla(latitude: number | null, longitude: number | null): Qib
         sawHeading = true;
         setCompassAvailable(true);
       }
-      setHeadingAccuracy(data.accuracy);
-      if (data.accuracy < 0) return;
+      const nowCalibrating = data.accuracy < 0;
+      if (calibrating.current !== nowCalibrating) {
+        calibrating.current = nowCalibrating;
+        setHeadingAccuracy(data.accuracy);
+      }
+      if (nowCalibrating) return;
 
       const usingTrue = data.trueHeading >= 0;
       const raw = usingTrue ? data.trueHeading : data.magHeading;
 
-      // Exponential low-pass smoothing along the shortest arc (handles 360->0 wrap).
-      if (smoothed.current === null) {
-        smoothed.current = raw;
+      // Unwrap onto the current target so 359 -> 1 is a 2 degree step, not a full turn.
+      if (target.current == null) {
+        target.current = raw;
+        shown.current = raw;
+        headingAnim.setValue(-raw);
       } else {
-        const delta = (((raw - smoothed.current) % 360) + 540) % 360 - 180; // (-180,180]
-        // Ignore sub-degree noise; otherwise ease toward the new reading.
-        if (Math.abs(delta) > 0.3) smoothed.current = (smoothed.current + SMOOTHING * delta + 360) % 360;
+        const d = ((((raw - target.current) % 360) + 540) % 360) - 180;
+        if (Math.abs(d) < NOISE_DEG) return;
+        target.current += d;
       }
-      const h = smoothed.current;
+      kick();
 
-      // Accumulate along the shortest path so the dial never spins the long way.
-      const diff = (((-h - (lastAnimAngle.current % 360)) % 360) + 540) % 360 - 180;
-      lastAnimAngle.current += diff;
-      // A short glide (not an instant jump) further smooths the motion.
-      Animated.timing(headingAnim, { toValue: lastAnimAngle.current, duration: 90, useNativeDriver: true }).start();
-
-      if (angularDiff(h, lastHeadingRef.current) >= 1) {
-        lastHeadingRef.current = h;
-        setHeading(h);
+      const deg = (((Math.round(target.current) % 360) + 360) % 360);
+      if (deg !== lastStateDeg.current) {
+        lastStateDeg.current = deg;
+        setHeading(deg);
         setUsingTrueHeading(usingTrue);
       }
     })
-      .then((s) => {
-        if (!cancelled) headingSub = s;
-        else s.remove();
+      .then((sub) => {
+        if (!cancelled) headingSub = sub;
+        else sub.remove();
       })
       .catch(() => {
-        // Heading updates aren't available on this device at all.
         if (!cancelled) setCompassAvailable(false);
       });
 
     return () => {
       cancelled = true;
       clearTimeout(noCompassTimer);
+      if (frame.current != null) cancelAnimationFrame(frame.current);
+      frame.current = null;
+      lastFrameAt.current = 0;
       headingSub?.remove();
       gpsSub?.remove();
     };
-  }, [headingAnim]);
+  }, [active, headingAnim]);
 
   const qiblaInfo = useMemo(() => {
     if (latitude == null || longitude == null) return null;

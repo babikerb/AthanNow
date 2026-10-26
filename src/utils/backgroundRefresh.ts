@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { QURAN_ENABLED } from '../config/features';
 import * as BackgroundTask from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
@@ -17,7 +18,7 @@ export const BACKGROUND_REFRESH_TASK = 'athannow-background-refresh';
 
 function anyNotificationEnabled(s: Settings): boolean {
   const n = s.notifications;
-  return Object.values(n.athanEnabled).some(Boolean) || n.quranMorningEnabled;
+  return Object.values(n.athanEnabled).some(Boolean) || (QURAN_ENABLED && n.quranMorningEnabled);
 }
 
 /**

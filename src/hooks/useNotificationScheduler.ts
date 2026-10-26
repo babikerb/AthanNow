@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { QURAN_ENABLED } from '../config/features';
 
 import { Settings, SettingsContextValue } from '../context/SettingsContext';
 import { AppLocation } from './useLocation';
@@ -10,7 +11,7 @@ import {
 
 function anyNotificationEnabled(s: Settings): boolean {
   const n = s.notifications;
-  return Object.values(n.athanEnabled).some(Boolean) || n.quranMorningEnabled;
+  return Object.values(n.athanEnabled).some(Boolean) || (QURAN_ENABLED && n.quranMorningEnabled);
 }
 
 /**

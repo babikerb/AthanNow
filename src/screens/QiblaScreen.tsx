@@ -257,7 +257,9 @@ export default function QiblaScreen() {
   useFocusedStatusBar('light');
   const latitude = location?.latitude ?? null;
   const longitude = location?.longitude ?? null;
-  const qibla = useQibla(latitude, longitude);
+  // The compass only runs while this tab is on screen.
+  const focused = useIsFocused();
+  const qibla = useQibla(latitude, longitude, focused);
   // Unresolved location (denied, failed, or never resolved) must not present Mecca's bearing as the user's.
   const error = status === 'denied' || status === 'error' || (status === 'idle' && hasRestored && !location?.isManual);
   const compassUnavailable = qibla.compassAvailable === false;
@@ -265,7 +267,6 @@ export default function QiblaScreen() {
 
   // Only count a lock when the compass is real, calibrated, and this tab is on screen (no buzzing from another tab,
   // no false lock from the static 0 heading when there is no compass).
-  const focused = useIsFocused();
   const aligned = qibla.isAligned && !calibrating && !compassUnavailable && focused;
 
   const wasAligned = useRef(false);

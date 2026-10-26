@@ -16,6 +16,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.bbabiker.AthanNow",
       "infoPlist": {
+        "CADisableMinimumFrameDurationOnPhone": true,
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "AthanNow uses your location to calculate prayer times and the Qibla direction. You can search for a city instead."
       },

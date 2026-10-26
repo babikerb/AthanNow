@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { QURAN_ENABLED } from '../config/features';
 
 import { PrayerKey, Settings } from '../context/SettingsContext';
 import { getPrayerTimes } from './prayerEngine';
@@ -161,7 +162,7 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
         }
 
         // Morning Quran reminder around sunrise.
-        if (notifications.quranMorningEnabled) {
+        if (QURAN_ENABLED && notifications.quranMorningEnabled) {
           await schedule({ title: 'Morning Quran', body: 'A few minutes with the Quran before the day begins.' }, time);
         }
       }

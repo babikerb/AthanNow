@@ -98,7 +98,7 @@ export function Onboarding() {
 
   if (step === 0) {
     title = 'AthanNow';
-    body = 'Prayer times, Qibla and Quran for wherever you are.';
+    body = 'Prayer times and the Qibla for wherever you are.';
     primary = { label: 'Set up', onPress: () => go(1) };
     if (mode === 'replay') secondary = { label: 'Close', onPress: finish };
   } else if (step === 1) {

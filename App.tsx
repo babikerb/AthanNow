@@ -37,6 +37,7 @@ configureNotificationHandler();
 import AthanScreen from './src/screens/AthanScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import QiblaScreen from './src/screens/QiblaScreen';
+import { QURAN_ENABLED } from './src/config/features';
 import QuranScreen from './src/screens/QuranScreen';
 import { useImmersive } from './src/navigation/immersive';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -79,14 +80,16 @@ function MainTabs() {
             tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('calendar', focused)
           } as any}
         />
-        <Tab.Screen
-          name="Quran"
-          component={QuranScreen}
-          options={{
-            title: 'Quran',
-            tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('book', focused)
-          } as any}
-        />
+        {QURAN_ENABLED && (
+          <Tab.Screen
+            name="Quran"
+            component={QuranScreen}
+            options={{
+              title: 'Quran',
+              tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('book', focused)
+            } as any}
+          />
+        )}
         <Tab.Screen
           name="Qibla"
           component={QiblaScreen}
@@ -113,7 +116,7 @@ function MainTabs() {
 function Root() {
   const { ready } = useSettings();
   const [fontsLoaded] = useFonts({
-    AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf'),
+    ...(QURAN_ENABLED ? { AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf') } : {}),
     // Display face (BRAND.md): static SemiBold, family name matches design/tokens.json.
     'Fraunces-SemiBold': Fraunces_600SemiBold,
   });
