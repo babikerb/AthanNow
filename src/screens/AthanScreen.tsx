@@ -26,23 +26,17 @@ const DEBUG_PERIODS: ScenePeriod[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghri
 const DEBUG_ARC: Record<ScenePeriod, number> = { fajr: 0.92, sunrise: 0.08, dhuhr: 0.5, asr: 0.78, maghrib: 1, isha: 0.18, night: 0.55 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** "in 2 hr 14 min" / "in 14 min" / "in 42 sec", as number and unit pieces so units can be set smaller. */
+/** "in 1:25" (hours:minutes, rounded up so the last minute reads 0:01, not 0:00). */
 function countdownParts(now: Date, at: Date): { text: string; unit: boolean }[] {
-  const secs = Math.max(0, Math.floor((at.getTime() - now.getTime()) / 1000));
-  if (secs <= 0) return [{ text: 'Now', unit: false }];
-  const h = Math.floor(secs / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const parts: { text: string; unit: boolean }[] = [{ text: 'in', unit: true }];
-  if (h > 0) {
-    parts.push({ text: String(h), unit: false }, { text: 'hr', unit: true });
-    if (m > 0) parts.push({ text: String(m), unit: false }, { text: 'min', unit: true });
-  } else if (m > 0) {
-    parts.push({ text: String(m), unit: false }, { text: 'min', unit: true });
-  } else {
-    parts.push({ text: String(secs), unit: false }, { text: 'sec', unit: true });
-  }
-  return parts;
+  const ms = at.getTime() - now.getTime();
+  if (ms <= 0) return [{ text: 'Now', unit: false }];
+  const mins = Math.ceil(ms / 60000);
+  return [
+    { text: 'in', unit: true },
+    { text: `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`, unit: false },
+  ];
 }
+
 // Home is one fixed screen; text grows with Dynamic Type up to this factor.
 const HOME_MAX_SCALE = 1.35;
 
@@ -292,7 +286,7 @@ export default function AthanScreen() {
             {nextPrayer} at {nextClock}
             {nextIsTomorrow ? <Text variant="title3" style={ink2}> tomorrow</Text> : null}
           </Text>
-          {/* Reads as a sentence: big numbers, small units ("in 2 hr 14 min"). Separate texts on a shared
+          {/* Reads as a sentence: a small "in" and the big time left ("in 1:25"). Separate texts on a shared
               baseline: nesting two sizes in one Text makes iOS size the line for the small one and clip the numbers. */}
           <View style={styles.countdown} accessible accessibilityRole="timer" accessibilityLabel={countdownLabel}>
             {countdownParts(now, nextPrayerTime).map((p, i) =>
