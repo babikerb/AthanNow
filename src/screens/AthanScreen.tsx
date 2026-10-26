@@ -32,14 +32,14 @@ function countdownParts(now: Date, at: Date): { text: string; unit: boolean }[] 
   if (secs <= 0) return [{ text: 'Now', unit: false }];
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
-  const parts: { text: string; unit: boolean }[] = [{ text: 'in ', unit: true }];
+  const parts: { text: string; unit: boolean }[] = [{ text: 'in', unit: true }];
   if (h > 0) {
-    parts.push({ text: String(h), unit: false }, { text: ' hr', unit: true });
-    if (m > 0) parts.push({ text: ' ', unit: true }, { text: String(m), unit: false }, { text: ' min', unit: true });
+    parts.push({ text: String(h), unit: false }, { text: 'hr', unit: true });
+    if (m > 0) parts.push({ text: String(m), unit: false }, { text: 'min', unit: true });
   } else if (m > 0) {
-    parts.push({ text: String(m), unit: false }, { text: ' min', unit: true });
+    parts.push({ text: String(m), unit: false }, { text: 'min', unit: true });
   } else {
-    parts.push({ text: String(secs), unit: false }, { text: ' sec', unit: true });
+    parts.push({ text: String(secs), unit: false }, { text: 'sec', unit: true });
   }
   return parts;
 }
@@ -292,18 +292,21 @@ export default function AthanScreen() {
             {nextPrayer} at {nextClock}
             {nextIsTomorrow ? <Text variant="title3" style={ink2}> tomorrow</Text> : null}
           </Text>
-          {/* Reads as a sentence: big numbers, small units ("in 2 hr 14 min"). */}
-          <Text variant="hero" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityRole="timer" accessibilityLabel={countdownLabel} style={ink}>
+          {/* Reads as a sentence: big numbers, small units ("in 2 hr 14 min"). Separate texts on a shared
+              baseline: nesting two sizes in one Text makes iOS size the line for the small one and clip the numbers. */}
+          <View style={styles.countdown} accessible accessibilityRole="timer" accessibilityLabel={countdownLabel}>
             {countdownParts(now, nextPrayerTime).map((p, i) =>
               p.unit ? (
-                <Text key={i} variant="title3" style={ink2}>
+                <Text key={i} variant="title3" maxFontSizeMultiplier={HOME_MAX_SCALE} style={[ink2, styles.unit, i === 0 && { marginLeft: 0 }]}>
                   {p.text}
                 </Text>
               ) : (
-                p.text
+                <Text key={i} variant="hero" numberOfLines={1} style={ink}>
+                  {p.text}
+                </Text>
               ),
             )}
-          </Text>
+          </View>
           {progress != null && !dropProgress && (
             <View accessibilityElementsHidden importantForAccessibility="no" style={[styles.rule, { backgroundColor: tone.track, marginTop: t.spacing.sm }]}>
               <View style={[styles.ruleFill, { width: `${progress * 100}%`, backgroundColor: tone.accent }]} />
@@ -378,6 +381,8 @@ const styles = StyleSheet.create({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, flexShrink: 1 },
   pillText: { flexShrink: 1 },
   dates: { alignItems: 'flex-end', flexShrink: 0, maxWidth: '50%' },
+  countdown: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'nowrap' },
+  unit: { marginHorizontal: 6 },
   rule: { height: 2, borderRadius: 1, overflow: 'hidden' },
   ruleFill: { height: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
