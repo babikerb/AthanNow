@@ -1,5 +1,6 @@
 import { Coordinates, Qibla } from 'adhan';
 import * as Location from 'expo-location';
+import * as geomagnetism from 'geomagnetism';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated } from 'react-native';
 
@@ -63,6 +64,7 @@ export interface QiblaData {
   toleranceDeg: number;
   hasLocation: boolean;
   usingTrueHeading: boolean;
+  /** expo-location accuracy level: 3 = within 20 degrees, 2 = 20-35, 1 = 35-50, 0 = worse or unknown; -1 before any reading. */
   headingAccuracy: number;
   /** null while detecting, true if the device reports a compass heading, false
    *  when no heading ever arrives (e.g. a Wi-Fi iPad with no magnetometer). */
@@ -91,7 +93,19 @@ export function useQibla(latitude: number | null, longitude: number | null, acti
   const frame = useRef<number | null>(null);
   const lastFrameAt = useRef(0);
   const lastStateDeg = useRef<number | null>(null);
-  const calibrating = useRef<boolean | null>(null);
+  const accuracyLevel = useRef<number | null>(null);
+  // Magnetic declination here today (World Magnetic Model 2025), east positive. iOS only reports true
+  // north when its heading manager also has a location fix, which expo-location's doesn't, so true
+  // heading = magnetic heading + declination.
+  const declination = useRef(0);
+  useEffect(() => {
+    if (latitude == null || longitude == null) return;
+    try {
+      declination.current = geomagnetism.model(new Date(), { allowOutOfBoundsModel: true }).point([latitude, longitude]).decl;
+    } catch {
+      declination.current = 0;
+    }
+  }, [latitude, longitude]);
 
   useEffect(() => {
     if (!active) return;
@@ -137,15 +151,13 @@ export function useQibla(latitude: number | null, longitude: number | null, acti
         sawHeading = true;
         setCompassAvailable(true);
       }
-      const nowCalibrating = data.accuracy < 0;
-      if (calibrating.current !== nowCalibrating) {
-        calibrating.current = nowCalibrating;
+      if (accuracyLevel.current !== data.accuracy) {
+        accuracyLevel.current = data.accuracy;
         setHeadingAccuracy(data.accuracy);
       }
-      if (nowCalibrating) return;
 
       const usingTrue = data.trueHeading >= 0;
-      const raw = usingTrue ? data.trueHeading : data.magHeading;
+      const raw = usingTrue ? data.trueHeading : (((data.magHeading + declination.current) % 360) + 360) % 360;
 
       // Unwrap onto the current target so 359 -> 1 is a 2 degree step, not a full turn.
       if (target.current == null) {

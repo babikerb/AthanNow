@@ -16,7 +16,7 @@ import { useTheme } from '../design/theme';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
-import { formatCountdown, getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
+import { getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, localDayAnchor } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
 
@@ -25,6 +25,24 @@ const DEBUG_PERIODS: ScenePeriod[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghri
 // Representative arc positions when previewing a scene out of its real time.
 const DEBUG_ARC: Record<ScenePeriod, number> = { fajr: 0.92, sunrise: 0.08, dhuhr: 0.5, asr: 0.78, maghrib: 1, isha: 0.18, night: 0.55 };
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** "in 2 hr 14 min" / "in 14 min" / "in 42 sec", as number and unit pieces so units can be set smaller. */
+function countdownParts(now: Date, at: Date): { text: string; unit: boolean }[] {
+  const secs = Math.max(0, Math.floor((at.getTime() - now.getTime()) / 1000));
+  if (secs <= 0) return [{ text: 'Now', unit: false }];
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const parts: { text: string; unit: boolean }[] = [{ text: 'in ', unit: true }];
+  if (h > 0) {
+    parts.push({ text: String(h), unit: false }, { text: ' hr', unit: true });
+    if (m > 0) parts.push({ text: ' ', unit: true }, { text: String(m), unit: false }, { text: ' min', unit: true });
+  } else if (m > 0) {
+    parts.push({ text: String(m), unit: false }, { text: ' min', unit: true });
+  } else {
+    parts.push({ text: String(secs), unit: false }, { text: ' sec', unit: true });
+  }
+  return parts;
+}
 // Home is one fixed screen; text grows with Dynamic Type up to this factor.
 const HOME_MAX_SCALE = 1.35;
 
@@ -270,16 +288,21 @@ export default function AthanScreen() {
 
         {/* Hero: which prayer is next and how long until it. */}
         <View style={{ paddingHorizontal: gutter }}>
-          <View style={styles.heroLine}>
-            <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="title3" style={ink}>
-              {nextPrayer}
-            </Text>
-            <Text variant="subhead" style={ink2}>
-              {nextIsTomorrow ? `at ${nextClock} tomorrow` : `at ${nextClock}`}
-            </Text>
-          </View>
+          <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="title3" style={ink}>
+            {nextPrayer} at {nextClock}
+            {nextIsTomorrow ? <Text variant="title3" style={ink2}> tomorrow</Text> : null}
+          </Text>
+          {/* Reads as a sentence: big numbers, small units ("in 2 hr 14 min"). */}
           <Text variant="hero" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityRole="timer" accessibilityLabel={countdownLabel} style={ink}>
-            {formatCountdown(now, nextPrayerTime)}
+            {countdownParts(now, nextPrayerTime).map((p, i) =>
+              p.unit ? (
+                <Text key={i} variant="title3" style={ink2}>
+                  {p.text}
+                </Text>
+              ) : (
+                p.text
+              ),
+            )}
           </Text>
           {progress != null && !dropProgress && (
             <View accessibilityElementsHidden importantForAccessibility="no" style={[styles.rule, { backgroundColor: tone.track, marginTop: t.spacing.sm }]}>
@@ -355,7 +378,6 @@ const styles = StyleSheet.create({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, flexShrink: 1 },
   pillText: { flexShrink: 1 },
   dates: { alignItems: 'flex-end', flexShrink: 0, maxWidth: '50%' },
-  heroLine: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   rule: { height: 2, borderRadius: 1, overflow: 'hidden' },
   ruleFill: { height: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -263,11 +263,15 @@ export default function QiblaScreen() {
   // Unresolved location (denied, failed, or never resolved) must not present Mecca's bearing as the user's.
   const error = status === 'denied' || status === 'error' || (status === 'idle' && hasRestored && !location?.isManual);
   const compassUnavailable = qibla.compassAvailable === false;
-  const calibrating = qibla.headingAccuracy < 0;
+  // Accuracy levels from expo-location: 3 within 20 degrees, 2 within 35, 1 within 50, 0 worse.
+  // Below 2 the dial can't be trusted, so ask for calibration; at 2, show it but say so.
+  const calibrating = qibla.headingAccuracy >= 0 && qibla.headingAccuracy <= 1;
+  const lowAccuracy = qibla.headingAccuracy === 2;
 
   // Only count a lock when the compass is real, calibrated, and this tab is on screen (no buzzing from another tab,
   // no false lock from the static 0 heading when there is no compass).
-  const aligned = qibla.isAligned && !calibrating && !compassUnavailable && focused;
+  // Only call it facing the Qibla when the compass is at its best accuracy.
+  const aligned = qibla.isAligned && qibla.headingAccuracy === 3 && !compassUnavailable && focused;
 
   const wasAligned = useRef(false);
   const lastLockAt = useRef(0);
@@ -324,7 +328,9 @@ export default function QiblaScreen() {
                   {qibla.toleranceDeg >= 30 ? 'in every direction from here' : `${toCardinal(qibla.qiblaBearing)}, ${Math.round(qibla.qiblaBearing)}° from north`}.
                 </Text>
               ) : calibrating ? (
-                <Text style={styles.infoText}>Wave your phone in a figure 8 to calibrate the compass.</Text>
+                <Text style={styles.infoText}>Move your phone in a figure 8 a few times to calibrate the compass. Keep away from magnets and metal.</Text>
+              ) : lowAccuracy ? (
+                <Text style={styles.infoText}>The compass is a little unsure. Move your phone in a figure 8 to sharpen it.</Text>
               ) : qibla.toleranceDeg >= 30 ? (
                 <Text style={styles.infoText}>Every direction faces the Qibla here.</Text>
               ) : (
