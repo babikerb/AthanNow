@@ -17,7 +17,7 @@ import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
-import { formatClock, localDayAnchor } from '../utils/time';
+import { formatClock, formatLongDate, localDayAnchor } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -253,9 +253,9 @@ export default function AthanScreen() {
             </Text>
             <SymbolView name="chevron.down" size={11} tintColor={tone.secondary} />
           </Pressable>
-          <View style={styles.dates} accessible accessibilityLabel={`${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}, ${getHijriDate(now)}`}>
+          <View style={styles.dates} accessible accessibilityLabel={`${formatLongDate(now)}, ${getHijriDate(now)}`}>
             <Text variant="footnote" style={ink}>
-              {now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+              {formatLongDate(now)}
             </Text>
             <Text variant="caption" numberOfLines={1} style={ink2}>
               {getHijriDate(now)}

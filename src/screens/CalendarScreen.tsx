@@ -14,7 +14,7 @@ import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { importantDateFor } from '../utils/islamicDates';
 import { getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
-import { formatClock, localDayAnchor } from '../utils/time';
+import { formatClock, formatDayHeading, localDayAnchor } from '../utils/time';
 
 // A window of days around today the user can scroll through.
 const RANGE = 400;
@@ -68,7 +68,7 @@ const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod
     const byId = Object.fromEntries(pt.listRows.map((r) => [r.id, r]));
     return {
       isToday: offset === 0,
-      label: date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+      label: formatDayHeading(date),
       hijri: getHijriDate(date),
       important: importantDateFor(date),
       // Only meaningful for today: which prayer is next right now.
