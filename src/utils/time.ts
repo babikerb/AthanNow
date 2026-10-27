@@ -49,3 +49,10 @@ export function formatLongDate(d: Date): string {
 export function formatDayHeading(d: Date): string {
   return `${d.toLocaleDateString('en-US', { weekday: 'long' })}, ${d.toLocaleDateString('en-US', { month: 'long' })} ${ordinal(d.getDate())}`;
 }
+
+/** Compact clock for dense tables: "4:22" / "12:58" (no AM/PM), or "16:44" in 24-hour mode. */
+export function formatClockShort(date: Date, use24Hour: boolean, timeZone?: string): string {
+  return date
+    .toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: !use24Hour, timeZone })
+    .replace(/\s?[AP]M$/i, '');
+}
