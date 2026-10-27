@@ -293,7 +293,7 @@ export default function SettingsScreen() {
           <ListRow title="Appearance" value={APPEARANCE_OPTIONS.find((o) => o.value === settings.appearance)?.label} onPress={() => setAppearanceSheetOpen(true)} />
           <ListRow title="Set up again" onPress={() => onboarding.start('replay')} />
           <ListRow title="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} />
-          <ListRow title="Credits" onPress={() => setCreditsOpen(true)} />
+          {ATHAN_VOICES.some((v) => v.credit) ? <ListRow title="Credits" onPress={() => setCreditsOpen(true)} /> : null}
           {versionLabel ? <ListRow title="Version" value={versionLabel} /> : null}
         </ListGroup>
 
@@ -430,6 +430,7 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
       setPlaying(null);
       return;
     }
+    if (v.source == null) return;
     const ok = playAthanPreview(v.source, () => setPlaying(null));
     setPreviewsUnavailable(!ok);
     setPlaying(ok ? v.id : null);
@@ -461,30 +462,53 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
               settings.updateNotifications({ athanSound: false });
             }}
           />
-          {ATHAN_VOICES.map((v) => {
+          {ATHAN_VOICES.map((v, i) => {
             const isPlaying = playing === v.id;
+            const available = !!v.file && v.source != null;
+            const isDefault = i === 0;
+            const label = [v.name, v.region, isDefault ? 'default' : null, available ? null : 'coming soon'].filter(Boolean).join(', ');
             return (
               <Pressable
                 key={v.id}
-                onPress={() => choose(v)}
+                onPress={available ? () => choose(v) : undefined}
+                disabled={!available}
                 accessibilityRole="button"
-                accessibilityLabel={v.name}
-                accessibilityHint={isPlaying ? 'Stops the preview' : 'Selects it and plays a preview'}
-                accessibilityState={{ selected: selected === v.id }}
-                style={({ pressed }) => [styles.soundRow, pressed && { backgroundColor: dt.c.surface2 }]}
+                accessibilityLabel={label}
+                accessibilityHint={available ? (isPlaying ? 'Stops the preview' : 'Selects it and plays a preview') : undefined}
+                accessibilityState={{ selected: selected === v.id, disabled: !available }}
+                style={({ pressed }) => [styles.soundRow, pressed && available && { backgroundColor: dt.c.surface2 }]}
               >
-                <Pressable
-                  onPress={() => toggle(v)}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={isPlaying ? `Stop ${v.name}` : `Play ${v.name}`}
-                >
-                  <SymbolView name={isPlaying ? 'stop.circle.fill' : 'play.circle.fill'} size={22} tintColor={isPlaying ? dt.c.accent : dt.c.textSecondary} style={{ width: 24, height: 24 }} />
-                </Pressable>
-                <Text variant="body" style={{ flex: 1 }}>
-                  {v.name}
-                </Text>
-                {selected === v.id ? check : null}
+                {available ? (
+                  <Pressable onPress={() => toggle(v)} hitSlop={8} accessibilityRole="button" accessibilityLabel={isPlaying ? `Stop ${v.name}` : `Play ${v.name}`}>
+                    <SymbolView name={isPlaying ? 'stop.circle.fill' : 'play.circle.fill'} size={22} tintColor={isPlaying ? dt.c.accent : dt.c.textSecondary} style={{ width: 24, height: 24 }} />
+                  </Pressable>
+                ) : (
+                  <SymbolView name="play.circle" size={22} tintColor={dt.c.glyphQuiet} style={{ width: 24, height: 24 }} />
+                )}
+                <View style={{ flex: 1, opacity: available ? 1 : 0.55 }}>
+                  <View style={styles.voiceTitle}>
+                    <Text variant="body" numberOfLines={1} style={{ flexShrink: 1 }}>
+                      {v.name}
+                    </Text>
+                    {isDefault ? (
+                      <Text variant="footnote" color="accentText">
+                        Default
+                      </Text>
+                    ) : null}
+                  </View>
+                  {v.region ? (
+                    <Text variant="footnote" color="textSecondary">
+                      {v.region}
+                    </Text>
+                  ) : null}
+                </View>
+                {available ? (
+                  selected === v.id ? check : null
+                ) : (
+                  <Text variant="footnote" color="textTertiary">
+                    Coming soon
+                  </Text>
+                )}
               </Pressable>
             );
           })}
@@ -500,5 +524,6 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
 }
 
 const styles = StyleSheet.create({
-  soundRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 16, paddingVertical: 8 },
+  soundRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 16, paddingVertical: 8 },
+  voiceTitle: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
 });

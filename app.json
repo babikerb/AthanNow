@@ -36,11 +36,7 @@
         "expo-notifications",
         {
           "sounds": [
-            "./assets/sounds/adhan.wav",
-            "./assets/sounds/athan-makkah.wav",
-            "./assets/sounds/athan-fakhri.wav",
-            "./assets/sounds/athan-azeez.wav",
-            "./assets/sounds/athan-casablanca.wav"
+            "./assets/sounds/adhan.wav"
           ]
         }
       ],
