@@ -24,7 +24,7 @@ const COLUMNS: { id: string; label: string }[] = [
   { id: 'isha', label: 'Isha' },
 ];
 const ROW_H = 46;
-const DATE_COL = 70;
+const DATE_COL = 64;
 
 // Hijri date as numbers (the form Hermes reliably splits into parts on iOS; spelled-out months come
 // back unsplit), with month names from this table.
@@ -62,6 +62,11 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const gutter = width <= 375 ? t.spacing.lg : t.spacing.xl;
+  // One size for every column header, small enough that the longest names (Sunrise, Maghrib) fit
+  // their column without truncating.
+  const colW = (width - gutter * 2 - DATE_COL) / COLUMNS.length;
+  const headerSize = Math.min(12, Math.floor((colW / 4.7) * 10) / 10);
+  const headerStyle = { fontSize: headerSize, lineHeight: Math.round(headerSize * 1.3), letterSpacing: 0 };
   useFocusedStatusBar(t.scheme === 'dark' ? 'light' : 'dark');
 
   const tz = location.timezone;
@@ -155,11 +160,11 @@ export default function CalendarScreen() {
 
       {/* Column header, fixed above the scrolling days. */}
       <View style={[styles.row, styles.headerRow, { paddingHorizontal: gutter, borderBottomColor: c.hairline }]} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-        <Text variant="caption2" color="textSecondary" maxFontSizeMultiplier={1} style={styles.dateCol}>
+        <Text variant="caption2" color="textSecondary" allowFontScaling={false} style={[styles.dateCol, headerStyle]}>
           Date
         </Text>
         {COLUMNS.map((col) => (
-          <Text key={col.id} variant="caption2" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1} style={styles.timeCol}>
+          <Text key={col.id} variant="caption2" color="textSecondary" numberOfLines={1} allowFontScaling={false} style={[styles.timeCol, headerStyle]}>
             {col.label}
           </Text>
         ))}
