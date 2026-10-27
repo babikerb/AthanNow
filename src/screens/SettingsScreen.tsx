@@ -181,6 +181,7 @@ export default function SettingsScreen() {
   const [asrSheetOpen, setAsrSheetOpen] = useState(false);
   const [appearanceSheetOpen, setAppearanceSheetOpen] = useState(false);
   const [soundSheetOpen, setSoundSheetOpen] = useState(false);
+  const [creditsOpen, setCreditsOpen] = useState(false);
 
   const confirmReset = () => {
     Alert.alert('Reset all data', 'This clears your preferences and onboarding, returning the app to defaults. This cannot be undone.', [
@@ -292,6 +293,7 @@ export default function SettingsScreen() {
           <ListRow title="Appearance" value={APPEARANCE_OPTIONS.find((o) => o.value === settings.appearance)?.label} onPress={() => setAppearanceSheetOpen(true)} />
           <ListRow title="Set up again" onPress={() => onboarding.start('replay')} />
           <ListRow title="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} />
+          <ListRow title="Credits" onPress={() => setCreditsOpen(true)} />
           {versionLabel ? <ListRow title="Version" value={versionLabel} /> : null}
         </ListGroup>
 
@@ -340,6 +342,26 @@ export default function SettingsScreen() {
       />
 
       <AthanSoundSheet visible={soundSheetOpen} onClose={() => setSoundSheetOpen(false)} />
+
+      <Sheet visible={creditsOpen} onClose={() => setCreditsOpen(false)} title="Credits">
+        <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingBottom: dt.spacing.xxl }}>
+          <SectionHeader title="Athan recordings" />
+          <ListGroup>
+            {ATHAN_VOICES.filter((v) => v.credit).map((v) => (
+              <ListRow
+                key={v.id}
+                title={v.name}
+                subtitle={`${v.credit!.title}, by ${v.credit!.author}. ${v.credit!.license}${v.credit!.license === 'Public domain' ? '' : '. Trimmed to 30 seconds'}. Wikimedia Commons.`}
+                accessibilityHint="Opens the original recording and its license"
+                onPress={() => Linking.openURL(v.credit!.sourceUrl).catch(() => {})}
+              />
+            ))}
+          </ListGroup>
+          <Text variant="footnote" color="textSecondary" style={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.sm }}>
+            Clips are the first 30 seconds of each recording, faded out. The trimmed CC BY-SA clips are shared under the same license.
+          </Text>
+        </ScrollView>
+      </Sheet>
 
     </>
   );
