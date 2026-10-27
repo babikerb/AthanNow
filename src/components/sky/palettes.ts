@@ -28,7 +28,7 @@ export interface ScenePalette {
   /**
    * Full-screen layout: the sky runs top to bottom with text on it, so these stops are tuned for the
    * text that sits there (screen offsets 0 = top, 1 = bottom), with the tone of that text.
-   * Checked: primary text >= 6.5:1 and the next-prayer accent >= 4.6:1 (gold) over 3-80% of the height.
+   * Checked: primary text >= 6.3:1 and the gold next-prayer accent >= 4.85:1 over 3-80% of the height.
    */
   full: { sky: [string, number][]; tone: SkyTone };
 }
@@ -53,7 +53,7 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     birds: false,
     plane: false,
     statusBar: 'light',
-    full: { sky: [['#1B1830', 0], ['#2C2747', 0.45], ['#4A3B5E', 0.78], ['#6B4A63', 1]], tone: 'light' },
+    full: { sky: [['#121430', 0], ['#1B1E44', 0.3], ['#272858', 0.55], ['#3A3367', 0.74], ['#5A4472', 0.86], ['#86607C', 0.95], ['#A8787F', 1]], tone: 'light' },
   },
   sunrise: {
     sky: ['#2E3352', '#5A5872', '#B88A86', '#E2A884'],
@@ -65,7 +65,7 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     birds: true,
     plane: false,
     statusBar: 'light',
-    full: { sky: [['#2A2E4C', 0], ['#383A5A', 0.5], ['#544A68', 0.8], ['#E2A884', 1]], tone: 'light' },
+    full: { sky: [['#1D2446', 0], ['#283057', 0.3], ['#353A65', 0.55], ['#454370', 0.72], ['#6A5479', 0.85], ['#B97B7A', 0.93], ['#EDB383', 1]], tone: 'light' },
   },
   dhuhr: {
     sky: ['#6A8AA1', '#8FA9B9', '#B5C4CB'],
@@ -77,7 +77,7 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     birds: false,
     plane: true,
     statusBar: 'light',
-    full: { sky: [['#7E9DB2', 0], ['#9DB4C2', 0.55], ['#BCCAD0', 1]], tone: 'dark' },
+    full: { sky: [['#7BA3C6', 0], ['#8AAFCD', 0.3], ['#9DBBD5', 0.55], ['#B6CCDD', 0.78], ['#C9D8E2', 0.92], ['#D6E0E5', 1]], tone: 'dark' },
   },
   asr: {
     sky: ['#5F7E7C', '#93A89E', '#C2B9A0'],
@@ -89,7 +89,7 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     birds: true,
     plane: true,
     statusBar: 'light',
-    full: { sky: [['#86A19B', 0], ['#A3B5A8', 0.55], ['#C9BFA5', 1]], tone: 'dark' },
+    full: { sky: [['#89A9A6', 0], ['#98B4AA', 0.3], ['#AABEAC', 0.55], ['#BFC6AA', 0.76], ['#D3CBA4', 0.9], ['#E0CC9C', 1]], tone: 'dark' },
   },
   maghrib: {
     sky: ['#3B2E4F', '#8A5A6A', '#D98C6A', '#E9A27A'],
@@ -101,7 +101,7 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     birds: true,
     plane: false,
     statusBar: 'light',
-    full: { sky: [['#33284A', 0], ['#463052', 0.45], ['#623C55', 0.8], ['#D98C6A', 0.92], ['#E9A27A', 1]], tone: 'light' },
+    full: { sky: [['#231C3E', 0], ['#32254F', 0.28], ['#45305C', 0.5], ['#5E3A63', 0.68], ['#7E4666', 0.8], ['#A85868', 0.88], ['#D27A6C', 0.95], ['#EC9C74', 1]], tone: 'light' },
   },
   isha: {
     sky: ['#1A1530', '#2A2148', '#3E2D63'],
@@ -113,7 +113,7 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     birds: false,
     plane: false,
     statusBar: 'light',
-    full: { sky: [['#1A1530', 0], ['#2A2148', 0.6], ['#3E2D63', 1]], tone: 'light' },
+    full: { sky: [['#100F26', 0], ['#171535', 0.35], ['#211C45', 0.65], ['#2E2554', 0.88], ['#392D5F', 1]], tone: 'light' },
   },
   night: {
     sky: ['#141022', '#1E1832', '#2C2444'],
@@ -125,7 +125,7 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     birds: false,
     plane: false,
     statusBar: 'light',
-    full: { sky: [['#141022', 0], ['#1E1832', 0.6], ['#2C2444', 1]], tone: 'light' },
+    full: { sky: [['#0A0A18', 0], ['#100F22', 0.4], ['#18152F', 0.75], ['#211C3B', 1]], tone: 'light' },
   },
 };
 
