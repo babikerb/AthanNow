@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -107,12 +108,29 @@ export default function CalendarScreen() {
   }, [rows]);
   const occasions = rows.filter((r) => r.occasion);
 
-  // Open on today, a couple of rows down from the top so the days before it show too.
+  // Opens on today (two rows down from the top so the days before it show too), every time the tab
+  // is opened. The jump happens as soon as today's row has laid out.
   const scrollRef = useRef<ScrollView>(null);
   const todayY = useRef<number | null>(null);
+  const pendingTodayJump = useRef(true);
   const scrollToToday = useCallback((animated: boolean) => {
-    if (todayY.current != null) scrollRef.current?.scrollTo({ y: Math.max(0, todayY.current - ROW_H * 2), animated });
+    if (todayY.current == null) {
+      pendingTodayJump.current = true;
+      return;
+    }
+    pendingTodayJump.current = false;
+    scrollRef.current?.scrollTo({ y: Math.max(0, todayY.current - ROW_H * 2), animated });
   }, []);
+  const onTodayLayout = (y: number) => {
+    todayY.current = y;
+    if (pendingTodayJump.current) scrollToToday(false);
+  };
+  useFocusEffect(
+    useCallback(() => {
+      setMonthOffset(0);
+      scrollToToday(false);
+    }, [scrollToToday]),
+  );
   useEffect(() => {
     if (monthOffset !== 0) scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [monthOffset]);
@@ -136,8 +154,10 @@ export default function CalendarScreen() {
           accessibilityHint="Shows this month and scrolls to today"
           onPress={() => {
             haptic.select();
-            if (monthOffset !== 0) setMonthOffset(0);
-            else scrollToToday(true);
+            if (monthOffset !== 0) {
+              pendingTodayJump.current = true;
+              setMonthOffset(0);
+            } else scrollToToday(true);
           }}
         />
       </View>
@@ -174,7 +194,6 @@ export default function CalendarScreen() {
         ref={scrollRef}
         contentContainerStyle={{ paddingBottom: tabBarHeight + t.spacing.xl }}
         showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => monthOffset === 0 && scrollToToday(false)}
       >
         {rows.map((r) => {
           const label = `${formatDayHeading(r.date)}, ${r.hijriDay} ${r.hijriMonth}${r.occasion ? `, ${r.occasion}` : ''}. ${COLUMNS.map(
@@ -185,7 +204,7 @@ export default function CalendarScreen() {
               key={r.date.getDate()}
               accessible
               accessibilityLabel={r.isToday ? `Today, ${label}` : label}
-              onLayout={r.isToday ? (e) => (todayY.current = e.nativeEvent.layout.y) : undefined}
+              onLayout={r.isToday ? (e) => onTodayLayout(e.nativeEvent.layout.y) : undefined}
               style={[styles.row, { minHeight: ROW_H, paddingHorizontal: gutter, borderBottomColor: c.hairline }, r.isToday && { backgroundColor: c.surface2 }]}
             >
               <View style={styles.dateCol}>
