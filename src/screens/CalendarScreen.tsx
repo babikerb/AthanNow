@@ -13,7 +13,7 @@ import type { AppLocation } from '../hooks/useLocation';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { importantDateFor } from '../utils/islamicDates';
-import { getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
+import { getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, formatDayHeading, localDayAnchor } from '../utils/time';
 
 // A window of days around today the user can scroll through.
@@ -22,13 +22,9 @@ const DAYS = Array.from({ length: RANGE * 2 + 1 }, (_, i) => i - RANGE); // offs
 // Today onward only, the initial data set (see `pastCount` below).
 const FUTURE_DAYS = DAYS.slice(RANGE);
 
-// The 5 real prayers plus the sunrise boundary marker, matching Athan's list
-// order. Arabic name comes from `getCelestialConfig`, the same source Athan
-// uses for its own row labels.
-const PRAYER_META: { id: string; arabic: string }[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'].map((id) => ({
-  id,
-  arabic: getCelestialConfig(id).arabicName,
-}));
+// The 5 real prayers plus the sunrise boundary marker, in Home's list order. English names only
+// on every day; Home carries the Arabic names for today.
+const PRAYER_META: { id: string }[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'].map((id) => ({ id }));
 
 // Fallback height until a day has been measured (measured heights win once rows lay out):
 // padding 12*2 + header (headline 22 + footnote 18 + 8) + 6 rows x 44.
@@ -113,11 +109,6 @@ const DayRow = React.memo(function DayRow({ offset, isLast, location, calcMethod
             >
               <View style={styles.rowLabelWrap}>
                 <Text variant={active ? 'bodyEmph' : 'body'}>{r.label}</Text>
-                {data.isToday && (
-                  <Text variant="footnote" color="textTertiary" style={{ flexShrink: 1 }}>
-                    {r.arabic}
-                  </Text>
-                )}
               </View>
               <Text variant={active ? 'bodyEmph' : 'body'} color={active ? 'accentText' : 'text'} style={{ flexShrink: 0 }}>
                 {time}
