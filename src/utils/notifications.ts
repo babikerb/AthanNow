@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { athanVoice } from '../config/athanVoices';
 import { QURAN_ENABLED } from '../config/features';
 
 import { PrayerKey, Settings } from '../context/SettingsContext';
@@ -140,7 +141,7 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
                 key === 'fajr'
                   ? `Fajr time has begun. It ends at sunrise${sunriseClock ? `, ${sunriseClock}` : ''}.`
                   : `${label} time has begun.`,
-              sound: notifications.athanSound ? 'adhan.wav' : undefined,
+              sound: notifications.athanSound ? athanVoice(notifications.athanVoice).file : undefined,
               interruptionLevel: 'timeSensitive',
             },
             time,

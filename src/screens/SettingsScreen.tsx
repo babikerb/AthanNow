@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, Linking, ScrollView, View } from 'react-native';
+import { Alert, AppState, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { QURAN_ENABLED } from '../config/features';
 import { useOnboarding } from '../context/OnboardingContext';
@@ -22,6 +22,8 @@ import {
   requestNotificationPermissionState,
   rescheduleNotifications,
 } from '../utils/notifications';
+import { ATHAN_VOICES, AthanVoice, athanVoice } from '../config/athanVoices';
+import { playAthanPreview, stopAthanPreview } from '../utils/athanPreview';
 import { downloadAllPages, isOfflineDownloaded } from '../utils/mushafCache';
 import { classifyPermission, type PermissionUIState } from '../utils/permissionState';
 
@@ -178,6 +180,7 @@ export default function SettingsScreen() {
   const [athanSheetOpen, setAthanSheetOpen] = useState(false);
   const [asrSheetOpen, setAsrSheetOpen] = useState(false);
   const [appearanceSheetOpen, setAppearanceSheetOpen] = useState(false);
+  const [soundSheetOpen, setSoundSheetOpen] = useState(false);
 
   const confirmReset = () => {
     Alert.alert('Reset all data', 'This clears your preferences and onboarding, returning the app to defaults. This cannot be undone.', [
@@ -251,7 +254,8 @@ export default function SettingsScreen() {
           <ListRow title="Reminder" value={minutesLabel(settings.notifications.reminderMinutesBefore)} onPress={() => setReminderSheetOpen(true)} />
           <ListRow
             title="Athan sound"
-            accessory={<Toggle label="Athan sound" value={settings.notifications.athanSound} onValueChange={(v) => settings.updateNotifications({ athanSound: v })} />}
+            value={settings.notifications.athanSound ? athanVoice(settings.notifications.athanVoice).name : 'Silent'}
+            onPress={() => setSoundSheetOpen(true)}
           />
           {QURAN_ENABLED && (
             <ListRow
@@ -322,6 +326,8 @@ export default function SettingsScreen() {
         onChange={(v) => settings.updateNotifications({ reminderMinutesBefore: v })}
       />
 
+      <AthanSoundSheet visible={soundSheetOpen} onClose={() => setSoundSheetOpen(false)} />
+
       <Sheet visible={athanSheetOpen} onClose={() => setAthanSheetOpen(false)} title="Athan">
         <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.md, paddingBottom: dt.spacing.xxl }}>
           <ListGroup>
@@ -384,3 +390,107 @@ function PickerSheet<T extends string | number>({
     </Sheet>
   );
 }
+
+/**
+ * Choose the athan recording, like picking a ringtone: tapping a sound selects it and plays it, tapping
+ * the playing one again stops it. The choice is saved as you tap, so leaving keeps whatever is selected.
+ * Previews stop when the sheet closes.
+ */
+function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const dt = useDesignTheme();
+  const settings = useSettings();
+  const [playing, setPlaying] = useState<string | null>(null);
+  const [previewsUnavailable, setPreviewsUnavailable] = useState(false);
+  const selected = settings.notifications.athanSound ? athanVoice(settings.notifications.athanVoice).id : 'silent';
+
+  useEffect(() => {
+    if (!visible) {
+      stopAthanPreview();
+      setPlaying(null);
+    }
+  }, [visible]);
+  useEffect(() => () => stopAthanPreview(), []);
+
+  const toggle = (v: AthanVoice) => {
+    if (playing === v.id) {
+      stopAthanPreview();
+      setPlaying(null);
+      return;
+    }
+    const ok = playAthanPreview(v.source, () => setPlaying(null));
+    setPreviewsUnavailable(!ok);
+    setPlaying(ok ? v.id : null);
+  };
+  const choose = (v: AthanVoice) => {
+    haptic.select();
+    settings.updateNotifications({ athanSound: true, athanVoice: v.id });
+    toggle(v);
+  };
+  const close = () => {
+    stopAthanPreview();
+    setPlaying(null);
+    onClose();
+  };
+
+  const check = <SymbolView name="checkmark" size={16} weight="semibold" tintColor={dt.c.accentText} />;
+  return (
+    <Sheet visible={visible} onClose={close} title="Athan sound">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.md, paddingBottom: dt.spacing.xxl }}>
+        <ListGroup>
+          {ATHAN_VOICES.map((v) => {
+            const isPlaying = playing === v.id;
+            return (
+              <Pressable
+                key={v.id}
+                onPress={() => choose(v)}
+                accessibilityRole="button"
+                accessibilityLabel={`${v.name}${v.detail ? `, ${v.detail}` : ''}`}
+                accessibilityHint={isPlaying ? 'Stops the preview' : 'Selects it and plays a preview'}
+                accessibilityState={{ selected: selected === v.id }}
+                style={({ pressed }) => [styles.soundRow, pressed && { backgroundColor: dt.c.surface2 }]}
+              >
+                <Pressable
+                  onPress={() => toggle(v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={isPlaying ? `Stop ${v.name}` : `Play ${v.name}`}
+                >
+                  <SymbolView name={isPlaying ? 'stop.circle.fill' : 'play.circle.fill'} size={28} tintColor={isPlaying ? dt.c.accent : dt.c.textSecondary} />
+                </Pressable>
+                <View style={{ flex: 1 }}>
+                  <Text variant="body">{v.name}</Text>
+                  {v.detail ? (
+                    <Text variant="footnote" color="textSecondary">
+                      {v.detail}
+                    </Text>
+                  ) : null}
+                </View>
+                {selected === v.id ? check : null}
+              </Pressable>
+            );
+          })}
+          <ListRow
+            title="Silent"
+            subtitle="A notification with no sound"
+            accessory={selected === 'silent' ? check : undefined}
+            selected={selected === 'silent'}
+            onPress={() => {
+              stopAthanPreview();
+              setPlaying(null);
+              settings.updateNotifications({ athanSound: false });
+            }}
+          />
+        </ListGroup>
+        {previewsUnavailable && (
+          <Text variant="footnote" color="textSecondary" style={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.sm }}>
+            Previews need the latest version of the app. Your choice is still saved.
+          </Text>
+        )}
+      </ScrollView>
+    </Sheet>
+  );
+}
+
+const styles = StyleSheet.create({
+  soundRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, paddingVertical: 8 },
+});

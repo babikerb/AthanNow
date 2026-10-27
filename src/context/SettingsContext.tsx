@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DEFAULT_ATHAN_VOICE } from '../config/athanVoices';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 const STORAGE_KEY = 'athannow.settings.v1';
@@ -31,8 +32,10 @@ export type PrayerKey = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha
 export interface NotificationSettings {
   /** Per-prayer athan (adhan) notification toggles. */
   athanEnabled: Record<PrayerKey, boolean>;
-  /** Plays the full adhan sound instead of the default tone. */
+  /** Plays an athan recording at each prayer; off means a silent notification. */
   athanSound: boolean;
+  /** Which athan recording (src/config/athanVoices.ts). */
+  athanVoice: string;
   /** Minutes before each prayer to fire the reminder (0 = exactly at athan). */
   reminderMinutesBefore: number;
   /** "Good morning, start your day with Quran" notification around sunrise. */
@@ -58,6 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
   notifications: {
     athanEnabled: { fajr: true, sunrise: true, dhuhr: true, asr: true, maghrib: true, isha: true },
     athanSound: true,
+    athanVoice: DEFAULT_ATHAN_VOICE,
     reminderMinutesBefore: 10,
     quranMorningEnabled: false,
   },
