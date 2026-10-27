@@ -291,7 +291,8 @@ export default function SettingsScreen() {
         <SectionHeader title="General" />
         <ListGroup>
           <ListRow title="Appearance" value={APPEARANCE_OPTIONS.find((o) => o.value === settings.appearance)?.label} onPress={() => setAppearanceSheetOpen(true)} />
-          <ListRow title="Set up again" onPress={() => onboarding.start('replay')} />
+          {/* Development builds only: replays first-run setup. */}
+          {__DEV__ ? <ListRow title="Set up again" onPress={() => onboarding.start('replay')} /> : null}
           <ListRow title="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} />
           {ATHAN_VOICES.some((v) => v.credit) ? <ListRow title="Credits" onPress={() => setCreditsOpen(true)} /> : null}
           {versionLabel ? <ListRow title="Version" value={versionLabel} /> : null}
