@@ -19,8 +19,6 @@ export interface ScenePalette {
   stars: number;
   starOpacity: number;
   clouds: boolean;
-  /** A small flock flying across the open sky (full layout). */
-  birds: boolean;
   /** A red and white plane with a contrail flying across the open sky now and then (full layout). */
   plane: boolean;
   /** Status bar icons over the top of this sky (band layout). */
@@ -50,7 +48,6 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 12,
     starOpacity: 0.45,
     clouds: false,
-    birds: false,
     plane: false,
     statusBar: 'light',
     full: { sky: [['#121430', 0], ['#1B1E44', 0.3], ['#272858', 0.55], ['#3A3367', 0.74], ['#5A4472', 0.86], ['#86607C', 0.95], ['#A8787F', 1]], tone: 'light' },
@@ -62,7 +59,6 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 0,
     starOpacity: 0,
     clouds: true,
-    birds: true,
     plane: false,
     statusBar: 'light',
     full: { sky: [['#1D2446', 0], ['#283057', 0.3], ['#353A65', 0.55], ['#454370', 0.72], ['#6A5479', 0.85], ['#B97B7A', 0.93], ['#EDB383', 1]], tone: 'light' },
@@ -74,7 +70,6 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 0,
     starOpacity: 0,
     clouds: true,
-    birds: false,
     plane: true,
     statusBar: 'light',
     full: { sky: [['#7BA3C6', 0], ['#8AAFCD', 0.3], ['#9DBBD5', 0.55], ['#B6CCDD', 0.78], ['#C9D8E2', 0.92], ['#D6E0E5', 1]], tone: 'dark' },
@@ -86,7 +81,6 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 0,
     starOpacity: 0,
     clouds: true,
-    birds: true,
     plane: true,
     statusBar: 'light',
     full: { sky: [['#89A9A6', 0], ['#98B4AA', 0.3], ['#AABEAC', 0.55], ['#BFC6AA', 0.76], ['#D3CBA4', 0.9], ['#E0CC9C', 1]], tone: 'dark' },
@@ -98,7 +92,6 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 5,
     starOpacity: 0.3,
     clouds: false,
-    birds: true,
     plane: false,
     statusBar: 'light',
     full: { sky: [['#231C3E', 0], ['#32254F', 0.28], ['#45305C', 0.5], ['#5E3A63', 0.68], ['#7E4666', 0.8], ['#A85868', 0.88], ['#D27A6C', 0.95], ['#EC9C74', 1]], tone: 'light' },
@@ -110,7 +103,6 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 18,
     starOpacity: 0.7,
     clouds: false,
-    birds: false,
     plane: false,
     statusBar: 'light',
     full: { sky: [['#100F26', 0], ['#171535', 0.35], ['#211C45', 0.65], ['#2E2554', 0.88], ['#392D5F', 1]], tone: 'light' },
@@ -122,7 +114,6 @@ export const SCENES: Record<ScenePeriod, ScenePalette> = {
     stars: 28,
     starOpacity: 0.75,
     clouds: false,
-    birds: false,
     plane: false,
     statusBar: 'light',
     full: { sky: [['#0A0A18', 0], ['#100F22', 0.4], ['#18152F', 0.75], ['#211C3B', 1]], tone: 'light' },

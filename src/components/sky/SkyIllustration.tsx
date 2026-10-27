@@ -68,14 +68,6 @@ interface Props {
   groundLift?: number;
 }
 
-// A small flock, drawn as soft "v" strokes. Offsets in authored units from the flock's anchor.
-export const BIRDS = [
-  { x: 0, y: 0, w: 9 },
-  { x: 14, y: -6, w: 7 },
-  { x: 26, y: 2, w: 8 },
-  { x: 8, y: 10, w: 6 },
-];
-export const bird = (x: number, y: number, w: number) => `M${x - w} ${y - w * 0.35} Q${x - w * 0.45} ${y - w * 0.55} ${x} ${y} Q${x + w * 0.45} ${y - w * 0.55} ${x + w} ${y - w * 0.35}`;
 /**
  * A cumulus outline: flat base, uneven rounded bumps over the top (no two the same size), so it reads
  * as a cloud rather than an ellipse. (x, y) is the left end of the base.

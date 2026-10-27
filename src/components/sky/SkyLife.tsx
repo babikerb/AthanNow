@@ -2,11 +2,11 @@ import { NavigationContext } from '@react-navigation/native';
 import React, { memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import Svg, { G, Path, Rect } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 import { useTheme } from '../../design/theme';
-import { INK, SCENES, ScenePeriod } from './palettes';
-import { bird, BIRDS, starPoints } from './SkyIllustration';
+import { SCENES, ScenePeriod } from './palettes';
+import { starPoints } from './SkyIllustration';
 
 interface Props {
   period: ScenePeriod;
@@ -19,8 +19,8 @@ interface Props {
 }
 
 /**
- * The moving parts of the full-screen sky, drawn over the still illustration: twinkling stars, a
- * flock crossing the sky, and a red and white plane that flies by now and then. Every animation runs
+ * The moving parts of the full-screen sky, drawn over the still illustration: twinkling stars and a
+ * red and white plane that flies by now and then. Every animation runs
  * on the native driver. With Reduce Motion they hold still, and nothing runs while Home is off screen.
  */
 function SkyLifeImpl({ period, width, height, clearTop, groundLift, zone }: Props) {
@@ -29,14 +29,12 @@ function SkyLifeImpl({ period, width, height, clearTop, groundLift, zone }: Prop
   const focused = useFocusedSafe();
   const still = reduceMotion || !focused;
   const stars = useMemo(() => starPoints(period, width, height, clearTop, groundLift), [period, width, height, clearTop, groundLift]);
-  const mark = scene.full.tone === 'dark' ? INK : '#F2EDF6';
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {stars.map((st, i) => (
         <Star key={i} index={i} x={st.x} y={st.y} r={st.r} opacity={st.o} still={still} />
       ))}
-      {zone && scene.birds && <Flock width={width} y={zone.top + (zone.bottom - zone.top) * 0.62} color={mark} still={still} />}
       {zone && scene.plane && <Plane width={width} y={zone.top + (zone.bottom - zone.top) * 0.34} still={still} />}
     </View>
   );
@@ -83,65 +81,6 @@ function Star({ index, x, y, r, opacity, still }: { index: number; x: number; y:
   }, [still, opacity, index, v]);
   const d = Math.max(1.6, r * 2.2);
   return <Animated.View style={{ position: 'absolute', left: x - d / 2, top: y - d / 2, width: d, height: d, borderRadius: d / 2, backgroundColor: '#FFFFFF', opacity: v }} />;
-}
-
-const FLOCK_W = 46;
-const FLOCK_H = 24;
-
-/** A small flock drifting across the sky with flapping wings and a gentle rise and fall. */
-function Flock({ width, y, color, still }: { width: number; y: number; color: string; still: boolean }) {
-  const x = useRef(new Animated.Value(still ? width * 0.16 : -FLOCK_W)).current;
-  const bob = useRef(new Animated.Value(0)).current;
-  const flap = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    if (still) {
-      x.setValue(width * 0.16);
-      bob.setValue(0);
-      flap.setValue(1);
-      return;
-    }
-    x.setValue(-FLOCK_W);
-    const cross = Animated.loop(
-      Animated.sequence([
-        Animated.timing(x, { toValue: width + FLOCK_W, duration: 34000, easing: Easing.linear, useNativeDriver: true }),
-        Animated.delay(6000),
-        Animated.timing(x, { toValue: -FLOCK_W, duration: 0, useNativeDriver: true }),
-      ]),
-    );
-    const rise = Animated.loop(
-      Animated.sequence([
-        Animated.timing(bob, { toValue: -8, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 4, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    const wings = Animated.loop(
-      Animated.sequence([
-        Animated.timing(flap, { toValue: 0.45, duration: 260, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(flap, { toValue: 1, duration: 320, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.delay(500),
-      ]),
-    );
-    cross.start();
-    rise.start();
-    wings.start();
-    return () => {
-      cross.stop();
-      rise.stop();
-      wings.stop();
-    };
-  }, [still, width, x, bob, flap]);
-
-  return (
-    <Animated.View style={{ position: 'absolute', top: y - FLOCK_H / 2, left: 0, width: FLOCK_W, height: FLOCK_H, transform: [{ translateX: x }, { translateY: bob }, { scaleY: flap }] }}>
-      <Svg width={FLOCK_W} height={FLOCK_H} viewBox="-10 -12 46 24">
-        <G stroke={color} strokeWidth={1.3} strokeLinecap="round" fill="none" opacity={0.6}>
-          {BIRDS.map((d, i) => (
-            <Path key={i} d={bird(d.x, d.y, d.w * 0.7)} />
-          ))}
-        </G>
-      </Svg>
-    </Animated.View>
-  );
 }
 
 const PLANE_W = 56;
