@@ -26,21 +26,14 @@ const DEBUG_PERIODS: ScenePeriod[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghri
 const DEBUG_ARC: Record<ScenePeriod, number> = { fajr: 0.92, sunrise: 0.08, dhuhr: 0.5, asr: 0.78, maghrib: 1, isha: 0.18, night: 0.55 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/**
- * The countdown as big numbers with small unit letters: "7h 32m", "32m", or "45s" in the last minute.
- * Minutes round up, so 7h 31m 10s reads 7h 32m and the display never shows 0m before the athan.
- */
-function countdownParts(now: Date, at: Date): { text: string; unit: boolean }[] {
+/** "7h 32m", "32m", or "45s" in the last minute. Minutes round up, so it never reads 0m before the athan. */
+function countdownText(now: Date, at: Date): string {
   const ms = at.getTime() - now.getTime();
-  if (ms <= 0) return [{ text: 'Now', unit: false }];
-  if (ms < 60000) return [{ text: String(Math.ceil(ms / 1000)), unit: false }, { text: 's', unit: true }];
+  if (ms < 60000) return `${Math.max(1, Math.ceil(ms / 1000))}s`;
   const mins = Math.ceil(ms / 60000);
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  const parts: { text: string; unit: boolean }[] = [];
-  if (h > 0) parts.push({ text: String(h), unit: false }, { text: 'h', unit: true });
-  if (m > 0 || h === 0) parts.push({ text: String(m), unit: false }, { text: 'm', unit: true });
-  return parts;
+  return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
 }
 
 // Home is one fixed screen; text grows with Dynamic Type up to this factor.
@@ -85,6 +78,13 @@ export default function AthanScreen() {
     () => (location ? getPrayerTimes(location, localDayAnchor(now, tz), calcMethod, asrMadhab) : null),
     [location, now, tz, calcMethod, asrMadhab],
   );
+  // After Isha the next prayer is tomorrow's Fajr, so the list moves on to tomorrow's times.
+  const dayKey = localDayAnchor(now, tz).toDateString();
+  const tomorrowData = useMemo(
+    () => (location ? getPrayerTimes(location, localDayAnchor(new Date(now.getTime() + DAY_MS), tz), calcMethod, asrMadhab) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [location, dayKey, tz, calcMethod, asrMadhab],
+  );
 
   // Write a week of times to the widget only when the city or the day's times change, and never
   // from the Mecca seed before the saved city is restored.
@@ -122,7 +122,7 @@ export default function AthanScreen() {
     const m = minutesToNext % 60;
     const when = formatClock(prayerData.nextPrayerTime, use24Hour, tz);
     const tomorrow = !prayerData.listRows.some((r) => r.id === prayerData.nextPrayer.toLowerCase() && r.time > new Date());
-    return `${prayerData.nextPrayer} in ${h > 0 ? `${h} hour${h === 1 ? '' : 's'} ` : ''}${m} minute${m === 1 ? '' : 's'}, ${tomorrow ? 'tomorrow' : 'today'} at ${when}`;
+    return `${prayerData.nextPrayer} in ${h > 0 ? `${h} hour${h === 1 ? '' : 's'} ` : ''}${m} minute${m === 1 ? '' : 's'}, at ${when}${tomorrow ? ' tomorrow' : ''}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minutesToNext, prayerData?.nextPrayer, use24Hour, tz]);
 
@@ -156,7 +156,8 @@ export default function AthanScreen() {
   const unresolvedNow = !location.isManual && hasRestored;
   const hasNotice = !!movedTo || (unresolvedNow ? status === 'denied' || status === 'error' || status === 'idle' : !!travelMismatch);
   const noticeH = hasNotice ? t.spacing.md + 18 * fs * 2 + 4 + 44 : 0;
-  const heroText = 26 * fs + 68 * Math.min(fs, 1.3) + 20 * fs;
+  // Hero (name + countdown), plus room for the "Tomorrow" label the list shows after Isha.
+  const heroText = 68 * Math.min(fs, 1.3) + 30 * fs + 22 * fs;
   const rowFull = Math.max(44, 24 * fs + 16);
   const rowTight = Math.max(36, 24 * fs + 8);
   const fits = (row: number, rule: boolean, zoneMin: number) =>
@@ -182,8 +183,9 @@ export default function AthanScreen() {
 
   const { nextPrayer, nextPrayerTime, listRows, currentPrayer } = prayerData;
   const nextIdx = listRows.findIndex((r) => r.id === nextPrayer.toLowerCase() && r.time > now);
-  const nextClock = formatClock(nextPrayerTime, use24Hour, tz);
-  const nextIsTomorrow = nextIdx === -1;
+  const showTomorrow = nextIdx === -1 && !!tomorrowData;
+  const rows = showTomorrow ? tomorrowData!.listRows : listRows;
+  const nextRowIdx = showTomorrow ? rows.findIndex((r) => r.id === nextPrayer.toLowerCase()) : nextIdx;
   const isNow = nextPrayerTime.getTime() <= now.getTime();
 
   // Unresolved states never pass Mecca off as the user's city.
@@ -290,27 +292,13 @@ export default function AthanScreen() {
 
         {/* Hero: which prayer is next and how long until it. */}
         <View style={{ paddingHorizontal: gutter }}>
-          {/* Reads top to bottom: "Fajr in", the time left, then when it is. The countdown is separate
-              texts on a shared baseline: nesting two sizes in one Text clips the large digits on iOS. */}
+          {/* Two lines: the prayer, then how long until it. Its clock time is already in the list below, in gold. */}
           <View accessible accessibilityRole="timer" accessibilityLabel={countdownLabel}>
-            <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="title3" style={ink}>
-              {isNow ? nextPrayer : `${nextPrayer} in`}
+            <Text variant="hero" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={ink}>
+              {nextPrayer}
             </Text>
-            <View style={styles.countdown}>
-              {countdownParts(now, nextPrayerTime).map((p, i) =>
-                p.unit ? (
-                  <Text key={i} variant="title2" maxFontSizeMultiplier={HOME_MAX_SCALE} style={[ink2, styles.unit]}>
-                    {p.text}
-                  </Text>
-                ) : (
-                  <Text key={i} variant="hero" numberOfLines={1} style={ink}>
-                    {p.text}
-                  </Text>
-                ),
-              )}
-            </View>
-            <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="subhead" style={ink2}>
-              {nextIsTomorrow ? 'Tomorrow' : 'Today'} at {nextClock}
+            <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="title2" style={isNow ? { color: tone.accent } : ink}>
+              {isNow ? 'Now' : `in ${countdownText(now, nextPrayerTime)}`}
             </Text>
           </View>
           {progress != null && !dropProgress && (
@@ -321,19 +309,24 @@ export default function AthanScreen() {
         </View>
 
         <View>
-          {/* Today's prayers. The next one's time is the only warm text; passed ones fade back. */}
+          {/* Today's prayers (tomorrow's after Isha). The next one's time is the only warm text; passed ones fade back. */}
           <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.md }}>
-            {listRows.map((row, i) => {
-              const isNext = i === nextIdx;
-              const isPast = row.time <= now;
+            {showTomorrow && (
+              <Text variant="footnote" maxFontSizeMultiplier={HOME_MAX_SCALE} style={[ink2, { paddingBottom: t.spacing.xs }]} accessibilityRole="header">
+                Tomorrow
+              </Text>
+            )}
+            {rows.map((row, i) => {
+              const isNext = i === nextRowIdx;
+              const isPast = !showTomorrow && row.time <= now;
               const time = formatClock(row.time, use24Hour, tz);
-              const isCurrent = row.id === currentPrayer && !overnight;
+              const isCurrent = !showTomorrow && row.id === currentPrayer && !overnight;
               return (
                 <View
                   key={row.id}
                   accessible
                   accessibilityLabel={`${row.label}, ${time}${isNext ? ', next prayer' : ''}${isCurrent ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
-                  style={[styles.row, { minHeight: rowMin }, i < listRows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: tone.hairline }]}
+                  style={[styles.row, { minHeight: rowMin }, i < rows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: tone.hairline }]}
                 >
                   <View style={styles.rowLabel}>
                     <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant={isNext ? 'bodyEmph' : 'body'} style={isPast ? ink3 : ink}>
@@ -385,8 +378,6 @@ const styles = StyleSheet.create({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, flexShrink: 1 },
   pillText: { flexShrink: 1 },
   dates: { alignItems: 'flex-end', flexShrink: 0, maxWidth: '50%' },
-  countdown: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'nowrap' },
-  unit: { marginLeft: 2, marginRight: 10 },
   rule: { height: 2, borderRadius: 1, overflow: 'hidden' },
   ruleFill: { height: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
