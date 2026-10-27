@@ -54,6 +54,11 @@ export default function AthanScreen() {
   const [zone, setZone] = useState<{ top: number; bottom: number } | null>(null);
   // Development only: cycle through every sky scene to review them.
   const [debugPeriod, setDebugPeriod] = useState<ScenePeriod | null>(null);
+  // True for the one render where the switcher changed the scene, so it swaps instantly.
+  const [debugSwitch, setDebugSwitch] = useState(false);
+  useEffect(() => {
+    if (debugSwitch) setDebugSwitch(false);
+  }, [debugSwitch]);
 
   // When the app follows the user to a new city on its own (GPS mode), say so once.
   const [movedTo, setMovedTo] = useState<string | null>(null);
@@ -237,7 +242,7 @@ export default function AthanScreen() {
   return (
     <View style={[styles.container, { backgroundColor: SCENES[period].full.sky[0][0] }]}>
       <View style={StyleSheet.absoluteFill}>
-        <SkyScene period={period} width={winW} height={winH} layout="full" clearTop={chromeH} zone={zone ?? undefined} arc={arc} groundLift={groundLift} />
+        <SkyScene period={period} width={winW} height={winH} layout="full" clearTop={chromeH} zone={zone ?? undefined} arc={arc} groundLift={groundLift} instant={debugSwitch} />
       </View>
 
       <View style={styles.flex}>
@@ -277,7 +282,10 @@ export default function AthanScreen() {
         >
           {__DEV__ && (
             <Pressable
-              onPress={() => setDebugPeriod((p) => (p === null ? DEBUG_PERIODS[0] : DEBUG_PERIODS[DEBUG_PERIODS.indexOf(p) + 1] ?? null))}
+              onPress={() => {
+                setDebugSwitch(true);
+                setDebugPeriod((p) => (p === null ? DEBUG_PERIODS[0] : DEBUG_PERIODS[DEBUG_PERIODS.indexOf(p) + 1] ?? null));
+              }}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Cycle sky scenes (development only)"

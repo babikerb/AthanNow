@@ -21,6 +21,8 @@ interface Props {
   /** Full layout: 0..1 position of the sun or moon along its arc. */
   arc?: number;
   groundLift?: number;
+  /** Swap scenes immediately instead of crossfading (the development scene switcher). */
+  instant?: boolean;
 }
 
 interface Layer {
@@ -33,7 +35,7 @@ interface Layer {
  * The illustrated sky (full screen on Home, a band in onboarding). Still within a period; a period change crossfades
  * the whole illustration once (shortened under Reduce Motion) and snaps if the app has just resumed.
  */
-export default function SkyScene({ period, width, height, clearTop, layout, zone, arc, groundLift }: Props) {
+export default function SkyScene({ period, width, height, clearTop, layout, zone, arc, groundLift, instant }: Props) {
   const { motion, reduceMotion } = useTheme();
   const recentlyResumed = useResumeSnap();
   const nextId = useRef(1);
@@ -47,7 +49,7 @@ export default function SkyScene({ period, width, height, clearTop, layout, zone
   useEffect(() => {
     if (period === shown.current) return;
     shown.current = period;
-    if (recentlyResumed()) {
+    if (instant || recentlyResumed()) {
       layersRef.current.forEach((l) => l.v.stopAnimation());
       setLayers([{ id: nextId.current++, period, v: new Animated.Value(1) }]);
       return;

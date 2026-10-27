@@ -72,7 +72,21 @@ interface Props {
  * A cumulus outline: flat base, uneven rounded bumps over the top (no two the same size), so it reads
  * as a cloud rather than an ellipse. (x, y) is the left end of the base.
  */
-function cloudPath(x: number, y: number, w: number, h: number): string {
+/** Cloud colour: warm at sunrise, white by day, a little stronger on the pale daytime skies. */
+export function cloudLook(period: ScenePeriod) {
+  return period === 'sunrise' ? { tint: '#F1C7B4', alpha: 0.3 } : { tint: '#FFFFFF', alpha: 0.42 };
+}
+
+/** Full-layout clouds in the open sky (scene units), shared by the drifting layer. */
+export function cloudSet(zTop: number, zH: number) {
+  return [
+    { x: 18, y: zTop + zH * 0.42, w: 118, h: Math.min(30, zH * 0.3), a: 1, drift: 26, period: 70000 },
+    { x: 232, y: zTop + zH * 0.86, w: 138, h: Math.min(34, zH * 0.34), a: 0.85, drift: -34, period: 90000 },
+    { x: 150, y: zTop + zH * 0.2, w: 64, h: Math.min(16, zH * 0.16), a: 0.6, drift: 40, period: 60000 },
+  ];
+}
+
+export function cloudPath(x: number, y: number, w: number, h: number): string {
   const pts: [number, number][] = [
     [x, y],
     [x + w * 0.16, y - h * 0.42],
@@ -92,7 +106,7 @@ function cloudPath(x: number, y: number, w: number, h: number): string {
 }
 
 /** One layered cloud: a shaded back layer, the main body, a bright cap, and a wispy trailing base. */
-function Cloud({ x, y, w, h, tint, alpha }: { x: number; y: number; w: number; h: number; tint: string; alpha: number }) {
+export function Cloud({ x, y, w, h, tint, alpha }: { x: number; y: number; w: number; h: number; tint: string; alpha: number }) {
   return (
     <G>
       <Path d={cloudPath(x + w * 0.12, y + h * 0.1, w * 0.92, h * 0.72)} fill={tint} opacity={alpha * 0.45} />
@@ -150,8 +164,7 @@ function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'ba
 
   const stops: [string, number][] = full ? scene.full.sky : scene.sky.map((c, i) => [c, i / (scene.sky.length - 1)]);
   // Warm at sunrise, white by day; a little stronger on the pale daytime skies.
-  const cloudTint = period === 'sunrise' ? '#F1C7B4' : '#FFFFFF';
-  const cloudAlpha = period === 'sunrise' ? 0.3 : 0.42;
+  const { tint: cloudTint, alpha: cloudAlpha } = cloudLook(period);
   const starY = (y: number) => y;
 
   return (
@@ -188,13 +201,7 @@ function SkyIllustrationImpl({ period, width, height, clearTop = 0, layout = 'ba
         <Circle cx={body.x} cy={body.y} r={body.r} fill={body.color} mask={`url(#moon${id})`} />
       )}
 
-      {full && zone && scene.clouds && (
-        <>
-          <Cloud x={18} y={zTop + zH * 0.42} w={118} h={Math.min(30, zH * 0.3)} tint={cloudTint} alpha={cloudAlpha} />
-          <Cloud x={232} y={zTop + zH * 0.86} w={138} h={Math.min(34, zH * 0.34)} tint={cloudTint} alpha={cloudAlpha * 0.85} />
-          <Cloud x={150} y={zTop + zH * 0.2} w={64} h={Math.min(16, zH * 0.16)} tint={cloudTint} alpha={cloudAlpha * 0.6} />
-        </>
-      )}
+      {/* Full layout: clouds drift, so the animated layer (SkyLife) draws them. */}
 
       <G transform={`translate(0 ${shift})`}>
         {!full && scene.clouds && (
