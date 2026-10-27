@@ -7,7 +7,7 @@ import { Text } from './Text';
 import { useTheme } from './theme';
 
 export interface ScreenContainerProps {
-  /** Large title (Fraunces title1). Omit for screens that draw their own header. */
+  /** Large title (iOS large-title style). Omit for screens that draw their own header. */
   title?: string;
   subtitle?: string;
   /** Trailing header slot, e.g. an IconButton. */

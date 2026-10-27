@@ -136,9 +136,9 @@ export default function AthanScreen() {
   // Layout. One screen, never scrolling. The sky fills it, with the hills and skyline sitting on
   // solid ink above the tab bar. Text sits on the sky in a tone checked for contrast per period.
   // Between the city/date strip and the hero is open sky for the sun or moon, so text never covers
-  // them. When space is short the page compresses in a fixed order (Arabic names, row height, the
-  // progress rule, then the open sky down to its floor), worked out from type sizes at the current
-  // text size so the list never ends up under the tab bar.
+  // them. When space is short the page compresses in a fixed order (row height, the progress rule,
+  // then the open sky down to its floor), worked out from type sizes at the current text size so the
+  // list never ends up under the tab bar. The Arabic names always stay.
   const fs = Math.min(fontScale, HOME_MAX_SCALE);
   const gutter = winW <= 375 ? t.spacing.lg : t.spacing.xl;
   const chromeH = insets.top + 52;
@@ -154,7 +154,6 @@ export default function AthanScreen() {
   const fits = (row: number, rule: boolean, zoneMin: number) =>
     chromeH + zoneMin + heroText + (rule ? t.spacing.sm + 2 : 0) + t.spacing.md + 6 * row + noticeH + hillsH <= winH;
   const level = fits(rowFull, true, 72) ? 0 : fits(rowTight, true, 72) ? 1 : fits(rowTight, false, 72) ? 2 : 3;
-  const dropArabic = level >= 1 || winW <= 375 || fs > 1.15;
   const rowMin = level >= 1 ? rowTight : rowFull;
   const dropProgress = level >= 2;
   const minZone = level >= 3 ? 36 : 72;
@@ -327,11 +326,9 @@ export default function AthanScreen() {
                     <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant={isNext ? 'bodyEmph' : 'body'} style={isPast ? ink3 : ink}>
                       {row.label}
                     </Text>
-                    {!dropArabic && (
-                      <Text variant="footnote" style={ink3}>
-                        {getCelestialConfig(row.id).arabicName}
-                      </Text>
-                    )}
+                    <Text variant="footnote" maxFontSizeMultiplier={HOME_MAX_SCALE} numberOfLines={1} style={ink3}>
+                      {getCelestialConfig(row.id).arabicName}
+                    </Text>
                   </View>
                   <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant={isNext ? 'bodyEmph' : 'body'} style={isNext ? { color: tone.accent } : isPast ? ink3 : ink}>
                     {time}

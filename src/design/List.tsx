@@ -27,7 +27,7 @@ export function SectionHeader({ title, action, onAction }: { title: string; acti
   );
 }
 
-/** iOS inset-grouped container: surface1, card radius, hairline separators inset past the icon column. */
+/** iOS inset-grouped container: surface1, 12pt corners, no outline, hairline separators between rows. */
 export function ListGroup({ children, footer, dividerInset }: { children: React.ReactNode; footer?: string; dividerInset?: number }) {
   const t = useTheme();
   const items = React.Children.toArray(children).filter(Boolean);
@@ -36,10 +36,8 @@ export function ListGroup({ children, footer, dividerInset }: { children: React.
       <View
         style={{
           backgroundColor: t.c.surface1,
-          borderRadius: t.radii.card,
+          borderRadius: t.radii.control,
           borderCurve: 'continuous',
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: t.c.hairline,
           overflow: 'hidden',
         }}
       >
@@ -76,15 +74,15 @@ export interface ListRowProps {
   accessibilityHint?: string;
 }
 
-/** 52pt minimum row with leading hierarchical SF Symbol, title/subtitle, value and chevron. */
+/** 44pt minimum row: optional leading SF Symbol, title/subtitle, value and chevron. */
 export function ListRow({ title, subtitle, icon, value, accessory, onPress, destructive, selected, expanded, accessibilityHint }: ListRowProps) {
   const t = useTheme();
   const body = (pressed: boolean) => (
     <View
       style={{
-        minHeight: 52,
+        minHeight: 44,
         paddingHorizontal: t.spacing.lg,
-        paddingVertical: t.spacing.md,
+        paddingVertical: 11,
         flexDirection: 'row',
         alignItems: 'center',
         gap: t.spacing.md,

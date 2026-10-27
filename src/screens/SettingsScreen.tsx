@@ -11,7 +11,6 @@ import { Sheet } from '../components/Sheet';
 import { haptic } from '../design/haptics';
 import { ListGroup, ListRow, SectionHeader } from '../design/List';
 import { ScreenContainer } from '../design/ScreenContainer';
-import { SegmentedControl } from '../design/SegmentedControl';
 import { Text } from '../design/Text';
 import { useTheme as useDesignTheme } from '../design/theme';
 import { Toggle } from '../design/Toggle';
@@ -20,10 +19,8 @@ import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { CALC_METHOD_WHY, CALC_METHODS, calcMethodForCountry, localeCountryCode } from '../utils/calcMethodDefaults';
 import {
   getNotificationPermissionState,
-  getScheduledSummary,
   requestNotificationPermissionState,
   rescheduleNotifications,
-  type ScheduledSummary,
 } from '../utils/notifications';
 import { downloadAllPages, isOfflineDownloaded } from '../utils/mushafCache';
 import { classifyPermission, type PermissionUIState } from '../utils/permissionState';
@@ -33,7 +30,7 @@ const PRIVACY_URL = 'https://athannow.bbabiker.com/privacy';
 const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 30];
 
 function minutesLabel(m: number): string {
-  return m === 0 ? 'Off' : `${m} min before`;
+  return m === 0 ? 'Off' : `${m} minutes before`;
 }
 
 const PRAYER_LABELS: { key: PrayerKey; label: string }[] = [
@@ -56,27 +53,15 @@ const ASR_OPTIONS: { value: AsrMadhab; label: string }[] = [
   { value: 'Hanafi', label: 'Hanafi' },
 ];
 
-/** A label above a full-width segmented control, inside a grouped list. */
-function SegmentBlock({ title, children }: { title: string; children: React.ReactNode }) {
-  const dt = useDesignTheme();
-  return (
-    <View style={{ paddingHorizontal: dt.spacing.lg, paddingVertical: dt.spacing.md, gap: dt.spacing.sm }}>
-      <Text variant="body">{title}</Text>
-      {children}
-    </View>
-  );
-}
-
 /**
  * Notification status: the toggles below can all read "on" while iOS has notifications blocked, in which case nothing
- * fires. This row says so, offers the recovery (ask, or open iOS Settings), and states how far ahead reminders are
- * actually scheduled. Read-only: it never changes what gets scheduled.
+ * fires. This row appears only then, with the recovery (ask, or open iOS Settings). It also books the schedule the
+ * moment permission is granted.
  */
 function NotificationStatus() {
   const settings = useSettings();
   const { location } = useLocation();
   const [perm, setPerm] = useState<PermissionUIState>('checking');
-  const [summary, setSummary] = useState<ScheduledSummary | null>(null);
   const prev = useRef<PermissionUIState>('checking');
 
   const refresh = useCallback(async () => {
@@ -84,7 +69,6 @@ function NotificationStatus() {
       const p = await getNotificationPermissionState();
       const next = classifyPermission(p.status, p.canAskAgain);
       setPerm(next);
-      setSummary(next === 'granted' ? await getScheduledSummary() : null);
     } catch {
       // Keep the last known state: an error must not turn into a false 'off'.
     }
@@ -113,24 +97,14 @@ function NotificationStatus() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [perm]);
 
-  if (perm === 'checking') return <ListRow icon="bell" title="Checking notifications" />;
-
-  if (perm === 'granted') {
-    const anyOn = Object.values(settings.notifications.athanEnabled).some(Boolean) || (QURAN_ENABLED && settings.notifications.quranMorningEnabled);
-    const detail = !anyOn
-      ? 'Every prayer is switched off.'
-      : summary && summary.count > 0
-        ? `${summary.count} scheduled. Refreshed each time you open the app.`
-        : 'Scheduling your reminders.';
-    return <ListRow icon="bell.badge" title="Notifications are on" subtitle={detail} />;
-  }
+  // Quiet when everything works; a row only appears when the user has something to do.
+  if (perm === 'checking' || perm === 'granted') return null;
   if (perm === 'denied-permanent') {
     return (
       <ListRow
-        icon="bell.slash"
-        title="Notifications are blocked"
-        subtitle="Nothing will sound until you allow them in iOS Settings."
-        value="Open Settings"
+        title="Notifications are off"
+        subtitle="Allow them in iOS Settings to hear the athan."
+        value="Settings"
         onPress={() => Linking.openSettings().catch(() => {})}
         accessibilityHint="Opens the iOS Settings app"
       />
@@ -138,10 +112,9 @@ function NotificationStatus() {
   }
   return (
     <ListRow
-      icon="bell.slash"
       title="Notifications are off"
       subtitle="Allow them to hear the athan at each prayer."
-      value="Allow"
+      value="Turn On"
       accessibilityHint="Shows the iOS permission prompt"
       onPress={async () => {
         const p = await requestNotificationPermissionState().catch(() => null);
@@ -151,7 +124,6 @@ function NotificationStatus() {
   );
 }
 
-/** Download every mushaf page so the reader works with no connection (about 60 MB). */
 function OfflineQuranRow() {
   const [state, setState] = useState<'unknown' | 'none' | 'done' | 'failed' | { done: number; total: number }>('unknown');
   const cancel = useRef({ cancelled: false });
@@ -203,9 +175,9 @@ export default function SettingsScreen() {
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
   const [methodSheetOpen, setMethodSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
-  // Collapsed by default: six near-identical toggles at once felt intimidating. The six independent per-prayer
-  // settings are unchanged; they sit behind one summary row until someone wants to fine-tune.
-  const [notifExpanded, setNotifExpanded] = useState(false);
+  const [athanSheetOpen, setAthanSheetOpen] = useState(false);
+  const [asrSheetOpen, setAsrSheetOpen] = useState(false);
+  const [appearanceSheetOpen, setAppearanceSheetOpen] = useState(false);
 
   const confirmReset = () => {
     Alert.alert('Reset all data', 'This clears your preferences and onboarding, returning the app to defaults. This cannot be undone.', [
@@ -223,6 +195,7 @@ export default function SettingsScreen() {
 
   const methodLabel = CALC_METHODS.find((m) => m.key === settings.calcMethod)?.label ?? settings.calcMethod;
   const enabledCount = Object.values(settings.notifications.athanEnabled).filter(Boolean).length;
+  const athanValue = enabledCount === PRAYER_LABELS.length ? 'All' : enabledCount === 0 ? 'Off' : `${enabledCount} of ${PRAYER_LABELS.length}`;
 
   // "Recommended for your region" + "All methods": same country -> method lookup and "why" copy as onboarding.
   const recommendedCountry = location?.countryCode ?? localeCountryCode();
@@ -256,72 +229,29 @@ export default function SettingsScreen() {
   return (
     <>
       <ScreenContainer title="Settings">
-        <SectionHeader title="Location" />
-        <ListGroup footer={location?.isManual ? 'Chosen by you.' : 'Follows where you are.'}>
-          <ListRow title="City" value={cityName} onPress={() => setLocationSheetOpen(true)} />
-        </ListGroup>
-
-        <SectionHeader title="Appearance" />
-        <ListGroup footer="Home and Qibla always show the night sky. Appearance changes everything else.">
-          <SegmentBlock title="Theme">
-            <SegmentedControl options={APPEARANCE_OPTIONS} value={settings.appearance} onChange={(v) => settings.update({ appearance: v })} />
-          </SegmentBlock>
-        </ListGroup>
-
-        <SectionHeader title="Time" />
+        <View style={{ height: dt.spacing.sm }} />
         <ListGroup>
+          <ListRow title="Location" value={cityName} onPress={() => setLocationSheetOpen(true)} />
+        </ListGroup>
+
+        <SectionHeader title="Prayer times" />
+        <ListGroup>
+          <ListRow title="Calculation method" value={methodLabel} onPress={() => setMethodSheetOpen(true)} />
+          <ListRow title="Asr" value={ASR_OPTIONS.find((o) => o.value === settings.asrMadhab)?.label} onPress={() => setAsrSheetOpen(true)} />
           <ListRow
             title="24-hour time"
             accessory={<Toggle label="24-hour time" value={settings.use24Hour} onValueChange={(v) => settings.update({ use24Hour: v })} />}
           />
         </ListGroup>
 
-        <SectionHeader title="Prayer calculation" />
-        <ListGroup>
-          <ListRow title="Calculation method" value={methodLabel} onPress={() => setMethodSheetOpen(true)} />
-          <SegmentBlock title="Asr method">
-            <SegmentedControl options={ASR_OPTIONS} value={settings.asrMadhab} onChange={(v) => settings.update({ asrMadhab: v })} />
-          </SegmentBlock>
-        </ListGroup>
-
         <SectionHeader title="Notifications" />
-        <ListGroup footer="Time sensitive, so they can break through Focus when you allow it.">
+        <ListGroup>
           <NotificationStatus />
+          <ListRow title="Athan" value={athanValue} onPress={() => setAthanSheetOpen(true)} />
+          <ListRow title="Reminder" value={minutesLabel(settings.notifications.reminderMinutesBefore)} onPress={() => setReminderSheetOpen(true)} />
           <ListRow
-            title="Prayer notifications"
-            value={`${enabledCount} of ${PRAYER_LABELS.length} on`} // read by VoiceOver; the visible copy is in the accessory
-            accessory={
-              <>
-                <Text variant="body" color="textSecondary">{`${enabledCount} of ${PRAYER_LABELS.length} on`}</Text>
-                <SymbolView name={notifExpanded ? 'chevron.up' : 'chevron.down'} size={13} weight="semibold" tintColor={dt.c.glyphQuiet} />
-              </>
-            }
-            expanded={notifExpanded}
-            onPress={() => setNotifExpanded((v) => !v)}
-            accessibilityHint={notifExpanded ? 'Collapses the prayer list' : 'Shows a switch for each prayer'}
-          />
-          {notifExpanded &&
-            PRAYER_LABELS.map((p) => (
-              <ListRow
-                key={p.key}
-                title={p.key === 'sunrise' ? 'Sunrise' : `${p.label} athan`}
-                accessory={
-                  <Toggle
-                    label={p.key === 'sunrise' ? 'Sunrise' : `${p.label} athan`}
-                    value={settings.notifications.athanEnabled[p.key]}
-                    onValueChange={(v) => settings.updateNotifications({ athanEnabled: { ...settings.notifications.athanEnabled, [p.key]: v } })}
-                  />
-                }
-              />
-            ))}
-        </ListGroup>
-
-        <SectionHeader title="Reminders" />
-        <ListGroup footer="A reminder gives you an extra heads-up before each athan.">
-          <ListRow title="Reminder time" value={minutesLabel(settings.notifications.reminderMinutesBefore)} onPress={() => setReminderSheetOpen(true)} />
-          <ListRow
-            title="Play adhan sound"
-            accessory={<Toggle label="Play adhan sound" value={settings.notifications.athanSound} onValueChange={(v) => settings.updateNotifications({ athanSound: v })} />}
+            title="Athan sound"
+            accessory={<Toggle label="Athan sound" value={settings.notifications.athanSound} onValueChange={(v) => settings.updateNotifications({ athanSound: v })} />}
           />
           {QURAN_ENABLED && (
             <ListRow
@@ -340,11 +270,16 @@ export default function SettingsScreen() {
           </>
         )}
 
-        <SectionHeader title="About" />
+        <SectionHeader title="General" />
         <ListGroup>
+          <ListRow title="Appearance" value={APPEARANCE_OPTIONS.find((o) => o.value === settings.appearance)?.label} onPress={() => setAppearanceSheetOpen(true)} />
+          <ListRow title="Set up again" onPress={() => onboarding.start('replay')} />
           <ListRow title="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL).catch(() => {})} />
-          <ListRow title="Replay onboarding" onPress={() => onboarding.start('replay')} />
           {versionLabel ? <ListRow title="Version" value={versionLabel} /> : null}
+        </ListGroup>
+
+        <View style={{ height: dt.spacing.xxl }} />
+        <ListGroup>
           <ListRow title="Reset all data" destructive onPress={confirmReset} />
         </ListGroup>
       </ScreenContainer>
@@ -360,24 +295,92 @@ export default function SettingsScreen() {
         </ScrollView>
       </Sheet>
 
-      <Sheet visible={reminderSheetOpen} onClose={() => setReminderSheetOpen(false)} title="Reminder time">
-        <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingBottom: dt.spacing.xxl }}>
+      <PickerSheet
+        visible={asrSheetOpen}
+        onClose={() => setAsrSheetOpen(false)}
+        title="Asr"
+        options={ASR_OPTIONS.map((o) => ({ ...o, subtitle: o.value === 'Hanafi' ? 'Later Asr, when shadows are twice an object’s length.' : 'Shafi’i, Maliki and Hanbali.' }))}
+        value={settings.asrMadhab}
+        onChange={(v) => settings.update({ asrMadhab: v })}
+      />
+
+      <PickerSheet
+        visible={appearanceSheetOpen}
+        onClose={() => setAppearanceSheetOpen(false)}
+        title="Appearance"
+        options={APPEARANCE_OPTIONS}
+        value={settings.appearance}
+        onChange={(v) => settings.update({ appearance: v })}
+      />
+
+      <PickerSheet
+        visible={reminderSheetOpen}
+        onClose={() => setReminderSheetOpen(false)}
+        title="Reminder"
+        options={MINUTE_OPTIONS.map((m) => ({ value: m, label: minutesLabel(m) }))}
+        value={settings.notifications.reminderMinutesBefore}
+        onChange={(v) => settings.updateNotifications({ reminderMinutesBefore: v })}
+      />
+
+      <Sheet visible={athanSheetOpen} onClose={() => setAthanSheetOpen(false)} title="Athan">
+        <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.md, paddingBottom: dt.spacing.xxl }}>
           <ListGroup>
-            {MINUTE_OPTIONS.map((m) => (
+            {PRAYER_LABELS.map((p) => (
               <ListRow
-                key={m}
-                title={minutesLabel(m)}
-                accessory={m === settings.notifications.reminderMinutesBefore ? check : undefined}
-                selected={m === settings.notifications.reminderMinutesBefore}
-                onPress={() => {
-                  settings.updateNotifications({ reminderMinutesBefore: m });
-                  setReminderSheetOpen(false);
-                }}
+                key={p.key}
+                title={p.label}
+                accessory={
+                  <Toggle
+                    label={p.label}
+                    value={settings.notifications.athanEnabled[p.key]}
+                    onValueChange={(v) => settings.updateNotifications({ athanEnabled: { ...settings.notifications.athanEnabled, [p.key]: v } })}
+                  />
+                }
               />
             ))}
           </ListGroup>
         </ScrollView>
       </Sheet>
     </>
+  );
+}
+
+/** A short single-choice list in a sheet, with a checkmark on the current value. */
+function PickerSheet<T extends string | number>({
+  visible,
+  onClose,
+  title,
+  options,
+  value,
+  onChange,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  options: { value: T; label: string; subtitle?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  const dt = useDesignTheme();
+  return (
+    <Sheet visible={visible} onClose={onClose} title={title}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.md, paddingBottom: dt.spacing.xxl }}>
+        <ListGroup>
+          {options.map((o) => (
+            <ListRow
+              key={String(o.value)}
+              title={o.label}
+              subtitle={o.subtitle}
+              accessory={o.value === value ? <SymbolView name="checkmark" size={16} weight="semibold" tintColor={dt.c.accentText} /> : undefined}
+              selected={o.value === value}
+              onPress={() => {
+                onChange(o.value);
+                onClose();
+              }}
+            />
+          ))}
+        </ListGroup>
+      </ScrollView>
+    </Sheet>
   );
 }

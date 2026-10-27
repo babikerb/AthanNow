@@ -200,11 +200,11 @@ export const typeTokens = {
       "tracking": -0.4
     },
     "title1": {
-      "family": "display",
-      "size": 30,
-      "line": 36,
-      "weight": "600",
-      "tracking": -0.6
+      "family": "text",
+      "size": 34,
+      "line": 41,
+      "weight": "700",
+      "tracking": 0.4
     },
     "display": {
       "family": "display",
