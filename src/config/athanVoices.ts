@@ -30,10 +30,10 @@ export interface AthanVoice {
 export const ATHAN_VOICES: AthanVoice[] = [
   // The original AthanNow recording; the id stays 'classic' so existing choices are kept.
   { id: 'classic', name: 'Ali Ahmed Mulla', region: 'Makkah', file: 'adhan.wav', source: require('../../assets/sounds/adhan.wav') },
-  { id: 'qassas', name: 'Muhammad Marwan Qassas', region: 'Medina' },
-  { id: 'abdussamad', name: 'Abdulbasit Abdussamad', region: 'Egypt' },
-  { id: 'siddiq', name: 'Noreen Mohamad Siddiq', region: 'Sudan' },
-  { id: 'youssef', name: 'Almajd Youssef' },
+  { id: 'qassas', name: 'Muhammad Marwan Qassas', region: 'Medina', file: 'athan-medina.wav', source: require('../../assets/sounds/athan-medina.wav') },
+  { id: 'abdussamad', name: 'Abdulbasit Abdussamad', region: 'Egypt', file: 'athan-egypt.wav', source: require('../../assets/sounds/athan-egypt.wav') },
+  { id: 'siddiq', name: 'Noreen Mohamad Siddiq', region: 'Sudan', file: 'athan-sudan.wav', source: require('../../assets/sounds/athan-sudan.wav') },
+  { id: 'youssef', name: 'Almajd Youssef', file: 'athan-almajd.wav', source: require('../../assets/sounds/athan-almajd.wav') },
 ];
 
 export const DEFAULT_ATHAN_VOICE = ATHAN_VOICES[0].id;
