@@ -23,6 +23,8 @@ interface Props {
   groundLift?: number;
   /** Swap scenes immediately instead of crossfading (the development scene switcher). */
   instant?: boolean;
+  /** Crossfade length when the period changes (default: the theme's slow sky crossfade). */
+  fadeMs?: number;
 }
 
 interface Layer {
@@ -35,7 +37,7 @@ interface Layer {
  * The illustrated sky (full screen on Home, a band in onboarding). Still within a period; a period change crossfades
  * the whole illustration once (shortened under Reduce Motion) and snaps if the app has just resumed.
  */
-export default function SkyScene({ period, width, height, clearTop, layout, zone, arc, groundLift, instant }: Props) {
+export default function SkyScene({ period, width, height, clearTop, layout, zone, arc, groundLift, instant, fadeMs }: Props) {
   const { motion, reduceMotion } = useTheme();
   const recentlyResumed = useResumeSnap();
   const nextId = useRef(1);
@@ -59,7 +61,7 @@ export default function SkyScene({ period, width, height, clearTop, layout, zone
     setLayers([...layersRef.current.slice(-1), layer]);
     Animated.timing(layer.v, {
       toValue: 1,
-      duration: reduceMotion ? motion.duration.reducedFade : motion.duration.skyCrossfade,
+      duration: reduceMotion ? motion.duration.reducedFade : fadeMs ?? motion.duration.skyCrossfade,
       easing: Easing.inOut(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {

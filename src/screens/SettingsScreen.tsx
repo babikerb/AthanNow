@@ -437,6 +437,17 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
     <Sheet visible={visible} onClose={close} title="Athan sound">
       <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.md, paddingBottom: dt.spacing.xxl }}>
         <ListGroup>
+          <ListRow
+            title="Silent"
+            icon="speaker.slash.fill"
+            accessory={selected === 'silent' ? check : undefined}
+            selected={selected === 'silent'}
+            onPress={() => {
+              stopAthanPreview();
+              setPlaying(null);
+              settings.updateNotifications({ athanSound: false });
+            }}
+          />
           {ATHAN_VOICES.map((v) => {
             const isPlaying = playing === v.id;
             return (
@@ -444,7 +455,7 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
                 key={v.id}
                 onPress={() => choose(v)}
                 accessibilityRole="button"
-                accessibilityLabel={`${v.name}${v.detail ? `, ${v.detail}` : ''}`}
+                accessibilityLabel={v.name}
                 accessibilityHint={isPlaying ? 'Stops the preview' : 'Selects it and plays a preview'}
                 accessibilityState={{ selected: selected === v.id }}
                 style={({ pressed }) => [styles.soundRow, pressed && { backgroundColor: dt.c.surface2 }]}
@@ -455,31 +466,15 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
                   accessibilityRole="button"
                   accessibilityLabel={isPlaying ? `Stop ${v.name}` : `Play ${v.name}`}
                 >
-                  <SymbolView name={isPlaying ? 'stop.circle.fill' : 'play.circle.fill'} size={28} tintColor={isPlaying ? dt.c.accent : dt.c.textSecondary} />
+                  <SymbolView name={isPlaying ? 'stop.circle.fill' : 'play.circle.fill'} size={22} tintColor={isPlaying ? dt.c.accent : dt.c.textSecondary} style={{ width: 24, height: 24 }} />
                 </Pressable>
-                <View style={{ flex: 1 }}>
-                  <Text variant="body">{v.name}</Text>
-                  {v.detail ? (
-                    <Text variant="footnote" color="textSecondary">
-                      {v.detail}
-                    </Text>
-                  ) : null}
-                </View>
+                <Text variant="body" style={{ flex: 1 }}>
+                  {v.name}
+                </Text>
                 {selected === v.id ? check : null}
               </Pressable>
             );
           })}
-          <ListRow
-            title="Silent"
-            subtitle="A notification with no sound"
-            accessory={selected === 'silent' ? check : undefined}
-            selected={selected === 'silent'}
-            onPress={() => {
-              stopAthanPreview();
-              setPlaying(null);
-              settings.updateNotifications({ athanSound: false });
-            }}
-          />
         </ListGroup>
         {previewsUnavailable && (
           <Text variant="footnote" color="textSecondary" style={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.sm }}>
@@ -492,5 +487,5 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
 }
 
 const styles = StyleSheet.create({
-  soundRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, paddingVertical: 8 },
+  soundRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: 16, paddingVertical: 8 },
 });

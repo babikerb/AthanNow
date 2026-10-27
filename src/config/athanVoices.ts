@@ -8,13 +8,12 @@
 export interface AthanVoice {
   id: string;
   name: string;
-  detail?: string;
   file: string;
   source: number;
 }
 
 export const ATHAN_VOICES: AthanVoice[] = [
-  { id: 'classic', name: 'Classic', detail: 'The original AthanNow athan', file: 'adhan.wav', source: require('../../assets/sounds/adhan.wav') },
+  { id: 'classic', name: 'Classic', file: 'adhan.wav', source: require('../../assets/sounds/adhan.wav') },
 ];
 
 export const DEFAULT_ATHAN_VOICE = ATHAN_VOICES[0].id;
