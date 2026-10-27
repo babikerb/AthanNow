@@ -16,6 +16,8 @@ export interface ScreenContainerProps {
   scroll?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  /** Keep the title row fixed at the top while the content scrolls (like Calendar). */
+  sticky?: boolean;
   /** Reserve space for the tab bar at the bottom. Default true. */
   tabBarInset?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
@@ -23,7 +25,7 @@ export interface ScreenContainerProps {
 }
 
 /** Screen shell: ink background, safe areas, 20pt gutters, optional large title, keyboard-aware scrolling. */
-export function ScreenContainer({ title, subtitle, right, scroll = true, refreshing, onRefresh, tabBarInset = true, contentStyle, children }: ScreenContainerProps) {
+export function ScreenContainer({ title, subtitle, right, scroll = true, sticky, refreshing, onRefresh, tabBarInset = true, contentStyle, children }: ScreenContainerProps) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const tabBar = useTabBarHeight();
@@ -56,6 +58,43 @@ export function ScreenContainer({ title, subtitle, right, scroll = true, refresh
       <View style={[{ flex: 1, backgroundColor: t.c.bg }, pad, { paddingBottom: bottom }, contentStyle]}>
         {header}
         {children}
+      </View>
+    );
+  }
+  if (sticky) {
+    return (
+      <View style={{ flex: 1, backgroundColor: t.c.bg }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: t.spacing.md,
+            paddingTop: insets.top + t.spacing.sm,
+            paddingBottom: t.spacing.sm,
+            paddingHorizontal: gutter,
+          }}
+        >
+          {title ? (
+            <Text variant="title1" header maxFontSizeMultiplier={1.3} style={{ flexShrink: 1 }}>
+              {title}
+            </Text>
+          ) : (
+            <View />
+          )}
+          {right}
+        </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={[{ paddingHorizontal: gutter, paddingBottom: bottom }, contentStyle]}
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+          refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={t.c.textSecondary} /> : undefined}
+        >
+          {children}
+        </ScrollView>
       </View>
     );
   }

@@ -16,6 +16,8 @@ interface Props {
   groundLift: number;
   /** The open sky (pt) kept free of text. */
   zone?: { top: number; bottom: number };
+  /** Windows come lit with the buildings (no Maghrib fade-in). */
+  windowsLit?: boolean;
 }
 
 /**
@@ -28,7 +30,7 @@ interface Props {
  * Every animation runs on the native driver. With Reduce Motion they hold still (lights and mist
  * still show), and nothing moves while Home is off screen.
  */
-function SkyLifeImpl({ period, width, height, clearTop, groundLift, zone }: Props) {
+function SkyLifeImpl({ period, width, height, clearTop, groundLift, zone, windowsLit }: Props) {
   const scene = SCENES[period];
   const { reduceMotion } = useTheme();
   const focused = useFocusedSafe();
@@ -48,7 +50,7 @@ function SkyLifeImpl({ period, width, height, clearTop, groundLift, zone }: Prop
       {zone && (period === 'isha' || period === 'night') && <ShootingStar width={width} top={clearTop} bottom={zone.bottom} still={still} />}
       {zone && scene.clouds && cloudSet(zTop, zH).map((c, i) => <DriftingCloud key={i} cloud={c} s={s} period={period} still={still} />)}
       {period === 'sunrise' && <Mist s={s} shift={shift} still={still} />}
-      <Windows period={period} s={s} shift={shift} width={width} height={height} still={still} />
+      <Windows period={period} s={s} shift={shift} width={width} height={height} still={still || !!windowsLit} />
       {zone && scene.plane && <Plane width={width} y={zone.top + (zone.bottom - zone.top) * 0.34} still={still} />}
     </View>
   );

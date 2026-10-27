@@ -25,6 +25,8 @@ interface Props {
   instant?: boolean;
   /** Crossfade length when the period changes (default: the theme's slow sky crossfade). */
   fadeMs?: number;
+  /** Windows appear already lit with the buildings instead of lighting up at Maghrib. */
+  windowsLit?: boolean;
 }
 
 interface Layer {
@@ -37,7 +39,7 @@ interface Layer {
  * The illustrated sky (full screen on Home, a band in onboarding). Still within a period; a period change crossfades
  * the whole illustration once (shortened under Reduce Motion) and snaps if the app has just resumed.
  */
-export default function SkyScene({ period, width, height, clearTop, layout, zone, arc, groundLift, instant, fadeMs }: Props) {
+export default function SkyScene({ period, width, height, clearTop, layout, zone, arc, groundLift, instant, fadeMs, windowsLit }: Props) {
   const { motion, reduceMotion } = useTheme();
   const recentlyResumed = useResumeSnap();
   const nextId = useRef(1);
@@ -75,7 +77,7 @@ export default function SkyScene({ period, width, height, clearTop, layout, zone
       {layers.map((l) => (
         <Animated.View key={l.id} style={[StyleSheet.absoluteFill, { opacity: l.v }]}>
           <SkyIllustration period={l.period} width={width} height={height} clearTop={clearTop} layout={layout} zone={zone} arc={arc} groundLift={groundLift} />
-          {layout === 'full' && <SkyLife period={l.period} width={width} height={height} clearTop={clearTop ?? 0} groundLift={groundLift ?? 0} zone={zone} />}
+          {layout === 'full' && <SkyLife period={l.period} width={width} height={height} clearTop={clearTop ?? 0} groundLift={groundLift ?? 0} zone={zone} windowsLit={windowsLit} />}
         </Animated.View>
       ))}
     </View>

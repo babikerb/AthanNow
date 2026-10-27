@@ -200,6 +200,7 @@ export function Onboarding() {
           arc={STEP_ARC[step]}
           groundLift={footerH}
           fadeMs={900}
+          windowsLit
         />
       </View>
 

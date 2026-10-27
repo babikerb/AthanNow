@@ -8,6 +8,7 @@ import { useOnboarding } from '../context/OnboardingContext';
 import { Appearance, AsrMadhab, PrayerKey, useSettings } from '../context/SettingsContext';
 import { LocationSheet } from '../components/LocationSheet';
 import { Sheet } from '../components/Sheet';
+import { Button } from '../design/Button';
 import { haptic } from '../design/haptics';
 import { ListGroup, ListRow, SectionHeader } from '../design/List';
 import { ScreenContainer } from '../design/ScreenContainer';
@@ -233,12 +234,19 @@ export default function SettingsScreen() {
 
   return (
     <>
-      <ScreenContainer title="Settings">
-        <View style={{ height: dt.spacing.sm }} />
-        <ListGroup>
-          <ListRow title="Location" value={cityName} onPress={() => setLocationSheetOpen(true)} />
-        </ListGroup>
-
+      <ScreenContainer
+        title="Settings"
+        sticky
+        right={
+          <Button
+            label={cityName.length > 16 ? `${cityName.slice(0, 15)}…` : cityName}
+            icon="location.fill"
+            variant="secondary"
+            accessibilityHint="Changes the location"
+            onPress={() => setLocationSheetOpen(true)}
+          />
+        }
+      >
         <SectionHeader title="Prayer times" />
         <ListGroup>
           <ListRow title="Calculation method" value={methodLabel} onPress={() => setMethodSheetOpen(true)} />
