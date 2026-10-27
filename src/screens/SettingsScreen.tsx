@@ -486,20 +486,20 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
                   <SymbolView name="play.circle" size={22} tintColor={dt.c.glyphQuiet} style={{ width: 24, height: 24 }} />
                 )}
                 <View style={{ flex: 1, opacity: available ? 1 : 0.55 }}>
-                  <View style={styles.voiceTitle}>
-                    <Text variant="body" numberOfLines={1} style={{ flexShrink: 1 }}>
-                      {v.name}
-                    </Text>
-                    {isDefault ? (
-                      <Text variant="footnote" color="accentText">
-                        Default
-                      </Text>
-                    ) : null}
-                  </View>
-                  {v.region ? (
-                    <Text variant="footnote" color="textSecondary">
-                      {v.region}
-                    </Text>
+                  <Text variant="body">{v.name}</Text>
+                  {v.region || isDefault ? (
+                    <View style={styles.voiceMeta}>
+                      {v.region ? (
+                        <Text variant="footnote" color="textSecondary">
+                          {v.region}
+                        </Text>
+                      ) : null}
+                      {isDefault ? (
+                        <Text variant="footnote" color="accentText">
+                          Default
+                        </Text>
+                      ) : null}
+                    </View>
                   ) : null}
                 </View>
                 {available ? (
@@ -525,5 +525,5 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
 
 const styles = StyleSheet.create({
   soundRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 16, paddingVertical: 8 },
-  voiceTitle: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  voiceMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
 });
