@@ -357,9 +357,6 @@ export default function SettingsScreen() {
               />
             ))}
           </ListGroup>
-          <Text variant="footnote" color="textSecondary" style={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.sm }}>
-            Clips are the first 30 seconds of each recording, faded out. The trimmed CC BY-SA clips are shared under the same license.
-          </Text>
         </ScrollView>
       </Sheet>
 
