@@ -1,130 +1,80 @@
 #!/usr/bin/env node
-// Draws the AthanNow app icons from the app's own Maghrib sky scene (src/components/sky): the same
-// skyline paths, sun and sky colours, cropped tight on the mosque so buildings and ground fill the icon.
-// No dependencies: SVG paths are flattened and scanline-filled with supersampling, then PNG-encoded.
+// Draws the AthanNow app icon, "True dawn": a deep night sky with a single thin line of first light lying
+// flat along the horizon, fading out at both ends, with a soft glow spreading just above it and dark ground
+// below. True dawn (al-fajr al-sadiq) is light spreading horizontally along the horizon, the moment Fajr begins.
+// No dependencies: each pixel is computed analytically with supersampling, then PNG-encoded.
 //
 //   node scripts/make-brand.mjs [outDir]   writes icon.png, icon-dark.png, icon-tinted.png (default: assets/)
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = process.argv[2] ?? join(root, 'assets');
 const N = 1024;
-const SS = 4;
+const SS = 3;
 
-// ---- Scene source ----
-const ill = readFileSync(join(root, 'src/components/sky/SkyIllustration.tsx'), 'utf8');
-const skyline = ill
-  .match(/const SKYLINE = \[([\s\S]*?)\]\.join/)[1]
-  .match(/'([^']+)'/g)
-  .map((s) => s.slice(1, -1))
-  .join(' ');
-const palJs = ts.transpileModule(readFileSync(join(root, 'src/components/sky/palettes.ts'), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-}).outputText;
-const pal = {};
-new Function('exports', palJs)(pal);
-const maghrib = pal.SCENES.maghrib;
-
-// Square crop of the 390 x 340 scene around the main dome; extends below the art into ink ground.
-const CROP = { x: 190, y: 160, size: 200 };
-const HORIZON = 318; // top of the ground strip in scene units
-const K = N / CROP.size;
-const toPx = (x, y) => [(x - CROP.x) * K, (y - CROP.y) * K];
-
-// ---- Path flattening (M L H V C Z, absolute) into polygons in pixel space ----
-function flatten(d) {
-  const tokens = d.match(/[MLHVCZ]|-?\d*\.?\d+/g);
-  const polys = [];
-  let cur = null;
-  let cx = 0, cy = 0, cmd = '', i = 0;
-  const num = () => parseFloat(tokens[i++]);
-  const push = (x, y) => cur.push(toPx(x, y));
-  while (i < tokens.length) {
-    if (/[MLHVCZ]/.test(tokens[i])) cmd = tokens[i++];
-    if (cmd === 'M') { cx = num(); cy = num(); cur = []; polys.push(cur); push(cx, cy); cmd = 'L'; }
-    else if (cmd === 'L') { cx = num(); cy = num(); push(cx, cy); }
-    else if (cmd === 'H') { cx = num(); push(cx, cy); }
-    else if (cmd === 'V') { cy = num(); push(cx, cy); }
-    else if (cmd === 'C') {
-      const [x1, y1, x2, y2, x, y] = [num(), num(), num(), num(), num(), num()];
-      for (let s = 1; s <= 24; s++) {
-        const t = s / 24, u = 1 - t;
-        push(u * u * u * cx + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x, u * u * u * cy + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y);
-      }
-      cx = x; cy = y;
-    } else if (cmd === 'Z') { cmd = ''; }
-  }
-  return polys;
-}
-const SKY_POLYS = flatten(skyline);
-
-/** Coverage mask (N x N, 0..1) for a set of polygons, union of even-odd fills, 4x4 supersampled. */
-function mask(polys) {
-  const m = new Float32Array(N * N);
-  const edges = [];
-  for (const p of polys) for (let j = 0; j < p.length; j++) edges.push([p[j], p[(j + 1) % p.length], polys.indexOf(p)]);
-  for (let sy = 0; sy < N * SS; sy++) {
-    const y = (sy + 0.5) / SS;
-    const row = new Uint8Array(N * SS);
-    const byPoly = new Map();
-    for (const [[x0, y0], [x1, y1], pi] of edges) {
-      if ((y0 <= y && y1 > y) || (y1 <= y && y0 > y)) {
-        const x = x0 + ((y - y0) / (y1 - y0)) * (x1 - x0);
-        if (!byPoly.has(pi)) byPoly.set(pi, []);
-        byPoly.get(pi).push(x);
-      }
-    }
-    for (const xs of byPoly.values()) {
-      xs.sort((a, b) => a - b);
-      for (let k = 0; k + 1 < xs.length; k += 2) {
-        const a = Math.max(0, Math.ceil(xs[k] * SS - 0.5)), b = Math.min(N * SS - 1, Math.floor(xs[k + 1] * SS - 0.5));
-        for (let sx = a; sx <= b; sx++) row[sx] = 1;
-      }
-    }
-    const py = Math.floor(sy / SS);
-    for (let sx = 0; sx < N * SS; sx++) if (row[sx]) m[py * N + Math.floor(sx / SS)] += 1 / (SS * SS);
-  }
-  return m;
-}
+// Geometry (1024 canvas).
+const HORIZON = 612; // the line of light
+const LINE_HALF = 5.5; // half-thickness of the bright core
+const SPAN = 440; // half-length of the line before it has fully faded
+const GLOW_UP = 210; // how far the glow reaches above the horizon
+const GLOW_DOWN = 34; // and below (a faint bleed onto the ground)
 
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const smooth = (e0, e1, x) => {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+};
 function gradient(stops, t) {
   for (let i = 0; i < stops.length - 1; i++) if (t <= stops[i + 1][1]) return mix(hex(stops[i][0]), hex(stops[i + 1][0]), (t - stops[i][1]) / (stops[i + 1][1] - stops[i][1]));
   return hex(stops.at(-1)[0]);
 }
-function discCoverage(px, py, cx, cy, r) {
-  let c = 0;
-  for (let j = 0; j < SS; j++) for (let i = 0; i < SS; i++) if ((px + (i + 0.5) / SS - cx) ** 2 + (py + (j + 0.5) / SS - cy) ** 2 <= r * r) c++;
-  return c / (SS * SS);
-}
+const add = (c, light, a) => c.map((v, i) => Math.min(255, v + light[i] * a));
 
-const skylineMask = mask(SKY_POLYS);
-const [sunX, sunY] = toPx(maghrib.body.x, maghrib.body.y);
-const sunR = maghrib.body.r * K;
-const horizonPx = (HORIZON - CROP.y) * K;
-// Maghrib's faint early stars, in the upper sky (scene units).
-const STARS = [[214, 176, 1.1], [256, 168, 0.8], [372, 182, 1]];
+function sample(x, y, look) {
+  // Sky above the horizon, ground below.
+  let c = y < HORIZON ? gradient(look.sky, y / HORIZON) : gradient(look.ground, (y - HORIZON) / (N - HORIZON));
+  // Horizontal falloff: full in the middle, gone by +-SPAN (a soft cosine-like ease).
+  const dx = Math.abs(x - 512) / SPAN;
+  const along = dx >= 1 ? 0 : Math.pow(Math.cos((dx * Math.PI) / 2), 1.6);
+  if (along > 0) {
+    const dy = y - HORIZON;
+    // Wide soft glow, stronger and taller above the line than below it.
+    const reach = dy < 0 ? GLOW_UP : GLOW_DOWN;
+    const glow = Math.exp(-Math.pow(dy / reach, 2) * 2.2) * along;
+    c = add(c, look.glow, glow * look.glowA);
+    // A tighter warm halo hugging the line.
+    const halo = Math.exp(-Math.pow(dy / 22, 2)) * along;
+    c = add(c, look.halo, halo * look.haloA);
+    // The bright core: a thin line with soft edges.
+    const core = (1 - smooth(LINE_HALF - 1, LINE_HALF + 1, Math.abs(dy))) * Math.pow(along, 0.7);
+    c = mix(c, look.core, core);
+  }
+  return c;
+}
 
 function render(look) {
   const px = Buffer.alloc(N * N * 4);
   for (let y = 0; y < N; y++) {
-    const sky = gradient(look.sky, Math.min(1, y / horizonPx));
     for (let x = 0; x < N; x++) {
-      let c = sky;
-      for (const [sx, sy, r] of STARS) {
-        const [X, Y] = toPx(sx, sy);
-        if (Math.abs(x - X) < 12 && Math.abs(y - Y) < 12) c = mix(c, look.star, discCoverage(x, y, X, Y, r * K) * look.starA);
+      let r = 0, g = 0, b = 0;
+      for (let j = 0; j < SS; j++) {
+        for (let i = 0; i < SS; i++) {
+          const c = sample(x + (i + 0.5) / SS, y + (j + 0.5) / SS, look);
+          r += c[0]; g += c[1]; b += c[2];
+        }
       }
-      if (Math.abs(x - sunX) <= sunR + 2 && Math.abs(y - sunY) <= sunR + 2) c = mix(c, look.sun, discCoverage(x, y, sunX, sunY, sunR));
-      const ground = y + 1 <= horizonPx ? 0 : y >= horizonPx ? 1 : y + 1 - horizonPx;
-      c = mix(c, look.ink, Math.min(1, skylineMask[y * N + x] + ground));
+      const n = SS * SS;
       const o = (y * N + x) * 4;
-      px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2]; px[o + 3] = 255;
+      // A whisper of grain keeps the large gradients from banding.
+      const grain = ((Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1) * 2 - 1;
+      px[o] = Math.max(0, Math.min(255, r / n + grain * look.grain));
+      px[o + 1] = Math.max(0, Math.min(255, g / n + grain * look.grain));
+      px[o + 2] = Math.max(0, Math.min(255, b / n + grain * look.grain));
+      px[o + 3] = 255;
     }
   }
   return px;
@@ -149,25 +99,45 @@ const chunk = (type, data) => {
   crc.writeUInt32BE(crc32(td));
   return Buffer.concat([len, td, crc]);
 };
-function png(px, alpha = false) {
-  const ch = alpha ? 4 : 3;
-  const raw = Buffer.alloc(N * (N * ch + 1));
-  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) for (let k = 0; k < ch; k++) raw[y * (N * ch + 1) + 1 + x * ch + k] = px[(y * N + x) * 4 + k];
+function png(px) {
+  const raw = Buffer.alloc(N * (N * 3 + 1));
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) for (let k = 0; k < 3; k++) raw[y * (N * 3 + 1) + 1 + x * 3 + k] = px[(y * N + x) * 4 + k];
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(N, 0);
   ihdr.writeUInt32BE(N, 4);
   ihdr[8] = 8;
-  ihdr[9] = alpha ? 6 : 2;
+  ihdr[9] = 2;
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
 const looks = {
-  // The Maghrib scene as drawn on Home (band palette, top to horizon).
-  'icon.png': { sky: maghrib.sky.map((c, i) => [c, i / (maghrib.sky.length - 1)]), sun: hex(maghrib.body.color), ink: hex(pal.INK), star: hex('#FFFFFF'), starA: 0.5 },
-  // Dark Home Screen: the same scene a little later, deeper sky and a dimmer sun.
-  'icon-dark.png': { sky: [['#1E1730', 0], ['#4A2F45', 0.45], ['#9A5A4E', 0.8], ['#B8744F', 1]], sun: hex('#E9B98A'), ink: hex('#0B0910'), star: hex('#FFFFFF'), starA: 0.6 },
-  // Tinted: iOS recolours by luminance. Grey sky brightening to the horizon, white sun, black skyline.
-  'icon-tinted.png': { sky: [['#101010', 0], ['#2A2A2A', 0.6], ['#5A5A5A', 1]], sun: hex('#FFFFFF'), ink: hex('#000000'), star: hex('#FFFFFF'), starA: 0.5 },
+  // Night lifting toward dawn: deep navy, a hint of violet near the horizon.
+  'icon.png': {
+    sky: [['#070A1E', 0], ['#101639', 0.5], ['#23265A', 0.85], ['#383068', 1]],
+    ground: [['#0B0A18', 0], ['#06060E', 1]],
+    glow: hex('#F4A274'), glowA: 0.78,
+    halo: hex('#FFD9A2'), haloA: 0.95,
+    core: hex('#FFF6E4'),
+    grain: 1.2,
+  },
+  // Dark Home Screen: the same moment, quieter.
+  'icon-dark.png': {
+    sky: [['#04050F', 0], ['#090C22', 0.5], ['#141638', 0.85], ['#1E1C40', 1]],
+    ground: [['#06060E', 0], ['#030308', 1]],
+    glow: hex('#E59A6C'), glowA: 0.66,
+    halo: hex('#F7CC92'), haloA: 0.85,
+    core: hex('#FBEBD2'),
+    grain: 1,
+  },
+  // Tinted: iOS recolours by luminance. Black ground, a white line, grey glow.
+  'icon-tinted.png': {
+    sky: [['#000000', 0], ['#050505', 0.85], ['#0B0B0B', 1]],
+    ground: [['#000000', 0], ['#000000', 1]],
+    glow: hex('#FFFFFF'), glowA: 0.45,
+    halo: hex('#FFFFFF'), haloA: 0.75,
+    core: hex('#FFFFFF'),
+    grain: 0,
+  },
 };
 for (const [name, look] of Object.entries(looks)) {
   writeFileSync(join(outDir, name), png(render(look)));
