@@ -26,15 +26,21 @@ const DEBUG_PERIODS: ScenePeriod[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghri
 const DEBUG_ARC: Record<ScenePeriod, number> = { fajr: 0.92, sunrise: 0.08, dhuhr: 0.5, asr: 0.78, maghrib: 1, isha: 0.18, night: 0.55 };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** "in 1:25" (hours:minutes, rounded up so the last minute reads 0:01, not 0:00). */
+/**
+ * The countdown as big numbers with small unit letters: "7h 32m", "32m", or "45s" in the last minute.
+ * Minutes round up, so 7h 31m 10s reads 7h 32m and the display never shows 0m before the athan.
+ */
 function countdownParts(now: Date, at: Date): { text: string; unit: boolean }[] {
   const ms = at.getTime() - now.getTime();
   if (ms <= 0) return [{ text: 'Now', unit: false }];
+  if (ms < 60000) return [{ text: String(Math.ceil(ms / 1000)), unit: false }, { text: 's', unit: true }];
   const mins = Math.ceil(ms / 60000);
-  return [
-    { text: 'in', unit: true },
-    { text: `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`, unit: false },
-  ];
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const parts: { text: string; unit: boolean }[] = [];
+  if (h > 0) parts.push({ text: String(h), unit: false }, { text: 'h', unit: true });
+  if (m > 0 || h === 0) parts.push({ text: String(m), unit: false }, { text: 'm', unit: true });
+  return parts;
 }
 
 // Home is one fixed screen; text grows with Dynamic Type up to this factor.
@@ -114,9 +120,11 @@ export default function AthanScreen() {
     if (!prayerData) return '';
     const h = Math.floor(minutesToNext / 60);
     const m = minutesToNext % 60;
-    return `${h > 0 ? `${h} hour${h === 1 ? '' : 's'} ` : ''}${m} minute${m === 1 ? '' : 's'} until ${prayerData.nextPrayer}`;
+    const when = formatClock(prayerData.nextPrayerTime, use24Hour, tz);
+    const tomorrow = !prayerData.listRows.some((r) => r.id === prayerData.nextPrayer.toLowerCase() && r.time > new Date());
+    return `${prayerData.nextPrayer} in ${h > 0 ? `${h} hour${h === 1 ? '' : 's'} ` : ''}${m} minute${m === 1 ? '' : 's'}, ${tomorrow ? 'tomorrow' : 'today'} at ${when}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [minutesToNext, prayerData?.nextPrayer]);
+  }, [minutesToNext, prayerData?.nextPrayer, use24Hour, tz]);
 
   // How far through the current prayer's window we are. Hidden when the window has no start in today's list.
   const progress = useMemo(() => {
@@ -148,7 +156,7 @@ export default function AthanScreen() {
   const unresolvedNow = !location.isManual && hasRestored;
   const hasNotice = !!movedTo || (unresolvedNow ? status === 'denied' || status === 'error' || status === 'idle' : !!travelMismatch);
   const noticeH = hasNotice ? t.spacing.md + 18 * fs * 2 + 4 + 44 : 0;
-  const heroText = 26 * fs + 68 * Math.min(fs, 1.3);
+  const heroText = 26 * fs + 68 * Math.min(fs, 1.3) + 20 * fs;
   const rowFull = Math.max(44, 24 * fs + 16);
   const rowTight = Math.max(36, 24 * fs + 8);
   const fits = (row: number, rule: boolean, zoneMin: number) =>
@@ -176,6 +184,7 @@ export default function AthanScreen() {
   const nextIdx = listRows.findIndex((r) => r.id === nextPrayer.toLowerCase() && r.time > now);
   const nextClock = formatClock(nextPrayerTime, use24Hour, tz);
   const nextIsTomorrow = nextIdx === -1;
+  const isNow = nextPrayerTime.getTime() <= now.getTime();
 
   // Unresolved states never pass Mecca off as the user's city.
   const unresolved = !!location && !location.isManual && hasRestored;
@@ -281,24 +290,28 @@ export default function AthanScreen() {
 
         {/* Hero: which prayer is next and how long until it. */}
         <View style={{ paddingHorizontal: gutter }}>
-          <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="title3" style={ink}>
-            {nextPrayer} at {nextClock}
-            {nextIsTomorrow ? <Text variant="title3" style={ink2}> tomorrow</Text> : null}
-          </Text>
-          {/* Reads as a sentence: a small "in" and the big time left ("in 1:25"). Separate texts on a shared
-              baseline: nesting two sizes in one Text makes iOS size the line for the small one and clip the numbers. */}
-          <View style={styles.countdown} accessible accessibilityRole="timer" accessibilityLabel={countdownLabel}>
-            {countdownParts(now, nextPrayerTime).map((p, i) =>
-              p.unit ? (
-                <Text key={i} variant="title3" maxFontSizeMultiplier={HOME_MAX_SCALE} style={[ink2, styles.unit, i === 0 && { marginLeft: 0 }]}>
-                  {p.text}
-                </Text>
-              ) : (
-                <Text key={i} variant="hero" numberOfLines={1} style={ink}>
-                  {p.text}
-                </Text>
-              ),
-            )}
+          {/* Reads top to bottom: "Fajr in", the time left, then when it is. The countdown is separate
+              texts on a shared baseline: nesting two sizes in one Text clips the large digits on iOS. */}
+          <View accessible accessibilityRole="timer" accessibilityLabel={countdownLabel}>
+            <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="title3" style={ink}>
+              {isNow ? nextPrayer : `${nextPrayer} in`}
+            </Text>
+            <View style={styles.countdown}>
+              {countdownParts(now, nextPrayerTime).map((p, i) =>
+                p.unit ? (
+                  <Text key={i} variant="title2" maxFontSizeMultiplier={HOME_MAX_SCALE} style={[ink2, styles.unit]}>
+                    {p.text}
+                  </Text>
+                ) : (
+                  <Text key={i} variant="hero" numberOfLines={1} style={ink}>
+                    {p.text}
+                  </Text>
+                ),
+              )}
+            </View>
+            <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="subhead" style={ink2}>
+              {nextIsTomorrow ? 'Tomorrow' : 'Today'} at {nextClock}
+            </Text>
           </View>
           {progress != null && !dropProgress && (
             <View accessibilityElementsHidden importantForAccessibility="no" style={[styles.rule, { backgroundColor: tone.track, marginTop: t.spacing.sm }]}>
@@ -373,7 +386,7 @@ const styles = StyleSheet.create({
   pillText: { flexShrink: 1 },
   dates: { alignItems: 'flex-end', flexShrink: 0, maxWidth: '50%' },
   countdown: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'nowrap' },
-  unit: { marginHorizontal: 6 },
+  unit: { marginLeft: 2, marginRight: 10 },
   rule: { height: 2, borderRadius: 1, overflow: 'hidden' },
   ruleFill: { height: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
