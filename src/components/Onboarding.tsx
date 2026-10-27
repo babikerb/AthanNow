@@ -34,12 +34,12 @@ const PRAYERS: { key: PrayerKey; label: string }[] = [
 
 // One fixed screen: text grows with Dynamic Type up to this factor so every step still fits.
 const MAX_SCALE = 1.2;
-// The tallest step's content (title, body, the prayer grid) at 1x, used to size the open sky above it.
-const CONTENT_H = 270;
+// The tallest step's content (title, body, a card) at 1x, used to size the open sky above it.
+const CONTENT_H = 250;
 
 /**
  * First-run setup, three steps over the full-screen sky (the same scene as Home): welcome, where you
- * are, which athans to hear. One fixed screen per step, never scrolling: the open sky at the top
+ * are, and prayer notifications on or off. One fixed screen per step, never scrolling: the open sky at the top
  * shrinks to make room. Buttons sit on the ink ground under the skyline.
  */
 export function Onboarding() {
@@ -105,7 +105,6 @@ export function Onboarding() {
   const zoneH = Math.min(160, Math.max(48, contentBottom - topBar - CONTENT_H * fs));
   const zone = { top: topBar, bottom: topBar + zoneH };
   const cardBg = darkTone ? 'rgba(255,255,255,0.42)' : 'rgba(14,11,22,0.36)';
-  const divider = darkTone ? 'rgba(23,18,31,0.12)' : 'rgba(242,237,246,0.14)';
 
   // ---- Step content ----
   const located = hasRestored && status === 'ready' && (location.isManual || permission === 'granted');
@@ -159,28 +158,18 @@ export function Onboarding() {
   } else {
     title = 'Hear the athan';
     body = 'Get a notification at each prayer you choose.';
-    // Two columns, so all six fit without scrolling.
+    // One switch: notifications are on for every prayer, or off.
+    const allOn = Object.values(settings.notifications.athanEnabled).some(Boolean);
     content = (
-      <View style={[styles.grid, { backgroundColor: cardBg }]}>
-        {PRAYERS.map((p, i) => (
-          <View
-            key={p.key}
-            style={[
-              styles.gridCell,
-              i % 2 === 0 && { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: divider },
-              i >= 2 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: divider },
-            ]}
-          >
-            <Text variant="body" maxFontSizeMultiplier={MAX_SCALE} numberOfLines={1} style={[styles.flexShrink, { color: tone.text }]}>
-              {p.label}
-            </Text>
-            <Toggle
-              label={p.label}
-              value={settings.notifications.athanEnabled[p.key]}
-              onValueChange={(v) => settings.updateNotifications({ athanEnabled: { ...settings.notifications.athanEnabled, [p.key]: v } })}
-            />
-          </View>
-        ))}
+      <View style={[styles.card, { backgroundColor: cardBg }]}>
+        <Text variant="body" maxFontSizeMultiplier={MAX_SCALE} style={[styles.cardText, { color: tone.text }]}>
+          Prayer notifications
+        </Text>
+        <Toggle
+          label="Prayer notifications"
+          value={allOn}
+          onValueChange={(v) => settings.updateNotifications({ athanEnabled: Object.fromEntries(PRAYERS.map((p) => [p.key, v])) as Record<PrayerKey, boolean> })}
+        />
       </View>
     );
     primary = notifGranted
@@ -268,6 +257,4 @@ const styles = StyleSheet.create({
   secondary: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderCurve: 'continuous', padding: 16 },
   cardText: { flex: 1 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 16, borderCurve: 'continuous', overflow: 'hidden' },
-  gridCell: { width: '50%', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingHorizontal: 14 },
 });

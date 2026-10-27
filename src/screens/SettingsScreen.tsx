@@ -177,7 +177,6 @@ export default function SettingsScreen() {
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
   const [methodSheetOpen, setMethodSheetOpen] = useState(false);
   const [reminderSheetOpen, setReminderSheetOpen] = useState(false);
-  const [athanSheetOpen, setAthanSheetOpen] = useState(false);
   const [asrSheetOpen, setAsrSheetOpen] = useState(false);
   const [appearanceSheetOpen, setAppearanceSheetOpen] = useState(false);
   const [soundSheetOpen, setSoundSheetOpen] = useState(false);
@@ -198,7 +197,10 @@ export default function SettingsScreen() {
 
   const methodLabel = CALC_METHODS.find((m) => m.key === settings.calcMethod)?.label ?? settings.calcMethod;
   const enabledCount = Object.values(settings.notifications.athanEnabled).filter(Boolean).length;
-  const athanValue = enabledCount === PRAYER_LABELS.length ? 'All' : enabledCount === 0 ? 'Off' : `${enabledCount} of ${PRAYER_LABELS.length}`;
+  // One switch for every prayer: notifications are all on or all off.
+  const allOn = enabledCount > 0;
+  const setAll = (on: boolean) =>
+    settings.updateNotifications({ athanEnabled: Object.fromEntries(PRAYER_LABELS.map((p) => [p.key, on])) as Record<PrayerKey, boolean> });
 
   // "Recommended for your region" + "All methods": same country -> method lookup and "why" copy as onboarding.
   const recommendedCountry = location?.countryCode ?? localeCountryCode();
@@ -250,7 +252,10 @@ export default function SettingsScreen() {
         <SectionHeader title="Notifications" />
         <ListGroup>
           <NotificationStatus />
-          <ListRow title="Athan" value={athanValue} onPress={() => setAthanSheetOpen(true)} />
+          <ListRow
+            title="Prayer notifications"
+            accessory={<Toggle label="Prayer notifications" value={allOn} onValueChange={setAll} />}
+          />
           <ListRow title="Reminder" value={minutesLabel(settings.notifications.reminderMinutesBefore)} onPress={() => setReminderSheetOpen(true)} />
           <ListRow
             title="Athan sound"
@@ -328,25 +333,6 @@ export default function SettingsScreen() {
 
       <AthanSoundSheet visible={soundSheetOpen} onClose={() => setSoundSheetOpen(false)} />
 
-      <Sheet visible={athanSheetOpen} onClose={() => setAthanSheetOpen(false)} title="Athan">
-        <ScrollView contentContainerStyle={{ paddingHorizontal: dt.spacing.lg, paddingTop: dt.spacing.md, paddingBottom: dt.spacing.xxl }}>
-          <ListGroup>
-            {PRAYER_LABELS.map((p) => (
-              <ListRow
-                key={p.key}
-                title={p.label}
-                accessory={
-                  <Toggle
-                    label={p.label}
-                    value={settings.notifications.athanEnabled[p.key]}
-                    onValueChange={(v) => settings.updateNotifications({ athanEnabled: { ...settings.notifications.athanEnabled, [p.key]: v } })}
-                  />
-                }
-              />
-            ))}
-          </ListGroup>
-        </ScrollView>
-      </Sheet>
     </>
   );
 }
