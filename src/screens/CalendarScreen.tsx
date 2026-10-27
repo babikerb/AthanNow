@@ -201,7 +201,7 @@ export default function CalendarScreen() {
           ).join(', ')}`;
           return (
             <View
-              key={r.date.getDate()}
+              key={r.date.toDateString()}
               accessible
               accessibilityLabel={r.isToday ? `Today, ${label}` : label}
               onLayout={r.isToday ? (e) => onTodayLayout(e.nativeEvent.layout.y) : undefined}
@@ -247,7 +247,7 @@ export default function CalendarScreen() {
               This month
             </Text>
             {occasions.map((r) => (
-              <View key={r.date.getDate()} style={styles.occasionRow}>
+              <View key={r.date.toDateString()} style={styles.occasionRow}>
                 <View style={[styles.occasionDot, { backgroundColor: c.accent }]} />
                 <Text variant="subhead" style={styles.flexShrink}>
                   {r.occasion}
