@@ -24,13 +24,17 @@ const COLUMNS: { id: string; label: string }[] = [
   { id: 'isha', label: 'Isha' },
 ];
 const ROW_H = 46;
-const DATE_COL = 78;
+const DATE_COL = 70;
 
-const hijriFmt = new Intl.DateTimeFormat('en-TN-u-ca-islamic-umalqura', { day: 'numeric', month: 'long', year: 'numeric' });
+// Hijri date as numbers (the form Hermes reliably splits into parts on iOS; spelled-out months come
+// back unsplit), with month names from this table.
+const HIJRI_MONTHS = ['Muharram', 'Safar', 'Rabi I', 'Rabi II', 'Jumada I', 'Jumada II', 'Rajab', 'Shaban', 'Ramadan', 'Shawwal', 'Dhul Qadah', 'Dhul Hijjah'];
+const hijriFmt = new Intl.DateTimeFormat('en-TN-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' });
 function hijriParts(d: Date) {
   const parts = hijriFmt.formatToParts(d);
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  return { day: Number(get('day')), month: get('month'), year: get('year') };
+  const num = (type: string) => Number(parts.find((p) => p.type === type)?.value.replace(/\D/g, ''));
+  const month = num('month');
+  return { day: num('day') || 0, month: HIJRI_MONTHS[month - 1] ?? '', year: String(num('year') || '') };
 }
 
 interface DayRow {
@@ -151,11 +155,11 @@ export default function CalendarScreen() {
 
       {/* Column header, fixed above the scrolling days. */}
       <View style={[styles.row, styles.headerRow, { paddingHorizontal: gutter, borderBottomColor: c.hairline }]} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-        <Text variant="caption2" color="textSecondary" style={styles.dateCol}>
+        <Text variant="caption2" color="textSecondary" maxFontSizeMultiplier={1} style={styles.dateCol}>
           Date
         </Text>
         {COLUMNS.map((col) => (
-          <Text key={col.id} variant="caption2" color="textSecondary" numberOfLines={1} adjustsFontSizeToFit style={styles.timeCol}>
+          <Text key={col.id} variant="caption2" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1} style={styles.timeCol}>
             {col.label}
           </Text>
         ))}
@@ -202,7 +206,7 @@ export default function CalendarScreen() {
                     variant={next ? 'bodyEmph' : 'footnote'}
                     color={next ? 'accentText' : col.id === 'sunrise' ? 'textSecondary' : 'text'}
                     numberOfLines={1}
-                    adjustsFontSizeToFit
+                    maxFontSizeMultiplier={1.2}
                     style={[styles.timeCol, styles.tabular, next && styles.nextTime]}
                   >
                     {time ? formatClockShort(time, use24Hour, tz) : '--'}
