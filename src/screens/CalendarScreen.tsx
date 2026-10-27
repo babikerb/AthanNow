@@ -24,8 +24,8 @@ const COLUMNS: { id: string; label: string }[] = [
   { id: 'maghrib', label: 'Maghrib' },
   { id: 'isha', label: 'Isha' },
 ];
-const ROW_H = 52;
-const DATE_COL = 76;
+const ROW_H = 62;
+const DATE_COL = 62;
 
 // Hijri date as numbers (the form Hermes reliably splits into parts on iOS; spelled-out months come
 // back unsplit), with month names from this table.
@@ -211,7 +211,7 @@ export default function CalendarScreen() {
               onLayout={r.isToday ? (e) => onTodayLayout(e.nativeEvent.layout.y) : undefined}
               style={[styles.row, { minHeight: ROW_H, paddingHorizontal: gutter, borderBottomColor: c.hairline }, r.isToday && { backgroundColor: c.surface2 }]}
             >
-              {/* Weekday on top; the date in bold with the Hijri date (always with its month) beside it. */}
+              {/* Three lines: weekday, the date in bold, then the Hijri month and day. */}
               <View style={styles.dateCol}>
                 <View style={styles.dateLine}>
                   <Text variant="caption2" color={r.isToday ? 'accentText' : 'textSecondary'} maxFontSizeMultiplier={1.2}>
@@ -219,14 +219,12 @@ export default function CalendarScreen() {
                   </Text>
                   {r.occasion && <View style={[styles.occasionDot, { backgroundColor: c.accent }]} />}
                 </View>
-                <View style={styles.dateLine}>
-                  <Text variant="headline" color={r.isToday ? 'accentText' : 'text'} maxFontSizeMultiplier={1.2} style={styles.tabular}>
-                    {r.date.getDate()}
-                  </Text>
-                  <Text variant="caption2" color="textTertiary" numberOfLines={1} maxFontSizeMultiplier={1.2} style={styles.flexShrink}>
-                    {r.hijriDay} {r.hijriShort}
-                  </Text>
-                </View>
+                <Text variant="headline" color={r.isToday ? 'accentText' : 'text'} maxFontSizeMultiplier={1.2} style={styles.tabular}>
+                  {r.date.getDate()}
+                </Text>
+                <Text variant="caption2" color="textTertiary" numberOfLines={1} maxFontSizeMultiplier={1.2}>
+                  {r.hijriShort} {r.hijriDay}
+                </Text>
               </View>
               {COLUMNS.map((col) => {
                 const time = r.times[col.id];
