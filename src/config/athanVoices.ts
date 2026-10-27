@@ -13,7 +13,7 @@ export interface AthanVoice {
 }
 
 export const ATHAN_VOICES: AthanVoice[] = [
-  { id: 'classic', name: 'Classic', file: 'adhan.wav', source: require('../../assets/sounds/adhan.wav') },
+  { id: 'classic', name: 'Default', file: 'adhan.wav', source: require('../../assets/sounds/adhan.wav') },
 ];
 
 export const DEFAULT_ATHAN_VOICE = ATHAN_VOICES[0].id;
