@@ -24,18 +24,20 @@ const COLUMNS: { id: string; label: string }[] = [
   { id: 'maghrib', label: 'Maghrib' },
   { id: 'isha', label: 'Isha' },
 ];
-const ROW_H = 46;
-const DATE_COL = 64;
+const ROW_H = 52;
+const DATE_COL = 76;
 
 // Hijri date as numbers (the form Hermes reliably splits into parts on iOS; spelled-out months come
 // back unsplit), with month names from this table.
 const HIJRI_MONTHS = ['Muharram', 'Safar', 'Rabi I', 'Rabi II', 'Jumada I', 'Jumada II', 'Rajab', 'Shaban', 'Ramadan', 'Shawwal', 'Dhul Qadah', 'Dhul Hijjah'];
+// Short forms for the date column, so every row's Hijri date carries its month.
+const HIJRI_SHORT = ['Muh', 'Saf', 'Rab I', 'Rab II', 'Jum I', 'Jum II', 'Raj', 'Sha', 'Ram', 'Shaw', 'Dhul Q', 'Dhul H'];
 const hijriFmt = new Intl.DateTimeFormat('en-TN-u-ca-islamic-umalqura', { day: 'numeric', month: 'numeric', year: 'numeric' });
 function hijriParts(d: Date) {
   const parts = hijriFmt.formatToParts(d);
   const num = (type: string) => Number(parts.find((p) => p.type === type)?.value.replace(/\D/g, ''));
   const month = num('month');
-  return { day: num('day') || 0, month: HIJRI_MONTHS[month - 1] ?? '', year: String(num('year') || '') };
+  return { day: num('day') || 0, month: HIJRI_MONTHS[month - 1] ?? '', short: HIJRI_SHORT[month - 1] ?? '', year: String(num('year') || '') };
 }
 
 interface DayRow {
@@ -44,6 +46,7 @@ interface DayRow {
   weekday: string;
   hijriDay: number;
   hijriMonth: string;
+  hijriShort: string;
   occasion: string | null;
   times: Record<string, Date | undefined>;
   nextId?: string;
@@ -93,6 +96,7 @@ export default function CalendarScreen() {
         weekday: date.toLocaleDateString('en-US', { weekday: 'short' }),
         hijriDay: h.day,
         hijriMonth: h.month,
+        hijriShort: h.short,
         occasion: importantDateFor(date),
         times,
         nextId: next,
@@ -207,19 +211,22 @@ export default function CalendarScreen() {
               onLayout={r.isToday ? (e) => onTodayLayout(e.nativeEvent.layout.y) : undefined}
               style={[styles.row, { minHeight: ROW_H, paddingHorizontal: gutter, borderBottomColor: c.hairline }, r.isToday && { backgroundColor: c.surface2 }]}
             >
+              {/* Weekday on top; the date in bold with the Hijri date (always with its month) beside it. */}
               <View style={styles.dateCol}>
                 <View style={styles.dateLine}>
-                  <Text variant={r.isToday ? 'bodyEmph' : 'body'} color={r.isToday ? 'accentText' : 'text'} style={styles.tabular}>
-                    {r.date.getDate()}
-                  </Text>
-                  <Text variant="footnote" color={r.isToday ? 'accentText' : 'textSecondary'}>
+                  <Text variant="caption2" color={r.isToday ? 'accentText' : 'textSecondary'} maxFontSizeMultiplier={1.2}>
                     {r.weekday}
                   </Text>
                   {r.occasion && <View style={[styles.occasionDot, { backgroundColor: c.accent }]} />}
                 </View>
-                <Text variant="caption2" color="textTertiary" numberOfLines={1}>
-                  {r.hijriDay === 1 || r.date.getDate() === 1 ? `${r.hijriDay} ${r.hijriMonth}` : r.hijriDay}
-                </Text>
+                <View style={styles.dateLine}>
+                  <Text variant="headline" color={r.isToday ? 'accentText' : 'text'} maxFontSizeMultiplier={1.2} style={styles.tabular}>
+                    {r.date.getDate()}
+                  </Text>
+                  <Text variant="caption2" color="textTertiary" numberOfLines={1} maxFontSizeMultiplier={1.2} style={styles.flexShrink}>
+                    {r.hijriDay} {r.hijriShort}
+                  </Text>
+                </View>
               </View>
               {COLUMNS.map((col) => {
                 const time = r.times[col.id];
@@ -274,7 +281,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
   headerRow: { paddingVertical: 8 },
   dateCol: { width: DATE_COL },
-  dateLine: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  dateLine: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
   timeCol: { flex: 1, textAlign: 'center' },
   tabular: { fontVariant: ['tabular-nums'] },
   nextTime: { fontSize: 13 },
