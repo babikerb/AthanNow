@@ -23,7 +23,7 @@ interface Props {
  * - twinkling stars, and a shooting star now and then at Isha and night;
  * - clouds drifting slowly at sunrise and by day;
  * - morning mist lying in the valley at sunrise;
- * - the mosque's windows lighting up at Maghrib, lit through the night, dimming at Fajr;
+ * - the mosque's windows lighting up at Maghrib and staying lit through Isha, the night and Fajr;
  * - a red and white plane that flies by at Dhuhr and Asr.
  * Every animation runs on the native driver. With Reduce Motion they hold still (lights and mist
  * still show), and nothing moves while Home is off screen.
@@ -319,7 +319,7 @@ const WINDOWS: { x: number; y: number; w: number; h: number }[] = [
   { x: 372, y: 305, w: 6, h: 9 },
 ];
 // How lit the windows are in each period.
-const LIT: Record<ScenePeriod, number> = { fajr: 0.55, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 1, isha: 1, night: 0.8 };
+const LIT: Record<ScenePeriod, number> = { fajr: 1, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 1, isha: 1, night: 0.8 };
 
 /** Warm light in the mosque's windows. At Maghrib it comes on gradually over a few seconds. */
 function Windows({ period, s, shift, width, height, still }: { period: ScenePeriod; s: number; shift: number; width: number; height: number; still: boolean }) {
