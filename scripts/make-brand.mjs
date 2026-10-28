@@ -20,7 +20,7 @@ const HORIZON = 612; // the line of light
 const LINE_HALF = 5.5; // half-thickness of the bright core
 const SPAN = 440; // half-length of the line before it has fully faded
 const GLOW_UP = 210; // how far the glow reaches above the horizon
-const GLOW_DOWN = 34; // and below (a faint bleed onto the ground)
+const GLOW_DOWN = 120; // and below, so the light carries onto the ground instead of stopping dead
 
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
@@ -50,7 +50,7 @@ function sample(x, y, look) {
     const halo = Math.exp(-Math.pow(dy / 22, 2)) * along;
     c = add(c, look.halo, halo * look.haloA);
     // The bright core: a thin line with soft edges.
-    const core = (1 - smooth(LINE_HALF - 1, LINE_HALF + 1, Math.abs(dy))) * Math.pow(along, 0.7);
+    const core = (1 - smooth(LINE_HALF - 1.5, LINE_HALF + 3, Math.abs(dy))) * Math.pow(along, 0.8) * 0.9;
     c = mix(c, look.core, core);
   }
   return c;
@@ -114,16 +114,16 @@ const looks = {
   // Night lifting toward dawn: deep navy, a hint of violet near the horizon.
   'icon.png': {
     sky: [['#070A1E', 0], ['#101639', 0.5], ['#23265A', 0.85], ['#383068', 1]],
-    ground: [['#0B0A18', 0], ['#06060E', 1]],
+    ground: [['#2E2858', 0], ['#17142F', 0.4], ['#08070F', 1]],
     glow: hex('#F4A274'), glowA: 0.78,
     halo: hex('#FFD9A2'), haloA: 0.95,
-    core: hex('#FFF6E4'),
+    core: hex('#FFF1DC'),
     grain: 1.2,
   },
   // Dark Home Screen: the same moment, quieter.
   'icon-dark.png': {
     sky: [['#04050F', 0], ['#090C22', 0.5], ['#141638', 0.85], ['#1E1C40', 1]],
-    ground: [['#06060E', 0], ['#030308', 1]],
+    ground: [['#1C1A3C', 0], ['#0D0C1F', 0.4], ['#030308', 1]],
     glow: hex('#E59A6C'), glowA: 0.66,
     halo: hex('#F7CC92'), haloA: 0.85,
     core: hex('#FBEBD2'),
@@ -132,7 +132,7 @@ const looks = {
   // Tinted: iOS recolours by luminance. Black ground, a white line, grey glow.
   'icon-tinted.png': {
     sky: [['#000000', 0], ['#050505', 0.85], ['#0B0B0B', 1]],
-    ground: [['#000000', 0], ['#000000', 1]],
+    ground: [['#0B0B0B', 0], ['#030303', 0.4], ['#000000', 1]],
     glow: hex('#FFFFFF'), glowA: 0.45,
     halo: hex('#FFFFFF'), haloA: 0.75,
     core: hex('#FFFFFF'),
