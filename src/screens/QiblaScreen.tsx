@@ -259,13 +259,16 @@ export default function QiblaScreen() {
   const longitude = location?.longitude ?? null;
   // The compass only runs while this tab is on screen.
   const focused = useIsFocused();
-  const qibla = useQibla(latitude, longitude, focused);
+  // A chosen city is honoured as is; otherwise the compass takes a fresh fix each time it opens.
+  const qibla = useQibla(latitude, longitude, focused, !location?.isManual);
   // Unresolved location (denied, failed, or never resolved) must not present Mecca's bearing as the user's.
   const error = status === 'denied' || status === 'error' || (status === 'idle' && hasRestored && !location?.isManual);
   const compassUnavailable = qibla.compassAvailable === false;
   // Accuracy levels from expo-location: 3 within 20 degrees, 2 within 35, 1 within 50, 0 worse.
   // Below 2 the dial can't be trusted, so ask for calibration; at 2, show it but say so.
-  const calibrating = qibla.headingAccuracy >= 0 && qibla.headingAccuracy <= 1;
+  // Also while the readings settle after the compass starts (each time the tab opens).
+  const calibrating = !compassUnavailable && (!qibla.settled || (qibla.headingAccuracy >= 0 && qibla.headingAccuracy <= 1));
+  const settling = !compassUnavailable && !qibla.settled && qibla.headingAccuracy !== 0 && qibla.headingAccuracy !== 1;
   const lowAccuracy = qibla.headingAccuracy === 2;
 
   // Only count a lock when the compass is real, calibrated, and this tab is on screen (no buzzing from another tab,
@@ -327,6 +330,8 @@ export default function QiblaScreen() {
                   This device has no compass. Hold it with the top pointing north; the Qibla is{' '}
                   {qibla.toleranceDeg >= 30 ? 'in every direction from here' : `${toCardinal(qibla.qiblaBearing)}, ${Math.round(qibla.qiblaBearing)}° from north`}.
                 </Text>
+              ) : settling ? (
+                <Text style={styles.infoText}>Finding your direction. Hold your phone flat, away from magnets and metal.</Text>
               ) : calibrating ? (
                 <Text style={styles.infoText}>Move your phone in a figure 8 a few times to calibrate the compass. Keep away from magnets and metal.</Text>
               ) : lowAccuracy ? (

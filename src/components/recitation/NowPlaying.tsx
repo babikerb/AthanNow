@@ -9,13 +9,17 @@ import { getSurah } from '../../data/surahs';
 import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
-import { arabicNumber, clock, QURAN_FONT, rateLabel } from '../../recitation/format';
-import { hasBismillah, splitAyahWords, type Ayah } from '../../recitation/quranAudio';
+import { clock, QURAN_FONT, rateLabel } from '../../recitation/format';
+import { BISMILLAH_TEXT, hasBismillah, splitAyahWords, type Ayah } from '../../recitation/quranAudio';
 import { PLAYBACK_RATES, useRecitation, useRecitationProgress } from '../../recitation/RecitationProvider';
+import { AyahEnd } from './AyahEnd';
 import { ReciterSheet } from './ReciterSheet';
 import { Scrubber } from './Scrubber';
+import { TapTarget } from './TapTarget';
 
-const ARABIC = { fontFamily: QURAN_FONT, fontSize: 27, lineHeight: 56, textAlign: 'right' as const, writingDirection: 'rtl' as const };
+// Amiri Quran's marks reach far above and below the line, so the leading is about twice the size.
+const ARABIC_SIZE = 32;
+const ARABIC = { fontFamily: QURAN_FONT, fontSize: ARABIC_SIZE, lineHeight: 68, textAlign: 'right' as const, writingDirection: 'rtl' as const };
 // After the reader scrolls by hand, the list stops following the recitation for this long.
 const FOLLOW_PAUSE_MS = 5000;
 
@@ -104,7 +108,7 @@ function AyahList() {
     );
   }
 
-  const bismillah = r.surahId && hasBismillah(r.surahId) ? splitAyahWords(r.ayahs[0].arabic).slice(0, r.bismillahWords).join(' ') : null;
+  const surah = r.surahId ? getSurah(r.surahId) : undefined;
 
   return (
     <View style={{ flex: 1 }}>
@@ -128,18 +132,7 @@ function AyahList() {
           setTimeout(() => list.current?.scrollToIndex({ index: info.index, viewPosition: 0.2, animated: false }), 120);
         }}
         onLayout={() => follow(false)}
-        ListHeaderComponent={
-          bismillah ? (
-            <View style={{ alignItems: 'center', paddingBottom: t.spacing.lg }}>
-              <Text
-                accessibilityLanguage="ar"
-                style={{ ...ARABIC, textAlign: 'center', fontSize: 24, color: r.inBismillah ? t.c.accent : t.c.textSecondary }}
-              >
-                {bismillah}
-              </Text>
-            </View>
-          ) : null
-        }
+        ListHeaderComponent={surah ? <SurahHeading surah={surah} lit={r.inBismillah} /> : null}
         renderItem={({ item, index }) => (
           <AyahItem
             ayah={item}
@@ -209,35 +202,22 @@ const AyahItem = memo(function AyahItem({
         borderCurve: 'continuous',
         backgroundColor: current ? t.c.surface1 : 'transparent',
         paddingHorizontal: t.spacing.lg,
-        paddingVertical: t.spacing.lg,
+        paddingVertical: t.spacing.xl,
       }}
     >
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: t.spacing.xs }}>
-        <View
-          style={{
-            minWidth: 30,
-            height: 30,
-            paddingHorizontal: 6,
-            borderRadius: 15,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: current ? t.c.accentSoft : t.c.surface2,
-          }}
-        >
-          <Text variant="caption" color={current ? 'accentText' : 'textSecondary'} style={{ fontWeight: '600' }}>
-            {ayah.numberInSurah}
-          </Text>
-        </View>
-      </View>
       {lit ? (
-        <LitArabic words={words} />
+        <LitArabic words={words} n={ayah.numberInSurah} />
       ) : (
         <Text accessibilityLanguage="ar" style={{ ...ARABIC, color: current ? t.c.text : t.c.textSecondary }}>
-          {words.join(' ')} <Text style={{ color: t.c.glyphQuiet }}>{'۝' + arabicNumber(ayah.numberInSurah)}</Text>
+          {words.join(' ')}
+          <AyahEnd n={ayah.numberInSurah} size={ARABIC_SIZE} color={current ? t.c.accent : t.c.glyphQuiet} />
         </Text>
       )}
       {showTranslation && ayah.translation ? (
-        <Text variant="subhead" color={current ? 'text' : 'textSecondary'} style={{ marginTop: t.spacing.sm, lineHeight: 22, fontWeight: '400' }}>
+        <Text variant="body" color={current ? 'text' : 'textSecondary'} style={{ marginTop: t.spacing.md }}>
+          <Text variant="body" color="textTertiary" style={{ fontWeight: '600' }}>
+            {ayah.numberInSurah}.{' '}
+          </Text>
           {ayah.translation}
         </Text>
       ) : null}
@@ -246,7 +226,7 @@ const AyahItem = memo(function AyahItem({
 });
 
 /** The ayah being recited, with the word being spoken in gold. Only this item re-renders as time passes. */
-function LitArabic({ words }: { words: string[] }) {
+function LitArabic({ words, n }: { words: string[]; n: number }) {
   const t = useTheme();
   const { activeWords } = useRecitationProgress();
   return (
@@ -260,6 +240,7 @@ function LitArabic({ words }: { words: string[] }) {
           </Text>
         );
       })}
+      <AyahEnd n={n} size={ARABIC_SIZE} color={t.c.accent} />
     </Text>
   );
 }
@@ -296,32 +277,34 @@ function Controls({ bottom, onReciters }: { bottom: number; onReciters: () => vo
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.md }}>
         <IconButton name={repeatIcon} label={repeatLabel} active={r.repeat !== 'off'} onPress={r.cycleRepeat} />
         <IconButton name="backward.fill" label="Previous ayah" size={26} onPress={r.previous} disabled={r.ayahIndex === 0 && !r.inBismillah} />
-        <PressableScale
+        <TapTarget
+          size={72}
           haptic="light"
           onPress={r.togglePlay}
           accessibilityRole="button"
           accessibilityLabel={r.isPlaying ? 'Pause' : 'Play'}
-          style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: t.c.accent, alignItems: 'center', justifyContent: 'center' }}
+          style={{ borderRadius: 36, backgroundColor: t.c.accent }}
         >
           {r.isPlaying && p.buffering ? (
             <ActivityIndicator color={t.c.onAccent} />
           ) : (
-            <SymbolView name={r.isPlaying ? 'pause.fill' : 'play.fill'} size={28} tintColor={t.c.onAccent} style={{ marginLeft: r.isPlaying ? 0 : 3 }} />
+            // The play triangle's visual centre sits left of its box; nudge it so it reads centred.
+            <SymbolView name={r.isPlaying ? 'pause.fill' : 'play.fill'} size={30} tintColor={t.c.onAccent} style={{ width: 30, height: 30, marginLeft: r.isPlaying ? 0 : 4 }} />
           )}
-        </PressableScale>
+        </TapTarget>
         <IconButton name="forward.fill" label="Next ayah" size={26} onPress={r.next} disabled={r.ayahIndex >= total - 1 && !r.inBismillah} />
-        <PressableScale
+        <TapTarget
+          size={48}
           haptic="select"
           onPress={() => r.setRate(nextRate)}
           accessibilityRole="button"
           accessibilityLabel={`Speed ${rateLabel(r.rate)}`}
           accessibilityHint={`Changes to ${rateLabel(nextRate)}`}
-          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Text variant="subhead" color={r.rate !== 1 ? 'accentText' : 'textSecondary'} style={{ fontWeight: '600' }}>
+          <Text variant="subhead" color={r.rate !== 1 ? 'accentText' : 'textSecondary'} style={{ fontWeight: '600' }} maxFontSizeMultiplier={1.2}>
             {rateLabel(r.rate)}
           </Text>
-        </PressableScale>
+        </TapTarget>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.md, gap: t.spacing.md }}>
@@ -361,16 +344,58 @@ function Controls({ bottom, onReciters }: { bottom: number; onReciters: () => vo
 function IconButton({ name, label, onPress, active, disabled, size = 20 }: { name: SFSymbol; label: string; onPress: () => void; active?: boolean; disabled?: boolean; size?: number }) {
   const t = useTheme();
   return (
-    <PressableScale
+    <TapTarget
+      size={48}
       haptic="select"
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled, selected: active }}
-      style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.35 : 1 }}
+      style={{ opacity: disabled ? 0.35 : 1 }}
     >
-      <SymbolView name={name} size={size} tintColor={active ? t.c.accent : t.c.text} />
-    </PressableScale>
+      <SymbolView name={name} size={size} tintColor={active ? t.c.accent : t.c.text} style={{ width: size + 4, height: size + 4 }} />
+    </TapTarget>
+  );
+}
+
+/** Above the first ayah: the surah's name, where it was revealed, and the Bismillah (lit while it plays). */
+function SurahHeading({ surah, lit }: { surah: NonNullable<ReturnType<typeof getSurah>>; lit: boolean }) {
+  const t = useTheme();
+  const rule = <View style={{ flex: 1, height: 1, backgroundColor: t.c.hairline }} />;
+  return (
+    <View style={{ alignItems: 'center', paddingTop: t.spacing.sm, paddingBottom: t.spacing.xl }}>
+      <Text accessibilityLanguage="ar" style={{ fontFamily: QURAN_FONT, fontSize: 40, lineHeight: 76, color: t.c.text }}>
+        {'\u0633\u0648\u0631\u0629 ' + surah.arabicName}
+      </Text>
+      <Text variant="footnote" color="textSecondary">
+        {surah.type === 'meccan' ? 'Meccan' : 'Medinan'}, {surah.totalVerses} ayahs, {juzLabel(surah.id)}
+      </Text>
+      {hasBismillah(surah.id) ? (
+        <View style={{ alignSelf: 'stretch', marginTop: t.spacing.xl, paddingVertical: t.spacing.lg, paddingHorizontal: t.spacing.md, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: lit ? t.c.surface1 : 'transparent' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+            {rule}
+            <View style={{ width: 6, height: 6, backgroundColor: t.c.accent, transform: [{ rotate: '45deg' }] }} />
+            {rule}
+          </View>
+          <Text
+            accessibilityLanguage="ar"
+            accessibilityLabel="Bismillah ir-Rahman ir-Rahim"
+            style={{ fontFamily: QURAN_FONT, fontSize: 34, lineHeight: 72, textAlign: 'center', color: lit ? t.c.accent : t.c.text }}
+          >
+            {BISMILLAH_TEXT}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+            {rule}
+            <View style={{ width: 6, height: 6, backgroundColor: t.c.accent, transform: [{ rotate: '45deg' }] }} />
+            {rule}
+          </View>
+        </View>
+      ) : surah.id === 9 ? (
+        <Text variant="footnote" color="textTertiary" style={{ marginTop: t.spacing.md, textAlign: 'center' }}>
+          At-Tawbah opens without the Bismillah.
+        </Text>
+      ) : null}
+    </View>
   );
 }

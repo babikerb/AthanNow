@@ -13,7 +13,7 @@ export interface Ayah {
 /** [firstWord, endWord (exclusive), startMs, endMs]. One segment can cover two fast-spoken words. */
 export type WordSegment = [number, number, number, number];
 
-const TEXT_KEY = 'athannow.recitation.text.v1.';
+const TEXT_KEY = 'athannow.recitation.text.v2.';
 const TIMING_KEY = 'athannow.recitation.timing.v1.';
 
 /** Each reciter's own recording of one ayah. The Bismillah before a surah is Al-Fatihah 1 (ayah 1 overall). */
@@ -53,7 +53,8 @@ export async function loadSurahText(surahId: number): Promise<Ayah[]> {
   const ayahs: Ayah[] = arabic.ayahs.map((a, i) => ({
     number: a.number,
     numberInSurah: a.numberInSurah,
-    arabic: a.text,
+    // Al-Fatihah 1 arrives with a byte-order mark in front.
+    arabic: a.text.replace(/\uFEFF/g, '').trim(),
     translation: english?.ayahs[i]?.text ?? '',
   }));
   textCache.set(surahId, ayahs);
@@ -124,3 +125,5 @@ export function splitAyahWords(text: string): string[] {
 /** The written Bismillah opens ayah 1 of every surah except Al-Fatihah (where it is ayah 1) and At-Tawbah. */
 export const hasBismillah = (surahId: number) => surahId !== 1 && surahId !== 9;
 export const BISMILLAH_WORDS = 4;
+/** Set on its own above each surah (as written in Al-Fatihah 1; 95 and 97 carry an extra shadda). */
+export const BISMILLAH_TEXT = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';

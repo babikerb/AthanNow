@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MINI_PLAYER_H, MiniPlayer } from '../components/recitation/MiniPlayer';
 import { NowPlaying } from '../components/recitation/NowPlaying';
+import { ReciterSheet } from '../components/recitation/ReciterSheet';
 import { SURAH_JUZ } from '../data/surahJuz';
 import { getSurah, SURAHS, type Surah } from '../data/surahs';
 import { PressableScale } from '../design/PressableScale';
@@ -37,6 +38,7 @@ export default function RecitationScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [playerOpen, setPlayerOpen] = useState(false);
+  const [recitersOpen, setRecitersOpen] = useState(false);
 
   const sections = useMemo(() => {
     const q = fold(query);
@@ -63,6 +65,40 @@ export default function RecitationScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.c.bg }}>
+      {/* Stays put while the list scrolls, like Calendar's title row. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: t.spacing.md,
+          paddingTop: insets.top + t.spacing.sm,
+          paddingBottom: t.spacing.sm,
+          paddingHorizontal: gutter,
+          backgroundColor: t.c.bg,
+          borderBottomWidth: 1,
+          borderBottomColor: t.c.hairline,
+        }}
+      >
+        <Text variant="title1" header maxFontSizeMultiplier={1.3} style={{ flexShrink: 1 }}>
+          Quran
+        </Text>
+        <PressableScale
+          haptic="select"
+          onPress={() => setRecitersOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`Reciter, ${r.reciter.name}`}
+          accessibilityHint="Choose a reciter"
+          style={{ flexShrink: 1, borderRadius: t.radii.pill, backgroundColor: t.c.surface2 }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: t.spacing.md }}>
+            <SymbolView name="person.wave.2.fill" size={15} tintColor={t.c.accent} style={{ width: 18, height: 18 }} />
+            <Text variant="subhead" numberOfLines={1} maxFontSizeMultiplier={1.3} style={{ fontWeight: '600', flexShrink: 1 }}>
+              {r.reciter.name}
+            </Text>
+          </View>
+        </PressableScale>
+      </View>
       <SectionList
         sections={sections}
         keyExtractor={(s) => String(s.id)}
@@ -71,12 +107,9 @@ export default function RecitationScreen() {
         keyboardShouldPersistTaps="handled"
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustKeyboardInsets
-        contentContainerStyle={{ paddingTop: insets.top + t.spacing.sm, paddingHorizontal: gutter, paddingBottom: bottom }}
+        contentContainerStyle={{ paddingTop: t.spacing.md, paddingHorizontal: gutter, paddingBottom: bottom }}
         ListHeaderComponent={
           <View>
-            <Text variant="title1" header maxFontSizeMultiplier={1.3} style={{ paddingVertical: t.spacing.sm }}>
-              Quran
-            </Text>
             <ContinueCard onOpen={() => setPlayerOpen(true)} />
             <View
               style={{
@@ -155,6 +188,7 @@ export default function RecitationScreen() {
       ) : null}
 
       <NowPlaying visible={playerOpen} onClose={() => setPlayerOpen(false)} />
+      <ReciterSheet visible={recitersOpen} selectedId={r.reciter.id} onSelect={r.setReciter} onClose={() => setRecitersOpen(false)} />
     </View>
   );
 }
@@ -191,7 +225,7 @@ function ContinueCard({ onOpen }: { onOpen: () => void }) {
             <Text variant="title3" numberOfLines={1} style={{ flexShrink: 1 }}>
               {surah.transliteration}
             </Text>
-            <Text style={{ fontFamily: QURAN_FONT, fontSize: 22, lineHeight: 36, color: t.c.text }}>{surah.arabicName}</Text>
+            <Text style={{ fontFamily: QURAN_FONT, fontSize: 28, lineHeight: 50, color: t.c.text }}>{surah.arabicName}</Text>
           </View>
           <Text variant="footnote" color="textSecondary" numberOfLines={1}>
             {detail}
@@ -263,7 +297,7 @@ const SurahRow = memo(function SurahRow({
               {surah.translation}, {surah.totalVerses} ayahs
             </Text>
           </View>
-          <Text style={{ fontFamily: QURAN_FONT, fontSize: 20, lineHeight: 34, color: t.c.textSecondary }}>{surah.arabicName}</Text>
+          <Text style={{ fontFamily: QURAN_FONT, fontSize: 24, lineHeight: 44, color: t.c.textSecondary }}>{surah.arabicName}</Text>
           <Pressable
             onPress={() => onToggleSaved(surah.id)}
             hitSlop={8}

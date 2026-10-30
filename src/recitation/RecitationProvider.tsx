@@ -100,6 +100,16 @@ async function retry(fn: () => unknown, aborted: () => boolean, attempts = 4): P
   return false;
 }
 
+// A clip starts this far before its first timed word, and hands off this long after its last.
+const LEAD_IN_MS = 150;
+const TAIL_MS = 200;
+
+/** Where to start an ayah: just before its first timed word, or 0 without timing. */
+function leadIn(a: Ayah | undefined, map: Map<number, WordSegment[]> | null): number {
+  const first = a ? (map?.get(a.numberInSurah)?.[0]?.[2] ?? 0) : 0;
+  return first > LEAD_IN_MS * 2 ? first - LEAD_IN_MS : 0;
+}
+
 const AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix' } as const;
 
 async function startPlayback(player: AudioPlayer, aborted: () => boolean) {
@@ -179,13 +189,16 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   // Created once with no source; sources change only through replace(), as Expo documents for
   // switching tracks (a changing source prop would rebuild the native player mid-transition).
   // keepAudioSessionActive keeps the lock-screen controls answering after an in-app pause.
-  const player = useAudioPlayer(null, { updateInterval: 50, keepAudioSessionActive: true });
+  const player = useAudioPlayer(null, { updateInterval: 30, keepAudioSessionActive: true });
   const status = useAudioPlayerStatus(player);
   const loadedKey = useRef<string | null>(null);
-  // Set once replace() has resolved: statuses before that still describe the previous clip, and a
-  // stale "finished" from it must not end the new one.
+  // Statuses right after replace() can still describe the previous clip (a stale "finished" would
+  // end the new one at once), so a request is armed only by the first status that isn't a finish.
+  const pendingArm = useRef<string | null>(null);
   const armedKey = useRef<string | null>(null);
-  const finishedKey = useRef<string | null>(null);
+  const handedOff = useRef<string | null>(null);
+  // A lead-in skip waits for the clip to be ready: AVPlayer can drop a seek on an unready item.
+  const pendingSeek = useRef<{ key: string; ms: number } | null>(null);
   const lockScreenOn = useRef(false);
   const playingRef = useRef(isPlaying);
   playingRef.current = isPlaying;
@@ -199,15 +212,40 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     [surah, ayah, inBismillah, reciter.name],
   );
 
+  const timingMap = timing && timing.key === timingKey ? timing.map : null;
+
+  /**
+   * Puts a clip on the player. Recorded ayahs can open with a beat of silence; with word timing the
+   * start skips to just before the first word. Returns false if the player refused it.
+   */
+  const load = useCallback(
+    (key: string, clipUrl: string, startMs: number) => {
+      loadedKey.current = key;
+      armedKey.current = null;
+      pendingArm.current = key;
+      handedOff.current = null;
+      try {
+        player.replace({ uri: clipUrl });
+        player.setPlaybackRate(rate);
+      } catch {
+        return false;
+      }
+      pendingSeek.current = startMs > 0 ? { key, ms: startMs } : null;
+      return true;
+    },
+    [player, rate],
+  );
+
+  // Loads the clip for the current request, unless the hand-off below already did.
   useEffect(() => {
     if (!url || !requestKey || loadedKey.current === requestKey) return;
-    loadedKey.current = requestKey;
-    armedKey.current = null;
-    finishedKey.current = null;
     let cancelled = false;
     const aborted = () => cancelled || loadedKey.current !== requestKey;
     (async () => {
-      if (!(await retry(() => player.replace({ uri: url }), aborted))) {
+      const ok = await retry(() => {
+        if (!load(requestKey, url, inBismillah ? 0 : leadIn(ayah, timingMap))) throw new Error('replace failed');
+      }, aborted);
+      if (!ok) {
         if (!aborted()) {
           loadedKey.current = null;
           setError('Could not play this recitation. Check your connection or try another reciter.');
@@ -215,19 +253,88 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
         }
         return;
       }
-      armedKey.current = requestKey;
       setError(null);
-      try {
-        player.setPlaybackRate(rate);
-      } catch {
-        // keeps the default rate
-      }
       if (playingRef.current) startPlayback(player, aborted);
     })();
     return () => {
       cancelled = true;
     };
   }, [requestKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Everything the hand-off needs, read from the status listener without waiting for a render.
+  const live = useRef({ surahId, ayahIndex, ayahs, inBismillah, reciter, repeat, autoplay, visit, timingMap, requestKey });
+  live.current = { surahId, ayahIndex, ayahs, inBismillah, reciter, repeat, autoplay, visit, timingMap, requestKey };
+  const arriveRef = useRef<(index: number, p?: Partial<Saved>) => void>(() => {});
+
+  /**
+   * The hand-off between clips, run straight from the native status event: the next ayah (already
+   * preloaded) goes on and plays in the same tick, and React catches up afterwards. Going through a
+   * render first left an audible pause after every ayah. With word timing, an ayah also hands off
+   * once its last word has ended (plus a short tail) instead of waiting out trailing silence.
+   */
+  useEffect(() => {
+    const sub = player.addListener('playbackStatusUpdate', (st) => {
+      const L = live.current;
+      const seek = pendingSeek.current;
+      if (seek && st.isLoaded && seek.key === loadedKey.current) {
+        pendingSeek.current = null;
+        if (st.currentTime * 1000 < seek.ms) player.seekTo(seek.ms / 1000).catch(() => {});
+      }
+      if (pendingArm.current && pendingArm.current === loadedKey.current && !st.didJustFinish) {
+        armedKey.current = pendingArm.current;
+        pendingArm.current = null;
+      }
+      const key = armedKey.current;
+      if (!key || key !== L.requestKey || handedOff.current === key || !playingRef.current) return;
+
+      const current = L.ayahs[L.ayahIndex];
+      const segs = !L.inBismillah && current ? L.timingMap?.get(current.numberInSurah) : undefined;
+      const lastWordEnd = segs?.length ? Math.max(...segs.map((s) => s[3])) : 0;
+      const ms = st.currentTime * 1000;
+      const early = lastWordEnd > 0 && L.repeat !== 'ayah' && ms >= lastWordEnd + TAIL_MS && st.duration * 1000 - ms > 120;
+      if (!st.didJustFinish && !early) return;
+      handedOff.current = key;
+
+      if (L.repeat === 'ayah' && !L.inBismillah) {
+        const aborted = () => loadedKey.current !== key;
+        retry(() => player.seekTo(leadIn(current, L.timingMap) / 1000), aborted).then((ok) => {
+          if (!ok) return;
+          handedOff.current = null;
+          startPlayback(player, aborted);
+        });
+        return;
+      }
+
+      // Where to go next: [index, plays the Bismillah first, visit].
+      let target: [number, boolean, number] | null = null;
+      if (L.inBismillah) target = [0, false, L.visit];
+      else if (L.ayahIndex < L.ayahs.length - 1) target = [L.ayahIndex + 1, false, L.visit + 1];
+      else if (L.repeat === 'surah') target = [0, !!L.surahId && hasBismillah(L.surahId), L.visit + 1];
+
+      if (!target) {
+        if (L.autoplay && L.surahId && L.surahId < 114) arriveRef.current(0, { surahId: L.surahId + 1 });
+        else setIsPlaying(false);
+        return;
+      }
+      const [index, bismillah, v] = target;
+      const a = L.ayahs[index];
+      if (!a || !L.surahId) return;
+      const nextKey = `${L.surahId}:${index}:${L.reciter.id}:${bismillah ? 'b' : 'a'}:${v}`;
+      const nextUrl = ayahAudioUrl(L.reciter, bismillah ? 1 : a.number);
+      if (load(nextKey, nextUrl, bismillah ? 0 : leadIn(a, L.timingMap))) {
+        try {
+          player.play();
+        } catch {
+          startPlayback(player, () => loadedKey.current !== nextKey);
+        }
+      }
+      // React catches up to what is already playing; the load effect sees the key and skips.
+      setBismillahDue(bismillah);
+      if (v !== L.visit) setVisit(v);
+      if (index !== L.ayahIndex) patch({ ayahIndex: index });
+    });
+    return () => sub.remove();
+  }, [player, load, patch]);
 
   // Lock screen and Control Center, from the first play on. The player is registered once: each
   // registration adds another set of play/pause handlers natively, so after that only the track info
@@ -267,17 +374,17 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   }, [isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Player -> intent, for pauses that didn't come from the app (lock screen, a call, headphones).
-  // A clip running out also stops the player, which isn't a pause: that's handled as a finish.
+  // A clip running out also stops the player, which isn't a pause: the hand-off deals with it.
   useEffect(() => {
-    if (!status.isLoaded || armedKey.current !== requestKey || status.playing === isPlaying) return;
+    if (!status.isLoaded || armedKey.current !== requestKey || handedOff.current === requestKey || status.playing === isPlaying) return;
     const atEnd = status.didJustFinish || (status.duration > 0 && status.currentTime >= status.duration - 0.3);
     if (!status.playing && atEnd) return;
     setIsPlaying(status.playing);
   }, [status.playing]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Preload the next two ayahs once the current one is loaded, so moving on has no gap. Never the
-  // current URL: replace() and preload() share one native registry, and racing them on the same
-  // file crashed in Tilawah.
+  // Preload the next two clips as soon as this one is loaded, so the hand-off finds them ready.
+  // Never the current URL: replace() and preload() share one native registry, and racing them on
+  // the same file crashed in Tilawah.
   useEffect(() => {
     if (!status.isLoaded || !ayahs.length) return;
     let cancelled = false;
@@ -306,31 +413,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     },
     [patch],
   );
-
-  // A clip finished: the Bismillah hands over to ayah 1; otherwise repeat, advance, or move on.
-  useEffect(() => {
-    if (!status.didJustFinish || !requestKey || armedKey.current !== requestKey || finishedKey.current === requestKey) return;
-    finishedKey.current = requestKey;
-    if (inBismillah) {
-      setBismillahDue(false);
-    } else if (repeat === 'ayah') {
-      const aborted = () => loadedKey.current !== requestKey;
-      retry(() => player.seekTo(0), aborted).then((ok) => {
-        if (ok) {
-          finishedKey.current = null;
-          startPlayback(player, aborted);
-        }
-      });
-    } else if (ayahIndex < ayahs.length - 1) {
-      arrive(ayahIndex + 1);
-    } else if (repeat === 'surah') {
-      arrive(0);
-    } else if (autoplay && surahId && surahId < 114) {
-      arrive(0, { surahId: surahId + 1 });
-    } else {
-      setIsPlaying(false);
-    }
-  }, [status.didJustFinish, requestKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  arriveRef.current = arrive;
 
   // ---- Actions ----
   const lengthRef = useRef(0);
@@ -378,6 +461,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     lockScreenOn.current = false;
     loadedKey.current = null;
     armedKey.current = null;
+    pendingArm.current = null;
     patch({ surahId: null, ayahIndex: 0 });
   }, [player, patch]);
 
@@ -428,7 +512,6 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     [ready, surahId, ayahIndex, ayahs, inBismillah, bismillahWords, loading, error, isPlaying, reciter, repeat, autoplay, rate, saved.showTranslation, saved.savedIds, arrive, next, previous, pause, stop, patch],
   );
 
-  const timingMap = timing && timing.key === timingKey ? timing.map : null;
   const current = armedKey.current === requestKey;
   const progress = useMemo<RecitationProgress>(() => {
     let activeWords: [number, number] | null = null;

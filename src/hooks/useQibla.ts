@@ -13,6 +13,12 @@ const EARTH_R_KM = 6371;
 const FOLLOW_MS = 75;
 // Readings closer than this to the current target are sensor noise.
 const NOISE_DEG = 0.4;
+// Each time the compass starts, iOS first hands back its last cached heading, and the sensor takes a
+// moment to settle after that. The dial waits for this many readings, at least this long, that agree
+// within SETTLE_SPREAD_DEG, before it points anywhere.
+const SETTLE_READINGS = 5;
+const SETTLE_MIN_MS = 600;
+const SETTLE_SPREAD_DEG = 6;
 
 // --- Qibla "aligned" tolerance ---------------------------------------------
 // The Qibla is the Kaaba itself, not a zero-dimensional point, so the set of
@@ -69,6 +75,8 @@ export interface QiblaData {
   /** null while detecting, true if the device reports a compass heading, false
    *  when no heading ever arrives (e.g. a Wi-Fi iPad with no magnetometer). */
   compassAvailable: boolean | null;
+  /** False from each start of the compass until its readings have settled; the dial waits for it. */
+  settled: boolean;
 }
 
 /**
@@ -80,8 +88,14 @@ export interface QiblaData {
  * restarting an animation per sensor event; React state only changes when the shown degree or the
  * calibration state actually changes.
  */
-export function useQibla(latitude: number | null, longitude: number | null, active = true): QiblaData {
+export function useQibla(latitude: number | null, longitude: number | null, active = true, useLiveFix = false): QiblaData {
   const [heading, setHeading] = useState(0);
+  const [settled, setSettled] = useState(false);
+  // A fresh GPS fix taken each time the compass starts, so the bearing is for where the phone is
+  // now rather than wherever the app last saved (which can be a city away after travelling).
+  const [fix, setFix] = useState<{ latitude: number; longitude: number } | null>(null);
+  const lat = useLiveFix && fix ? fix.latitude : latitude;
+  const lng = useLiveFix && fix ? fix.longitude : longitude;
   const [usingTrueHeading, setUsingTrueHeading] = useState(false);
   const [headingAccuracy, setHeadingAccuracy] = useState(-1);
   const [compassAvailable, setCompassAvailable] = useState<boolean | null>(null);
@@ -99,13 +113,13 @@ export function useQibla(latitude: number | null, longitude: number | null, acti
   // heading = magnetic heading + declination.
   const declination = useRef(0);
   useEffect(() => {
-    if (latitude == null || longitude == null) return;
+    if (lat == null || lng == null) return;
     try {
-      declination.current = geomagnetism.model(new Date(), { allowOutOfBoundsModel: true }).point([latitude, longitude]).decl;
+      declination.current = geomagnetism.model(new Date(), { allowOutOfBoundsModel: true }).point([lat, lng]).decl;
     } catch {
       declination.current = 0;
     }
-  }, [latitude, longitude]);
+  }, [lat, lng]);
 
   useEffect(() => {
     if (!active) return;
@@ -113,6 +127,15 @@ export function useQibla(latitude: number | null, longitude: number | null, acti
     let gpsSub: Location.LocationSubscription | null = null;
     let cancelled = false;
     let sawHeading = false;
+    // Start from nothing every time: no heading, accuracy or settling carried over from last time.
+    const startedAt = Date.now();
+    const recent: number[] = [];
+    let isSettled = false;
+    target.current = null;
+    lastStateDeg.current = null;
+    accuracyLevel.current = null;
+    setHeadingAccuracy(-1);
+    setSettled(false);
 
     // Eases `shown` toward `target` each frame; stops itself once settled.
     const step = (now: number) => {
@@ -137,8 +160,10 @@ export function useQibla(latitude: number | null, longitude: number | null, acti
       if (!cancelled && !sawHeading) setCompassAvailable(false);
     }, 4000);
 
-    // Keeps location running so iOS can report true (not magnetic) north.
-    Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, distanceInterval: 1000 }, () => {})
+    // A fresh fix for the bearing and the declination (see `fix` above).
+    Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, distanceInterval: 200 }, (p) => {
+      if (!cancelled) setFix({ latitude: p.coords.latitude, longitude: p.coords.longitude });
+    })
       .then((sub) => {
         if (!cancelled) gpsSub = sub;
         else sub.remove();
@@ -156,8 +181,21 @@ export function useQibla(latitude: number | null, longitude: number | null, acti
         setHeadingAccuracy(data.accuracy);
       }
 
-      const usingTrue = data.trueHeading >= 0;
-      const raw = usingTrue ? data.trueHeading : (((data.magHeading + declination.current) % 360) + 360) % 360;
+      // Always magnetic heading + the model's declination. iOS's own true heading only appears once
+      // in a while here (it needs a fix on its own heading manager), and switching between the two
+      // mid-session made the dial jump by the error between them.
+      const usingTrue = true;
+      const raw = (((data.magHeading + declination.current) % 360) + 360) % 360;
+
+      if (!isSettled) {
+        recent.push(raw);
+        if (recent.length > SETTLE_READINGS) recent.shift();
+        const spread = recent.length < SETTLE_READINGS ? 360 : Math.max(...recent.map((h) => Math.abs(((((h - raw) % 360) + 540) % 360) - 180)));
+        if (Date.now() - startedAt < SETTLE_MIN_MS || spread > SETTLE_SPREAD_DEG || data.accuracy < 2) return;
+        isSettled = true;
+        setSettled(true);
+        target.current = null;
+      }
 
       // Unwrap onto the current target so 359 -> 1 is a 2 degree step, not a full turn.
       if (target.current == null) {
@@ -198,19 +236,19 @@ export function useQibla(latitude: number | null, longitude: number | null, acti
   }, [active, headingAnim]);
 
   const qiblaInfo = useMemo(() => {
-    if (latitude == null || longitude == null) return null;
-    const coords = new Coordinates(latitude, longitude);
-    const theta = centralAngleRad(latitude, longitude);
+    if (lat == null || lng == null) return null;
+    const coords = new Coordinates(lat, lng);
+    const theta = centralAngleRad(lat, lng);
     return { bearing: Qibla(coords), distanceKm: Math.round(EARTH_R_KM * theta), tolerance: qiblaToleranceDeg(theta) };
-  }, [latitude, longitude]);
+  }, [lat, lng]);
 
   if (!qiblaInfo) {
-    return { headingAnim, heading, qiblaBearing: 0, distanceKm: 0, cardinal: toCardinal(heading), isAligned: false, toleranceDeg: SENSOR_TOL_DEG, hasLocation: false, usingTrueHeading, headingAccuracy, compassAvailable };
+    return { headingAnim, heading, qiblaBearing: 0, distanceKm: 0, cardinal: toCardinal(heading), isAligned: false, toleranceDeg: SENSOR_TOL_DEG, hasLocation: false, usingTrueHeading, headingAccuracy, compassAvailable, settled };
   }
 
   const { bearing: qiblaBearing, distanceKm, tolerance } = qiblaInfo;
   const needleRotation = (((qiblaBearing - heading) % 360) + 360) % 360;
   const diff = needleRotation > 180 ? 360 - needleRotation : needleRotation;
 
-  return { headingAnim, heading, qiblaBearing, distanceKm, cardinal: toCardinal(heading), isAligned: diff < tolerance, toleranceDeg: tolerance, hasLocation: true, usingTrueHeading, headingAccuracy, compassAvailable };
+  return { headingAnim, heading, qiblaBearing, distanceKm, cardinal: toCardinal(heading), isAligned: diff < tolerance, toleranceDeg: tolerance, hasLocation: true, usingTrueHeading, headingAccuracy, compassAvailable, settled };
 }

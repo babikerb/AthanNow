@@ -7,6 +7,7 @@ import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { useRecitation, useRecitationProgress } from '../../recitation/RecitationProvider';
+import { TapTarget } from './TapTarget';
 
 export const MINI_PLAYER_H = 64;
 
@@ -45,16 +46,15 @@ export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
             </Text>
           </View>
           <PlayButton />
-          <PressableScale
+          <TapTarget
             haptic="select"
             onPress={r.next}
             disabled={r.ayahIndex >= r.ayahs.length - 1 && !r.inBismillah}
             accessibilityRole="button"
             accessibilityLabel="Next ayah"
-            style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
           >
-            <SymbolView name="forward.fill" size={20} tintColor={t.c.text} />
-          </PressableScale>
+            <SymbolView name="forward.fill" size={20} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
+          </TapTarget>
         </View>
       </PressableScale>
       <ProgressLine />
@@ -67,15 +67,13 @@ function PlayButton() {
   const r = useRecitation();
   const { buffering } = useRecitationProgress();
   return (
-    <PressableScale
-      haptic="light"
-      onPress={r.togglePlay}
-      accessibilityRole="button"
-      accessibilityLabel={r.isPlaying ? 'Pause' : 'Play'}
-      style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
-    >
-      {r.isPlaying && buffering ? <ActivityIndicator color={t.c.text} /> : <SymbolView name={r.isPlaying ? 'pause.fill' : 'play.fill'} size={22} tintColor={t.c.text} />}
-    </PressableScale>
+    <TapTarget haptic="light" onPress={r.togglePlay} accessibilityRole="button" accessibilityLabel={r.isPlaying ? 'Pause' : 'Play'}>
+      {r.isPlaying && buffering ? (
+        <ActivityIndicator color={t.c.text} />
+      ) : (
+        <SymbolView name={r.isPlaying ? 'pause.fill' : 'play.fill'} size={22} tintColor={t.c.text} style={{ width: 24, height: 24, marginLeft: r.isPlaying ? 0 : 2 }} />
+      )}
+    </TapTarget>
   );
 }
 
