@@ -1,7 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, View, type ViewToken } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Pressable, Text as RNText, View, type ViewToken } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { juzLabel } from '../../data/surahJuz';
@@ -20,6 +20,9 @@ import { TapTarget } from './TapTarget';
 // Amiri Quran's marks reach far above and below the line, so the leading is about twice the size.
 const ARABIC_SIZE = 32;
 const ARABIC = { fontFamily: QURAN_FONT, fontSize: ARABIC_SIZE, lineHeight: 68, textAlign: 'right' as const, writingDirection: 'rtl' as const };
+// The ayah being recited.
+const LIT_SIZE = 36;
+const LIT_LINE = 76;
 // After the reader scrolls by hand, the list stops following the recitation for this long.
 const FOLLOW_PAUSE_MS = 5000;
 
@@ -208,10 +211,10 @@ const AyahItem = memo(function AyahItem({
       {lit ? (
         <LitArabic words={words} n={ayah.numberInSurah} />
       ) : (
-        <Text accessibilityLanguage="ar" style={{ ...ARABIC, color: current ? t.c.text : t.c.textSecondary }}>
+        <RNText accessibilityLanguage="ar" style={{ ...ARABIC, color: current ? t.c.text : t.c.textSecondary }}>
           {words.join(' ')}
           <AyahEnd n={ayah.numberInSurah} size={ARABIC_SIZE} color={current ? t.c.accent : t.c.glyphQuiet} />
-        </Text>
+        </RNText>
       )}
       {showTranslation && ayah.translation ? (
         <Text variant="body" color={current ? 'text' : 'textSecondary'} style={{ marginTop: t.spacing.md }}>
@@ -225,23 +228,27 @@ const AyahItem = memo(function AyahItem({
   );
 });
 
-/** The ayah being recited, with the word being spoken in gold. Only this item re-renders as time passes. */
+/**
+ * The ayah being recited, a size up from the rest, with the word being spoken in gold. Only this
+ * item re-renders as time passes. The words are plain RN Text so they inherit the Arabic face and
+ * size (the design Text would reset each one to its body style).
+ */
 function LitArabic({ words, n }: { words: string[]; n: number }) {
   const t = useTheme();
   const { activeWords } = useRecitationProgress();
   return (
-    <Text accessibilityLanguage="ar" style={{ ...ARABIC, color: t.c.text }}>
+    <RNText accessibilityLanguage="ar" style={{ ...ARABIC, fontSize: LIT_SIZE, lineHeight: LIT_LINE, color: t.c.text }}>
       {words.map((w, i) => {
         const on = !!activeWords && i >= activeWords[0] && i < activeWords[1];
         return (
-          <Text key={i} style={on ? { color: t.c.accent } : undefined}>
+          <RNText key={i} style={on ? { color: t.c.accent } : undefined}>
             {w}
             {i < words.length - 1 ? ' ' : ''}
-          </Text>
+          </RNText>
         );
       })}
-      <AyahEnd n={n} size={ARABIC_SIZE} color={t.c.accent} />
-    </Text>
+      <AyahEnd n={n} size={LIT_SIZE} color={t.c.accent} />
+    </RNText>
   );
 }
 

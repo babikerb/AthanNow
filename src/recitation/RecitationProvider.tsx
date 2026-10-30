@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { clearAllPreloadedSources, preload, setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus, type AudioPlayer } from 'expo-audio';
+import { clearAllPreloadedSources, clearPreloadedSource, preload, setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus, type AudioPlayer } from 'expo-audio';
 import { addNextTrackListener, addPreviousTrackListener, disableTrackCommands, enableTrackCommands } from 'lock-screen-track-controls';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -103,6 +103,9 @@ async function retry(fn: () => unknown, aborted: () => boolean, attempts = 4): P
 // A clip starts this far before its first timed word, and hands off this long after its last.
 const LEAD_IN_MS = 150;
 const TAIL_MS = 200;
+// A clip that is meant to be playing but hasn't moved for this long is reloaded, twice at most.
+const STALL_MS = 7000;
+const MAX_RELOADS = 2;
 
 /** Where to start an ayah: just before its first timed word, or 0 without timing. */
 function leadIn(a: Ayah | undefined, map: Map<number, WordSegment[]> | null): number {
@@ -236,6 +239,18 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     [player, rate],
   );
 
+  // useAudioPlayer builds a new native player if its options change (a code reload does it too).
+  // Nothing is loaded on a new one, so forget what the old one had.
+  useEffect(() => {
+    loadedKey.current = null;
+    armedKey.current = null;
+    pendingArm.current = null;
+    lockScreenOn.current = false;
+  }, [player]);
+
+  // Bumped to force the current clip to load again (stall recovery).
+  const [reload, setReload] = useState(0);
+
   // Loads the clip for the current request, unless the hand-off below already did.
   useEffect(() => {
     if (!url || !requestKey || loadedKey.current === requestKey) return;
@@ -259,7 +274,40 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     return () => {
       cancelled = true;
     };
-  }, [requestKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [requestKey, player, reload]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Watchdog: if the clip should be playing but its position hasn't moved (never loaded, or the
+  // stream stalled), drop any preloaded copy of it and load it fresh. After MAX_RELOADS, say so.
+  const watch = useRef({ key: '', time: -1, since: 0, reloads: 0 });
+  useEffect(() => {
+    if (!isPlaying || !url || !requestKey) return;
+    const id = setInterval(() => {
+      const now = Date.now();
+      const time = player.currentTime;
+      const w = watch.current;
+      if (w.key !== requestKey) {
+        watch.current = { key: requestKey, time, since: now, reloads: 0 };
+        return;
+      }
+      if (time !== w.time) {
+        w.time = time;
+        w.since = now;
+        return;
+      }
+      if (now - w.since < STALL_MS) return;
+      if (w.reloads >= MAX_RELOADS) {
+        setError('This recitation is not loading. Check your connection and try again.');
+        setIsPlaying(false);
+        return;
+      }
+      w.reloads += 1;
+      w.since = now;
+      clearPreloadedSource({ uri: url }).catch(() => {});
+      loadedKey.current = null;
+      setReload((n) => n + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isPlaying, url, requestKey, player]);
 
   // Everything the hand-off needs, read from the status listener without waiting for a render.
   const live = useRef({ surahId, ayahIndex, ayahs, inBismillah, reciter, repeat, autoplay, visit, timingMap, requestKey });
@@ -276,7 +324,8 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     const sub = player.addListener('playbackStatusUpdate', (st) => {
       const L = live.current;
       const seek = pendingSeek.current;
-      if (seek && st.isLoaded && seek.key === loadedKey.current) {
+      // Asks the player itself: a status event can still describe the previous (ready) item.
+      if (seek && seek.key === loadedKey.current && player.isLoaded) {
         pendingSeek.current = null;
         if (st.currentTime * 1000 < seek.ms) player.seekTo(seek.ms / 1000).catch(() => {});
       }

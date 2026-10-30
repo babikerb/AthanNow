@@ -14,6 +14,17 @@ export interface Ayah {
 export type WordSegment = [number, number, number, number];
 
 const TEXT_KEY = 'athannow.recitation.text.v2.';
+
+/** fetch that gives up after `ms`, so a stalled connection becomes an error instead of a spinner. */
+async function fetchWithTimeout(url: string, ms = 15000): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 const TIMING_KEY = 'athannow.recitation.timing.v1.';
 
 /** Each reciter's own recording of one ayah. The Bismillah before a surah is Al-Fatihah 1 (ayah 1 overall). */
@@ -46,7 +57,7 @@ export async function loadSurahText(surahId: number): Promise<Ayah[]> {
   } catch {
     // fall through to the network
   }
-  const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}/editions/quran-uthmani,en.sahih`);
+  const res = await fetchWithTimeout(`https://api.alquran.cloud/v1/surah/${surahId}/editions/quran-uthmani,en.sahih`);
   if (!res.ok) throw new Error(`surah ${surahId}: ${res.status}`);
   const json = (await res.json()) as EditionResponse;
   const [arabic, english] = json.data;
@@ -85,7 +96,7 @@ export async function loadWordTiming(surahId: number, reciter: Reciter): Promise
     // fall through to the network
   }
   try {
-    const res = await fetch(`https://cdn.jsdelivr.net/gh/babikerb/tilawah@master/wordtiming/${reciter.edition}/${surahId}.json`);
+    const res = await fetchWithTimeout(`https://cdn.jsdelivr.net/gh/babikerb/tilawah@master/wordtiming/${reciter.edition}/${surahId}.json`);
     if (!res.ok) throw new Error(String(res.status));
     const text = await res.text();
     const map = parse(JSON.parse(text));
