@@ -1,0 +1,12 @@
+{
+  "name": "lock-screen-track-controls",
+  "version": "1.0.0",
+  "description": "Adds lock screen / Control Center \"next track\" and \"previous track\" remote commands on iOS — not exposed by expo-audio, whose MediaController only manages play/pause/toggle/seek. iOS only; no-op on other platforms.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "expo": "*"
+  }
+}

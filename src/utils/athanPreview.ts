@@ -1,5 +1,7 @@
 import type { AudioPlayer } from 'expo-audio';
 
+import { pauseRecitation } from '../recitation/RecitationProvider';
+
 let player: AudioPlayer | null = null;
 let sub: { remove: () => void } | null = null;
 
@@ -10,6 +12,7 @@ let sub: { remove: () => void } | null = null;
  */
 export function playAthanPreview(source: number, onFinish: () => void): boolean {
   stopAthanPreview();
+  pauseRecitation();
   try {
     const audio = require('expo-audio') as typeof import('expo-audio');
     audio.setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});

@@ -39,6 +39,8 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import QiblaScreen from './src/screens/QiblaScreen';
 import { QURAN_ENABLED } from './src/config/features';
 import QuranScreen from './src/screens/QuranScreen';
+import RecitationScreen from './src/screens/RecitationScreen';
+import { RecitationProvider } from './src/recitation/RecitationProvider';
 import { useImmersive } from './src/navigation/immersive';
 import SettingsScreen from './src/screens/SettingsScreen';
 
@@ -80,12 +82,20 @@ function MainTabs() {
             tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('calendar', focused)
           } as any}
         />
+        <Tab.Screen
+          name="Quran"
+          component={RecitationScreen}
+          options={{
+            title: 'Quran',
+            tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('book', focused)
+          } as any}
+        />
         {QURAN_ENABLED && (
           <Tab.Screen
-            name="Quran"
+            name="Mushaf"
             component={QuranScreen}
             options={{
-              title: 'Quran',
+              title: 'Read',
               tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('book', focused)
             } as any}
           />
@@ -116,7 +126,8 @@ function MainTabs() {
 function Root() {
   const { ready } = useSettings();
   const [fontsLoaded] = useFonts({
-    ...(QURAN_ENABLED ? { AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf') } : {}),
+    // Uthmani text in the Quran tab (src/recitation/format.ts QURAN_FONT).
+    AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf'),
     // Display face (BRAND.md): static SemiBold, family name matches design/tokens.json.
     'Fraunces-SemiBold': Fraunces_600SemiBold,
   });
@@ -157,8 +168,10 @@ export default function App() {
         <AppThemes>
           <ThemeProvider>
             <OnboardingProvider>
-              <StatusBar style="light" />
-              <Root />
+              <RecitationProvider>
+                <StatusBar style="light" />
+                <Root />
+              </RecitationProvider>
             </OnboardingProvider>
           </ThemeProvider>
         </AppThemes>
