@@ -19,6 +19,8 @@ export interface NowPlaying {
   elapsed: number;
   /** 0 when paused. iOS advances the bar from this between updates. */
   rate: number;
+  /** URI of a square image. Loaded once per URI. */
+  artwork?: string;
 }
 
 export type RemoteCommand = { type: 'next' | 'previous' | 'play' | 'pause' | 'toggle' } | { type: 'seek'; position: number };

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus, type AudioPlayer } from 'expo-audio';
 import { addRemoteCommandListener, clearNowPlaying, disableRemoteCommands, enableRemoteCommands, setNowPlaying } from 'lock-screen-track-controls';
+import { Image } from 'react-native';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { getSurah } from '../data/surahs';
@@ -113,6 +114,11 @@ const SHORT_SURAH = 20;
 const PREPARE_MS = 20000;
 const PREPARE_WORKERS = 5;
 const BACKGROUND_WORKERS = 3;
+// Across each join the volume dips, so one recording's room sound doesn't cut straight to the next:
+// down over FADE_OUT_S to FADE_FLOOR, back up over FADE_IN_S. Short enough not to touch the words.
+const FADE_OUT_S = 0.25;
+const FADE_IN_S = 0.15;
+const FADE_FLOOR = 0.1;
 // A track joins up to this many ayahs, which keeps building one quick enough to do on a tap.
 const TRACK_AYAHS = 60;
 // With this little of a track left, the next is built from whatever has downloaded.
@@ -127,19 +133,11 @@ function contiguousEnd(reciter: Reciter, surahId: number, from: number, total: n
 }
 const MAX_RELOADS = 2;
 
-// Development builds log each load and each change in the player's state to the Metro console.
-let lastLog = 0;
-const log = (...args: unknown[]) => {
-  if (!__DEV__) return;
-  const now = Date.now();
-  console.log('[recitation]', `+${now - lastLog}ms`, ...args);
-  lastLog = now;
-};
+const ARTWORK = Image.resolveAssetSource(require('../../assets/icon.png')).uri;
 
 const AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix' } as const;
 
 async function startPlayback(player: AudioPlayer, aborted: () => boolean) {
-  log('play');
   // Re-applied each time: the athan preview sets its own (foreground) mode.
   await setAudioModeAsync(AUDIO_MODE).catch(() => {});
   if (await retry(() => player.play(), aborted)) return;
@@ -200,10 +198,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
         setText({ surahId, ayahs });
         setSaved((s) => (s.surahId === surahId && s.ayahIndex >= ayahs.length ? { ...s, ayahIndex: 0 } : s));
       })
-      .catch((err) => {
-        log('text failed', surahId, String(err));
-        if (!cancelled) setError('Could not load this surah. Check your connection and try again.');
-      })
+      .catch(() => !cancelled && setError('Could not load this surah. Check your connection and try again.'))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -249,6 +244,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   const trackRef = useRef<Track | null>(null);
   const nextRef = useRef<Track | null>(null);
   const lastMark = useRef(0);
+  const gainRef = useRef(1);
   const [trackId, setTrackId] = useState(0);
 
   const surah = surahId ? getSurah(surahId) : undefined;
@@ -267,12 +263,12 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       armedKey.current = null;
       pendingArm.current = key;
       handedOff.current = null;
-      log('load', key, `from ${track.marks[0].index} to ${track.end}`);
       try {
         player.replace({ uri: track.uri });
         player.setPlaybackRate(rate);
-      } catch (err) {
-        log('replace threw', err);
+        player.volume = 1;
+        gainRef.current = 1;
+      } catch {
         return false;
       }
       const old = trackRef.current;
@@ -441,17 +437,8 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
    * one goes on in the same tick, without waiting for a render.
    */
   useEffect(() => {
-    let last = '';
     const sub = player.addListener('playbackStatusUpdate', (st) => {
       const L = live.current;
-      if (__DEV__) {
-        const x = st as typeof st & { timeControlStatus?: string; reasonForWaitingToPlay?: string; error?: unknown };
-        const line = `loaded=${st.isLoaded} playing=${st.playing} buffering=${st.isBuffering} control=${x.timeControlStatus} waiting=${x.reasonForWaitingToPlay} finished=${st.didJustFinish} err=${x.error ? JSON.stringify(x.error) : ''}`;
-        if (line !== last) {
-          last = line;
-          log('status', line, `t=${st.currentTime.toFixed(2)}/${st.duration.toFixed(2)}`);
-        }
-      }
       if (pendingArm.current && pendingArm.current === loadedKey.current && !st.didJustFinish) {
         armedKey.current = pendingArm.current;
         pendingArm.current = null;
@@ -462,10 +449,16 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
 
       if (!st.didJustFinish) {
         const mark = markAt(track, st.currentTime);
+        const fadeIn = mark === track.marks[0] ? 1 : (st.currentTime - mark.start) / FADE_IN_S;
+        const fadeOut = (mark.start + mark.seconds - st.currentTime) / FADE_OUT_S;
+        const gain = Math.max(FADE_FLOOR, Math.min(1, fadeIn, fadeOut));
+        if (gain !== gainRef.current) {
+          gainRef.current = gain;
+          player.volume = gain;
+        }
         if (mark.index === lastMark.current) return;
         const previous = lastMark.current;
         lastMark.current = mark.index;
-        log('ayah', mark.index, `at ${st.currentTime.toFixed(2)}`);
         // Repeat was switched on mid-track: go back and loop the ayah that just ended.
         if (L.repeat === 'ayah' && previous >= 0) arriveRef.current(previous, {}, false);
         else {
@@ -519,7 +512,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     const target = inBismillah ? -1 : ayahIndex;
     const mark = track.marks.find((m) => m.index === target) ?? markAt(track, player.currentTime);
     const elapsed = Math.min(mark.seconds, Math.max(0, player.currentTime - mark.start));
-    setNowPlaying({ ...nowPlaying, duration: mark.seconds, elapsed, rate: isPlaying ? rate : 0 });
+    setNowPlaying({ ...nowPlaying, duration: mark.seconds, elapsed, rate: isPlaying ? rate : 0, artwork: ARTWORK });
   }, [nowPlaying, isPlaying, rate, trackId, seekTick, player]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import ExpoModulesCore
 import MediaPlayer
+import UIKit
 
 /// The lock screen and Control Center player, for the Quran tab. The app plays surahs as joined
 /// tracks, so what iOS should show (one ayah, its title and its own time) isn't the audio player's
@@ -7,6 +8,8 @@ import MediaPlayer
 /// screen support stays switched off, since it rewrites the info from the player on each status.
 public class LockScreenTrackControlsModule: Module {
   private var isEnabled = false
+  private var artwork: MPMediaItemArtwork?
+  private var artworkUri: String?
 
   public func definition() -> ModuleDefinition {
     Name("LockScreenTrackControls")
@@ -46,7 +49,7 @@ public class LockScreenTrackControlsModule: Module {
     func number(_ key: String) -> Double {
       (info[key] as? NSNumber)?.doubleValue ?? 0
     }
-    MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+    var nowPlaying: [String: Any] = [
       MPMediaItemPropertyTitle: info["title"] as? String ?? "",
       MPMediaItemPropertyArtist: info["artist"] as? String ?? "",
       MPMediaItemPropertyAlbumTitle: info["album"] as? String ?? "",
@@ -56,6 +59,30 @@ public class LockScreenTrackControlsModule: Module {
       MPNowPlayingInfoPropertyPlaybackRate: number("rate"),
       MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue
     ]
+    if let artwork {
+      nowPlaying[MPMediaItemPropertyArtwork] = artwork
+    }
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlaying
+    if let uri = info["artwork"] as? String, uri != artworkUri {
+      artworkUri = uri
+      loadArtwork(uri)
+    }
+  }
+
+  // Loaded once, off the main thread: a file in a release build, the dev server in development.
+  private func loadArtwork(_ uri: String) {
+    guard let url = URL(string: uri) else { return }
+    DispatchQueue.global(qos: .utility).async { [weak self] in
+      guard let data = try? Data(contentsOf: url), let image = UIImage(data: data) else { return }
+      let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+      self?.performOnMain {
+        self?.artwork = artwork
+        let center = MPNowPlayingInfoCenter.default()
+        guard var nowPlaying = center.nowPlayingInfo else { return }
+        nowPlaying[MPMediaItemPropertyArtwork] = artwork
+        center.nowPlayingInfo = nowPlaying
+      }
+    }
   }
 
   // Idempotent: a second call can never register a second target and fire each press twice.
