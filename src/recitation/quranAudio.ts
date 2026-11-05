@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { SURAHS } from '../data/surahs';
 import type { Reciter } from './reciters';
 
 export interface Ayah {
@@ -26,6 +27,16 @@ async function fetchWithTimeout(url: string, ms = 15000): Promise<Response> {
   }
 }
 const TIMING_KEY = 'athannow.recitation.timing.v1.';
+
+/** Position in the whole Quran (which names the audio file) of a surah's ayah, known without any download. */
+export function ayahNumber(surahId: number, index: number): number {
+  let n = index + 1;
+  for (const s of SURAHS) {
+    if (s.id >= surahId) break;
+    n += s.totalVerses;
+  }
+  return n;
+}
 
 /** Each reciter's own recording of one ayah. The Bismillah before a surah is Al-Fatihah 1 (ayah 1 overall). */
 export function ayahAudioUrl(reciter: Reciter, ayahNumber: number): string {

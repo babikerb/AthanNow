@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import React, { memo, useMemo, useState } from 'react';
-import { Pressable, SectionList, TextInput, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MINI_PLAYER_H, MiniPlayer } from '../components/recitation/MiniPlayer';
@@ -163,6 +163,7 @@ export default function RecitationScreen() {
             surah={item}
             current={item.id === r.surahId}
             playing={item.id === r.surahId && r.isPlaying}
+            loading={item.id === r.surahId && !!r.preparing}
             saved={r.savedIds.includes(item.id)}
             onPlay={play}
             onToggleSaved={r.toggleSaved}
@@ -200,7 +201,7 @@ function ContinueCard({ onOpen }: { onOpen: () => void }) {
   const resuming = !!r.surahId;
   const surah = getSurah(r.surahId ?? (new Date().getDay() === 5 ? 18 : 67));
   if (!surah) return null;
-  const label = resuming ? (r.isPlaying ? 'Now playing' : 'Continue listening') : new Date().getDay() === 5 ? 'For Friday' : 'Suggested';
+  const label = resuming ? (r.preparing ? 'Loading' : r.isPlaying ? 'Now playing' : 'Continue listening') : new Date().getDay() === 5 ? 'For Friday' : 'Suggested';
   const detail = resuming ? `Ayah ${r.ayahIndex + 1} of ${surah.totalVerses}, ${r.reciter.name}` : `${surah.translation}, ${surah.totalVerses} ayahs`;
 
   return (
@@ -243,6 +244,7 @@ const SurahRow = memo(function SurahRow({
   surah,
   current,
   playing,
+  loading,
   saved,
   onPlay,
   onToggleSaved,
@@ -250,6 +252,7 @@ const SurahRow = memo(function SurahRow({
   surah: Surah;
   current: boolean;
   playing: boolean;
+  loading: boolean;
   saved: boolean;
   onPlay: (id: number) => void;
   onToggleSaved: (id: number) => void;
@@ -281,7 +284,9 @@ const SurahRow = memo(function SurahRow({
           }}
         >
           <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: current ? t.c.accentSoft : t.c.surface1 }}>
-            {playing ? (
+            {loading ? (
+              <ActivityIndicator size="small" color={t.c.accent} />
+            ) : playing ? (
               <SymbolView name="waveform" size={16} tintColor={t.c.accent} />
             ) : (
               <Text variant="footnote" color={current ? 'accentText' : 'textSecondary'} style={{ fontWeight: '600' }}>

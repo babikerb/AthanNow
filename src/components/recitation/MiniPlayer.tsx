@@ -17,7 +17,7 @@ export function MiniPlayer({ onOpen }: { onOpen: () => void }) {
   const r = useRecitation();
   const surah = r.surahId ? getSurah(r.surahId) : undefined;
   if (!surah) return null;
-  const detail = r.inBismillah ? 'Bismillah' : `Ayah ${r.ayahIndex + 1}`;
+  const detail = r.preparing ? `Loading ${r.preparing.done} of ${r.preparing.total}` : r.inBismillah ? 'Bismillah' : `Ayah ${r.ayahIndex + 1}`;
 
   return (
     <View

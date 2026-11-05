@@ -1,7 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import type { SFSymbol } from 'sf-symbols-typescript';
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, Text as RNText, View, type ViewToken } from 'react-native';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Modal, Pressable, Text as RNText, View, type LayoutChangeEvent, type StyleProp, type ViewStyle, type ViewToken } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { juzLabel } from '../../data/surahJuz';
@@ -17,14 +17,26 @@ import { ReciterSheet } from './ReciterSheet';
 import { Scrubber } from './Scrubber';
 import { TapTarget } from './TapTarget';
 
-// Amiri Quran's marks reach far above and below the line, so the leading is about twice the size.
-const ARABIC_SIZE = 32;
-const ARABIC = { fontFamily: QURAN_FONT, fontSize: ARABIC_SIZE, lineHeight: 68, textAlign: 'right' as const, writingDirection: 'rtl' as const };
-// The ayah being recited.
-const LIT_SIZE = 36;
-const LIT_LINE = 76;
+const ARABIC_SIZE = 36;
+// Each word is its own block, so the one being recited can sit in a real rounded highlight (text
+// backgrounds can't round and fill the whole line). WORD_LINE is the highlight's height; ROW_GAP
+// keeps Amiri Quran's stacked marks off the row below. Every ayah is the same size, so nothing
+// reflows when the recitation moves on.
+const WORD_LINE = 74;
+const ROW_GAP = 14;
+
 // After the reader scrolls by hand, the list stops following the recitation for this long.
 const FOLLOW_PAUSE_MS = 5000;
+// The ayah being recited sits this far below the top of the list.
+const FOLLOW_TOP_GAP = 12;
+// The scroll waits this long after the last layout change, to aim at where the row ends up.
+const FOLLOW_SETTLE_MS = 50;
+
+// Inside a long ayah, a line this close to the bottom of the list scrolls up to this far down it.
+const LINE_BOTTOM_MARGIN = 90;
+const LINE_REST = 0.2;
+
+type CellProps = { index: number; style?: StyleProp<ViewStyle>; onLayout?: (e: LayoutChangeEvent) => void; children?: React.ReactNode };
 
 /** Full-screen player: the whole surah with the current ayah lit and followed, and the controls. */
 export function NowPlaying({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -73,29 +85,94 @@ function AyahList() {
   const t = useTheme();
   const r = useRecitation();
   const list = useRef<FlatList<Ayah>>(null);
+  // Only real drags count: the list's own animated scrolls end with the same momentum event.
+  const dragging = useRef(false);
   const draggedAt = useRef(0);
   const [away, setAway] = useState(false);
   const visibleRef = useRef<Set<number>>(new Set());
+  const indexRef = useRef(r.ayahIndex);
+  indexRef.current = r.ayahIndex;
+  const bismillahRef = useRef(r.inBismillah);
+  bismillahRef.current = r.inBismillah;
+
+  // Measured top of each rendered row, so a scroll lands exactly on it (scrollToIndex estimates).
+  const offsets = useRef(new Map<number, number>());
+  const settling = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const following = useRef(false);
+  const animate = useRef(false);
+
+  const scrollToCurrent = useCallback(() => {
+    following.current = false;
+    const i = indexRef.current;
+    const y = bismillahRef.current ? 0 : offsets.current.get(i);
+    if (y != null) list.current?.scrollToOffset({ offset: Math.max(0, y - FOLLOW_TOP_GAP), animated: animate.current });
+    else list.current?.scrollToIndex({ index: i, viewPosition: 0, animated: false });
+    setAway(false);
+  }, []);
 
   const follow = useCallback(
     (animated: boolean) => {
-      if (!r.ayahs.length) return;
-      list.current?.scrollToIndex({ index: Math.min(r.ayahIndex, r.ayahs.length - 1), viewPosition: 0.2, animated });
-      setAway(false);
+      following.current = true;
+      animate.current = animated;
+      if (settling.current) clearTimeout(settling.current);
+      settling.current = setTimeout(scrollToCurrent, FOLLOW_SETTLE_MS);
     },
-    [r.ayahIndex, r.ayahs.length],
+    [scrollToCurrent],
   );
+  useEffect(() => () => {
+    if (settling.current) clearTimeout(settling.current);
+  }, []);
 
   useEffect(() => {
-    if (Date.now() - draggedAt.current > FOLLOW_PAUSE_MS) follow(!t.reduceMotion);
-  }, [r.ayahIndex, r.ayahs.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (r.ayahs.length && !dragging.current && Date.now() - draggedAt.current > FOLLOW_PAUSE_MS) follow(!t.reduceMotion);
+  }, [r.ayahIndex, r.inBismillah, r.ayahs.length, r.showTranslation]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const Cell = useMemo(
+    () =>
+      function Cell({ index, style, onLayout, children }: CellProps) {
+        return (
+          <View
+            style={style}
+            onLayout={(e) => {
+              onLayout?.(e);
+              offsets.current.set(index, e.nativeEvent.layout.y);
+              // A row at or above the target moved it: aim again once layout has settled.
+              if (following.current && index <= indexRef.current) follow(animate.current);
+            }}
+          >
+            {children}
+          </View>
+        );
+      },
+    [follow],
+  );
+
+  const scrollY = useRef(0);
+  const viewH = useRef(0);
+
+  // An ayah taller than the list: keep the line being recited in view. `y` is its top within the
+  // ayah's text. Holds off while the reader is scrolling and while the list is moving to the ayah.
+  const followLine = useCallback(
+    (y: number, h: number) => {
+      const row = offsets.current.get(indexRef.current);
+      if (row == null || following.current || dragging.current || Date.now() - draggedAt.current < FOLLOW_PAUSE_MS) return;
+      const top = row + t.spacing.xl + y;
+      const offscreen = top + h > scrollY.current + viewH.current - LINE_BOTTOM_MARGIN || top < scrollY.current;
+      if (offscreen) list.current?.scrollToOffset({ offset: Math.max(0, top - viewH.current * LINE_REST), animated: !t.reduceMotion });
+    },
+    [t.spacing.xl, t.reduceMotion],
+  );
 
   const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     visibleRef.current = new Set(viewableItems.map((v) => v.index ?? -1));
   }).current;
   const checkAway = () => setAway(!visibleRef.current.has(indexRef.current));
-  const indexRef = useRef(r.ayahIndex);
-  indexRef.current = r.ayahIndex;
+  const endDrag = () => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    draggedAt.current = Date.now();
+    checkAway();
+  };
 
   if (!r.ayahs.length) {
     return (
@@ -122,19 +199,27 @@ function AyahList() {
         contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.lg, paddingBottom: t.spacing.xxxl }}
         initialNumToRender={Math.min(r.ayahs.length, r.ayahIndex + 6)}
         windowSize={11}
-        onScrollBeginDrag={() => (draggedAt.current = Date.now())}
-        onMomentumScrollEnd={() => {
-          draggedAt.current = Date.now();
-          checkAway();
+        CellRendererComponent={Cell}
+        scrollEventThrottle={32}
+        onScroll={(e) => (scrollY.current = e.nativeEvent.contentOffset.y)}
+        onLayout={(e) => (viewH.current = e.nativeEvent.layout.height)}
+        onScrollBeginDrag={() => {
+          dragging.current = true;
+          following.current = false;
+          if (settling.current) clearTimeout(settling.current);
         }}
-        onScrollEndDrag={checkAway}
+        onMomentumScrollEnd={endDrag}
+        onScrollEndDrag={(e) => {
+          // A drag released without a flick has no momentum phase to end it.
+          if ((e.nativeEvent.velocity?.y ?? 0) === 0) endDrag();
+        }}
         onViewableItemsChanged={onViewable}
         viewabilityConfig={{ itemVisiblePercentThreshold: 30 }}
         onScrollToIndexFailed={(info) => {
+          // Row not rendered yet: get near it, then land once it has laid out.
           list.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
-          setTimeout(() => list.current?.scrollToIndex({ index: info.index, viewPosition: 0.2, animated: false }), 120);
+          follow(false);
         }}
-        onLayout={() => follow(false)}
         ListHeaderComponent={surah ? <SurahHeading surah={surah} lit={r.inBismillah} /> : null}
         renderItem={({ item, index }) => (
           <AyahItem
@@ -145,6 +230,7 @@ function AyahList() {
             showTranslation={r.showTranslation}
             lit={index === r.ayahIndex && !r.inBismillah}
             onPress={r.goToAyah}
+            onLine={followLine}
           />
         )}
         extraData={`${r.ayahIndex}:${r.inBismillah}:${r.showTranslation}`}
@@ -154,6 +240,7 @@ function AyahList() {
           <PressableScale
             haptic="select"
             onPress={() => {
+              dragging.current = false;
               draggedAt.current = 0;
               follow(!t.reduceMotion);
             }}
@@ -179,6 +266,7 @@ const AyahItem = memo(function AyahItem({
   showTranslation,
   lit,
   onPress,
+  onLine,
 }: {
   ayah: Ayah;
   index: number;
@@ -187,9 +275,10 @@ const AyahItem = memo(function AyahItem({
   showTranslation: boolean;
   lit: boolean;
   onPress: (index: number) => void;
+  onLine: (y: number, h: number) => void;
 }) {
   const t = useTheme();
-  const words = splitAyahWords(ayah.arabic).slice(hiddenWords);
+  const words = useMemo(() => splitAyahWords(ayah.arabic).slice(hiddenWords), [ayah.arabic, hiddenWords]);
   return (
     <PressableScale
       scaleTo={1}
@@ -209,12 +298,9 @@ const AyahItem = memo(function AyahItem({
       }}
     >
       {lit ? (
-        <LitArabic words={words} n={ayah.numberInSurah} />
+        <LitWords words={words} n={ayah.numberInSurah} onLine={onLine} />
       ) : (
-        <RNText accessibilityLanguage="ar" style={{ ...ARABIC, color: current ? t.c.text : t.c.textSecondary }}>
-          {words.join(' ')}
-          <AyahEnd n={ayah.numberInSurah} size={ARABIC_SIZE} color={current ? t.c.accent : t.c.glyphQuiet} />
-        </RNText>
+        <AyahWords words={words} n={ayah.numberInSurah} color={current ? t.c.text : t.c.textSecondary} markColor={current ? t.c.accent : t.c.glyphQuiet} />
       )}
       {showTranslation && ayah.translation ? (
         <Text variant="body" color={current ? 'text' : 'textSecondary'} style={{ marginTop: t.spacing.md }}>
@@ -228,28 +314,79 @@ const AyahItem = memo(function AyahItem({
   );
 });
 
-/**
- * The ayah being recited, a size up from the rest, with the word being spoken in gold. Only this
- * item re-renders as time passes. The words are plain RN Text so they inherit the Arabic face and
- * size (the design Text would reset each one to its body style).
- */
-function LitArabic({ words, n }: { words: string[]; n: number }) {
-  const t = useTheme();
-  const { activeWords } = useRecitationProgress();
+const Word = memo(function Word({
+  text,
+  index,
+  on,
+  color,
+  highlight,
+  onLayoutWord,
+}: {
+  text: string;
+  index: number;
+  on: boolean;
+  color: string;
+  highlight: string;
+  onLayoutWord?: (index: number, e: LayoutChangeEvent) => void;
+}) {
   return (
-    <RNText accessibilityLanguage="ar" style={{ ...ARABIC, fontSize: LIT_SIZE, lineHeight: LIT_LINE, color: t.c.text }}>
-      {words.map((w, i) => {
-        const on = !!activeWords && i >= activeWords[0] && i < activeWords[1];
-        return (
-          <RNText key={i} style={on ? { color: t.c.accent } : undefined}>
-            {w}
-            {i < words.length - 1 ? ' ' : ''}
-          </RNText>
-        );
-      })}
-      <AyahEnd n={n} size={LIT_SIZE} color={t.c.accent} />
-    </RNText>
+    <View
+      onLayout={onLayoutWord ? (e) => onLayoutWord(index, e) : undefined}
+      style={{ paddingHorizontal: 6, borderRadius: 14, borderCurve: 'continuous', backgroundColor: on ? highlight : 'transparent' }}
+    >
+      <RNText style={{ fontFamily: QURAN_FONT, fontSize: ARABIC_SIZE, lineHeight: WORD_LINE, color, writingDirection: 'rtl' }}>{text}</RNText>
+    </View>
   );
+});
+
+/** An ayah's words right to left, wrapping, then its end mark. The layout is the same lit or not, so nothing shifts as the recitation moves on. */
+function AyahWords({
+  words,
+  n,
+  color,
+  markColor,
+  active,
+  onLayoutWord,
+}: {
+  words: string[];
+  n: number;
+  color: string;
+  markColor: string;
+  active?: [number, number] | null;
+  onLayoutWord?: (index: number, e: LayoutChangeEvent) => void;
+}) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', alignItems: 'center', rowGap: ROW_GAP }}>
+      {words.map((w, i) => (
+        <Word key={i} text={w} index={i} color={color} highlight={`${t.c.accent}3D`} on={!!active && i >= active[0] && i < active[1]} onLayoutWord={onLayoutWord} />
+      ))}
+      <AyahEnd n={n} size={ARABIC_SIZE} color={markColor} />
+    </View>
+  );
+}
+
+/**
+ * The ayah being recited, with the word being spoken in its highlight. Only this item re-renders as
+ * time passes, and of its words only the two changing state. Without word timing nothing is lit, and
+ * how far through the clip it is stands in for the position.
+ */
+function LitWords({ words, n, onLine }: { words: string[]; n: number; onLine: (y: number, h: number) => void }) {
+  const t = useTheme();
+  const { activeWords, currentTime, duration } = useRecitationProgress();
+  const rows = useRef<{ y: number; h: number }[]>([]);
+  const onLayoutWord = useCallback((index: number, e: LayoutChangeEvent) => {
+    rows.current[index] = { y: e.nativeEvent.layout.y, h: e.nativeEvent.layout.height };
+  }, []);
+
+  const word = activeWords ? activeWords[0] : duration > 0 ? Math.floor((currentTime / duration) * words.length) : 0;
+  const y = rows.current[word]?.y ?? 0;
+  useEffect(() => {
+    const row = rows.current[word];
+    if (row && y > 0) onLine(row.y, row.h);
+  }, [y]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <AyahWords words={words} n={n} color={t.c.text} markColor={t.c.accent} active={activeWords} onLayoutWord={onLayoutWord} />;
 }
 
 function Controls({ bottom, onReciters }: { bottom: number; onReciters: () => void }) {
@@ -268,13 +405,13 @@ function Controls({ bottom, onReciters }: { bottom: number; onReciters: () => vo
           {r.error}
         </Text>
       ) : null}
-      <Scrubber progress={p.duration > 0 ? p.currentTime / p.duration : 0} onSeek={p.seekTo} />
+      <Scrubber progress={r.preparing ? r.preparing.done / r.preparing.total : p.duration > 0 ? p.currentTime / p.duration : 0} onSeek={p.seekTo} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         <Text variant="caption" color="textSecondary">
           {clock(p.currentTime)}
         </Text>
         <Text variant="caption" color="textSecondary">
-          {r.inBismillah ? 'Bismillah' : total ? `Ayah ${r.ayahIndex + 1} of ${total}` : ''}
+          {r.preparing ? `Loading ${r.preparing.done} of ${r.preparing.total}` : r.inBismillah ? 'Bismillah' : total ? `Ayah ${r.ayahIndex + 1} of ${total}` : ''}
         </Text>
         <Text variant="caption" color="textSecondary">
           {clock(p.duration)}
