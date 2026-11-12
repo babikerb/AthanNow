@@ -149,7 +149,7 @@ export default function CalendarScreen() {
     <View style={[styles.container, { backgroundColor: c.bg }]}>
       {/* Title and the one action. */}
       <View style={[styles.titleBar, { paddingTop: insets.top + t.spacing.sm, paddingHorizontal: gutter }]}>
-        <Text variant="title1" header maxFontSizeMultiplier={1.3} style={styles.flexShrink}>
+        <Text variant="title1" header maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={styles.flexShrink}>
           Calendar
         </Text>
         <Button

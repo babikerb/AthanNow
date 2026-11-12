@@ -38,7 +38,7 @@ export function ScreenContainer({ title, subtitle, right, scroll = true, sticky,
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingTop: t.spacing.lg, paddingBottom: t.spacing.md }}>
         <View style={{ flex: 1 }}>
           {title ? (
-            <Text variant="title1" header>
+            <Text variant="title1" header numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {title}
             </Text>
           ) : null}
@@ -76,7 +76,7 @@ export function ScreenContainer({ title, subtitle, right, scroll = true, sticky,
           }}
         >
           {title ? (
-            <Text variant="title1" header maxFontSizeMultiplier={1.3} style={{ flexShrink: 1 }}>
+            <Text variant="title1" header maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ flexShrink: 1 }}>
               {title}
             </Text>
           ) : (

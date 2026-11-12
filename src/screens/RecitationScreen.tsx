@@ -80,7 +80,7 @@ export default function RecitationScreen() {
           borderBottomColor: t.c.hairline,
         }}
       >
-        <Text variant="title1" header maxFontSizeMultiplier={1.3} style={{ flexShrink: 1 }}>
+        <Text variant="title1" header maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={{ flexShrink: 1 }}>
           Quran
         </Text>
         <PressableScale
