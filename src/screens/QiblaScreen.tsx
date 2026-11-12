@@ -17,6 +17,9 @@ import { formatDistance } from '../utils/units';
 // The Qibla instrument is always night, in either app appearance (BRAND.md), so it reads the dark tokens directly.
 const c = colorTokens.dark;
 
+const KAABA = require('../../assets/kaaba.png');
+const KAABA_SIZE = 22;
+
 const DIAL = 300;
 const R = DIAL / 2;
 
@@ -49,7 +52,7 @@ function toDeg(value: Animated.Value | Animated.AnimatedNode): Animated.Animated
 }
 
 /**
- * The rotating rose (ticks, marks, Qibla dot). Memoised: it depends only on the heading *animated value* (stable), the
+ * The rotating rose (ticks, marks, Qibla marker). Memoised: it depends only on the heading *animated value* (stable), the
  * Qibla bearing and the lock animation values, so a new heading reading re-renders only the readout, not ~90 views.
  * The aligned state is a native-driver opacity crossfade between two stacked elements (no JS-driven colour or width).
  */
@@ -71,6 +74,8 @@ const Rose = React.memo(function Rose({
   const dialSpin = useMemo(() => toDeg(headingAnim), [headingAnim]);
   // Keep every labelled mark upright as the dial turns.
   const counters = useMemo(() => MARKS.map(({ deg }) => toDeg(Animated.subtract(new Animated.Value(-deg), headingAnim))), [headingAnim]);
+  // The Kaaba marker stays upright too.
+  const kaabaUpright = useMemo(() => toDeg(Animated.subtract(new Animated.Value(-qiblaBearing), headingAnim)), [qiblaBearing, headingAnim]);
   const ticks = useMemo(
     () =>
       TICKS.map((deg) => {
@@ -124,8 +129,7 @@ const Rose = React.memo(function Rose({
         </View>
       ))}
 
-      {/* Qibla marker riding the rim at the Qibla bearing. A plain dot,
-          not an image of the Kaaba, out of respect for the sacred site. */}
+      {/* Qibla marker riding the rim at the Qibla bearing: the Kaaba glyph, light until facing it, then gold. */}
       {hasLocation && (
         <View
           style={{
@@ -139,9 +143,9 @@ const Rose = React.memo(function Rose({
             transform: [{ rotate: `${qiblaBearing}deg` }, { translateY: -(R - 30) }],
           }}
         >
-          <Animated.View style={{ transform: [{ scale: dotScale }] }}>
-            <Animated.View style={[styles.qiblaDot, { backgroundColor: c.skyText, opacity: under }]} />
-            <Animated.View style={[styles.qiblaDot, styles.stack, { backgroundColor: c.accent, opacity: lock }]} />
+          <Animated.View style={{ transform: [{ scale: dotScale }, { rotate: kaabaUpright }] }}>
+            <Animated.Image source={KAABA} style={[styles.kaaba, { tintColor: c.skyText, opacity: under }]} />
+            <Animated.Image source={KAABA} style={[styles.kaaba, styles.stack, { tintColor: c.accent, opacity: lock }]} />
           </Animated.View>
         </View>
       )}
@@ -388,11 +392,7 @@ const styles = StyleSheet.create({
   crossH: { position: 'absolute', height: 1, width: DIAL - 8, backgroundColor: c.hairline },
   markLetter: { ...textStyle('headline'), color: c.skyText },
   markNumber: { ...textStyle('caption'), color: c.skyTextSecondary },
-  qiblaDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-  },
+  kaaba: { width: KAABA_SIZE, height: KAABA_SIZE, resizeMode: 'contain' },
   // Aligned ring overlay: same circle as the dial, accent, fades in (the base hairline ring never changes width).
   ring: { position: 'absolute', top: -1, left: -1, width: DIAL, height: DIAL, borderRadius: R, borderWidth: 2, borderColor: c.accent },
   // Second copy of an element stacked exactly on the first (crossfaded with opacity).
