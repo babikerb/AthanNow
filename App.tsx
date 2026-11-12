@@ -37,7 +37,7 @@ configureNotificationHandler();
 import AthanScreen from './src/screens/AthanScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import QiblaScreen from './src/screens/QiblaScreen';
-import { QURAN_ENABLED } from './src/config/features';
+import { QURAN_ENABLED, RECITATION_ENABLED } from './src/config/features';
 import QuranScreen from './src/screens/QuranScreen';
 import RecitationScreen from './src/screens/RecitationScreen';
 import { RecitationProvider } from './src/recitation/RecitationProvider';
@@ -82,14 +82,16 @@ function MainTabs() {
             tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('calendar', focused)
           } as any}
         />
-        <Tab.Screen
-          name="Quran"
-          component={RecitationScreen}
-          options={{
-            title: 'Quran',
-            tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('book', focused)
-          } as any}
-        />
+        {RECITATION_ENABLED && (
+          <Tab.Screen
+            name="Quran"
+            component={RecitationScreen}
+            options={{
+              title: 'Quran',
+              tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('book', focused)
+            } as any}
+          />
+        )}
         {QURAN_ENABLED && (
           <Tab.Screen
             name="Mushaf"
@@ -155,6 +157,11 @@ function AppThemes({ children }: { children: React.ReactNode }) {
   return <DesignThemeProvider preference={appearance}>{children}</DesignThemeProvider>;
 }
 
+/** The Quran tab's player, only when that tab is part of the build (config/features). */
+function MaybeRecitation({ children }: { children: React.ReactNode }) {
+  return RECITATION_ENABLED ? <RecitationProvider>{children}</RecitationProvider> : <>{children}</>;
+}
+
 export default function App() {
   // Register the periodic background refresh once at startup (idempotent).
   useEffect(() => {
@@ -168,10 +175,10 @@ export default function App() {
         <AppThemes>
           <ThemeProvider>
             <OnboardingProvider>
-              <RecitationProvider>
+              <MaybeRecitation>
                 <StatusBar style="light" />
                 <Root />
-              </RecitationProvider>
+              </MaybeRecitation>
             </OnboardingProvider>
           </ThemeProvider>
         </AppThemes>
