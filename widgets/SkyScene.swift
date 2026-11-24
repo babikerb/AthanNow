@@ -84,6 +84,40 @@ let SKY_SCENES: [String: SkyScenePalette] = [
     ),
 ]
 
+/// Minutes the sky takes to turn into each scene (src/components/sky/blend.ts).
+let SKY_FADE_MINUTES: [String: Double] = [
+  "fajr": 5,
+  "sunrise": 10,
+  "dhuhr": 5,
+  "asr": 5,
+  "maghrib": 10,
+  "isha": 5,
+  "night": 5,
+]
+
+/// A sky part-way to the next one.
+struct SkyFade {
+  let to: String
+  let k: Double
+}
+
+/// The moon's lit fraction and lit side, as src/components/sky/moon.ts works them out (seen from the north).
+func moonPhase(_ date: Date) -> (fraction: Double, litRight: Bool) {
+  let rad = Double.pi / 180
+  let T = (date.timeIntervalSince1970 / 86400 + 2440587.5 - 2451545) / 36525
+  let D = (297.8501921 + 445267.1114034 * T) * rad
+  let M = (357.5291092 + 35999.0502909 * T) * rad
+  let N = (134.9633964 + 477198.8675055 * T) * rad
+  var terms = 6.289 * sin(N)
+  terms -= 2.1 * sin(M)
+  terms += 1.274 * sin(2 * D - N)
+  terms += 0.658 * sin(2 * D)
+  terms += 0.214 * sin(2 * N)
+  terms += 0.11 * sin(D)
+  let i = Double.pi - D - rad * terms
+  return (max(0.05, (1 + cos(i)) / 2), sin(i) > 0)
+}
+
 private let STAR_FIELD: [(CGFloat, CGFloat, CGFloat, Double)] = [
   (8.02, 175.699, 0.86, 0.605),
   (280.785, 125.253, 0.896, 0.876),
@@ -262,10 +296,14 @@ struct SkySceneView: View {
   let period: String
   /// Set when a label sits over the top-left of the scene: a sun or moon there moves to the right side.
   var labelTopLeft: Bool = false
+  var fade: SkyFade? = nil
+  var date: Date = Date()
 
   var body: some View {
     GeometryReader { geo in
       let scene = SKY_SCENES[period] ?? SKY_SCENES["night"]!
+      let next = fade.flatMap { SKY_SCENES[$0.to] }
+      let k = next == nil ? 0 : fade!.k
       let s = max(geo.size.width / 390, geo.size.height / 340)
       let t = CGAffineTransform(translationX: (geo.size.width - 390 * s) / 2, y: geo.size.height - 340 * s).scaledBy(x: s, y: s)
       ZStack {
@@ -273,14 +311,16 @@ struct SkySceneView: View {
         LinearGradient(colors: scene.sky, startPoint: .top, endPoint: .bottom)
           .frame(width: 390 * s, height: 340 * s)
           .position(x: geo.size.width / 2, y: geo.size.height - 170 * s)
-        if scene.stars > 0 {
-          ForEach(0..<scene.stars, id: \.self) { i in
-            let st = STAR_FIELD[i]
-            Path(ellipseIn: CGRect(x: st.0 - st.2, y: st.1 - st.2, width: st.2 * 2, height: st.2 * 2))
-              .applying(t)
-              .fill(Color.white.opacity(st.3 * scene.starOpacity))
-          }
+        if let next {
+          // The next sky coming in over this one.
+          next.sky.first!.opacity(k)
+          LinearGradient(colors: next.sky, startPoint: .top, endPoint: .bottom)
+            .frame(width: 390 * s, height: 340 * s)
+            .position(x: geo.size.width / 2, y: geo.size.height - 170 * s)
+            .opacity(k)
         }
+        starField(scene, t).opacity(1 - k)
+        if let next { starField(next, t).opacity(k) }
         if scene.clouds {
           let tint = period == "sunrise" ? Color(dtHex: 0xF1C7B4) : Color.white
           let alpha = period == "sunrise" ? 0.3 : 0.42
@@ -288,13 +328,32 @@ struct SkySceneView: View {
           cloud(70, 140, 50, 16).applying(t).fill(Color.white.opacity(alpha * 0.55))
           cloud(236, 180, 110, 22).applying(t).fill(tint.opacity(alpha * 0.8))
         }
-        bodyShape(placed(scene.body, visibleTop: 340 - geo.size.height / s), t)
-        if scene.ridges.count == 3 {
-          ridgeFar().applying(t).fill(scene.ridges[0])
-          ridgeMid().applying(t).fill(scene.ridges[1])
-          ridgeNear().applying(t).fill(scene.ridges[2])
-        }
+        // One sun or moon at a time: whichever half of the fade this is.
+        bodyShape(placed(k < 0.5 ? scene.body : next!.body, visibleTop: 340 - geo.size.height / s), t)
+        ridges(scene, t).opacity(next != nil && next!.ridges.isEmpty ? 1 - k : 1)
+        if let next { ridges(next, t).opacity(k) }
         skyline().applying(t).fill(SKY_INK)
+      }
+    }
+  }
+
+  private func starField(_ scene: SkyScenePalette, _ t: CGAffineTransform) -> some View {
+    ZStack {
+      ForEach(0..<scene.stars, id: \.self) { i in
+        let st = STAR_FIELD[i]
+        Path(ellipseIn: CGRect(x: st.0 - st.2, y: st.1 - st.2, width: st.2 * 2, height: st.2 * 2))
+          .applying(t)
+          .fill(Color.white.opacity(st.3 * scene.starOpacity))
+      }
+    }
+  }
+
+  private func ridges(_ scene: SkyScenePalette, _ t: CGAffineTransform) -> some View {
+    ZStack {
+      if scene.ridges.count == 3 {
+        ridgeFar().applying(t).fill(scene.ridges[0])
+        ridgeMid().applying(t).fill(scene.ridges[1])
+        ridgeNear().applying(t).fill(scene.ridges[2])
       }
     }
   }
@@ -321,13 +380,35 @@ struct SkySceneView: View {
     switch b {
     case let .sun(x, y, r, color):
       Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)).applying(t).fill(color)
-    case let .crescent(x, y, r, color, waning):
-      let disc = CGPath(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2), transform: nil)
-      let ox = x + (waning ? 1 : -1) * r * 0.58
-      let oy = y - r * 0.18
-      let rr = r * 1.02
-      let shadow = CGPath(ellipseIn: CGRect(x: ox - rr, y: oy - rr, width: rr * 2, height: rr * 2), transform: nil)
-      Path(disc.subtracting(shadow)).applying(t).fill(color)
+    case let .crescent(x, y, r, color, _):
+      moonShape(x, y, r).applying(t).fill(color)
     }
+  }
+
+  /// The lit part of tonight's moon, tilted as Home draws it.
+  private func moonShape(_ x: CGFloat, _ y: CGFloat, _ r: CGFloat) -> Path {
+    let phase = moonPhase(date)
+    let side: Double = phase.litRight ? 1 : -1
+    let tilt = side * -18 * Double.pi / 180
+    let steps = 48
+    var p = Path()
+    func add(_ lx: Double, _ ly: Double) {
+      let point = CGPoint(
+        x: Double(x) + (lx * cos(tilt) - ly * sin(tilt)) * Double(r),
+        y: Double(y) + (lx * sin(tilt) + ly * cos(tilt)) * Double(r)
+      )
+      if p.isEmpty { p.move(to: point) } else { p.addLine(to: point) }
+    }
+    // Down the lit limb, then back up the terminator.
+    for n in 0...steps {
+      let a = -Double.pi / 2 + Double.pi * Double(n) / Double(steps)
+      add(side * cos(a), sin(a))
+    }
+    for n in 0...steps {
+      let a = Double.pi / 2 - Double.pi * Double(n) / Double(steps)
+      add(side * (1 - 2 * phase.fraction) * cos(a), sin(a))
+    }
+    p.closeSubpath()
+    return p
   }
 }

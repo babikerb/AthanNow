@@ -19,6 +19,7 @@ import { useLocation } from '../context/LocationContext';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { CALC_METHOD_WHY, CALC_METHODS, calcMethodForCountry, localeCountryCode } from '../utils/calcMethodDefaults';
 import {
+  anyNotificationEnabled,
   getNotificationPermissionState,
   requestNotificationPermissionState,
   rescheduleNotifications,
@@ -93,7 +94,7 @@ function NotificationStatus() {
   useEffect(() => {
     const was = prev.current;
     prev.current = perm;
-    const anyOn = Object.values(settings.notifications.athanEnabled).some(Boolean) || (QURAN_ENABLED && settings.notifications.quranMorningEnabled);
+    const anyOn = anyNotificationEnabled(settings);
     if (perm === 'granted' && was !== 'granted' && was !== 'checking' && anyOn && location) {
       rescheduleNotifications(location, settings).then(refresh).catch(() => {});
     }
@@ -271,6 +272,16 @@ export default function SettingsScreen() {
             value={settings.notifications.athanSound ? athanVoice(settings.notifications.athanVoice).name : 'Silent'}
             onPress={() => setSoundSheetOpen(true)}
           />
+          <ListRow
+            title="Jumu’ah reminder"
+            subtitle="Fridays, an hour before"
+            accessory={<Toggle label="Jumu’ah reminder, Fridays, an hour before" value={settings.notifications.jumuahEnabled} onValueChange={(v) => settings.updateNotifications({ jumuahEnabled: v })} />}
+          />
+          <ListRow
+            title="Tahajjud reminder"
+            subtitle="When the last third of the night begins"
+            accessory={<Toggle label="Tahajjud reminder, when the last third of the night begins" value={settings.notifications.tahajjudEnabled} onValueChange={(v) => settings.updateNotifications({ tahajjudEnabled: v })} />}
+          />
           {QURAN_ENABLED && (
             <ListRow
               title="Morning Quran reminder"
@@ -287,6 +298,34 @@ export default function SettingsScreen() {
             <OfflineQuranRow />
           </>
         )}
+
+        <SectionHeader title="Accessibility" />
+        <ListGroup footer="AthanNow also follows your iOS settings for text size, Bold Text, Increase Contrast, Reduce Motion and VoiceOver.">
+          <ListRow
+            title="Still sky"
+            subtitle="No moving clouds, stars, birds or planes"
+            accessory={<Toggle label="Still sky" value={settings.accessibility.calmSky} onValueChange={(v) => settings.updateAccessibility({ calmSky: v })} />}
+          />
+          <ListRow
+            title="Stronger contrast"
+            accessory={<Toggle label="Stronger contrast" value={settings.accessibility.strongContrast} onValueChange={(v) => settings.updateAccessibility({ strongContrast: v })} />}
+          />
+          <ListRow
+            title="Bolder text"
+            accessory={<Toggle label="Bolder text" value={settings.accessibility.boldText} onValueChange={(v) => settings.updateAccessibility({ boldText: v })} />}
+          />
+          <ListRow
+            title="Qibla vibration"
+            subtitle="Quickens as you turn towards the Kaaba"
+            accessory={<Toggle label="Qibla vibration" value={settings.accessibility.qiblaVibration} onValueChange={(v) => settings.updateAccessibility({ qiblaVibration: v })} />}
+          />
+          <ListRow
+            title="Spoken Qibla directions"
+            subtitle="With VoiceOver, says which way to turn"
+            accessory={<Toggle label="Spoken Qibla directions" value={settings.accessibility.qiblaSpoken} onValueChange={(v) => settings.updateAccessibility({ qiblaSpoken: v })} />}
+          />
+          <ListRow title="iOS accessibility settings" onPress={() => Linking.openSettings().catch(() => {})} accessibilityHint="Opens AthanNow in the iOS Settings app" />
+        </ListGroup>
 
         <SectionHeader title="General" />
         <ListGroup>

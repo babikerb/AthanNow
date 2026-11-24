@@ -88,6 +88,26 @@ func prayerWindow(_ data: WidgetData, now: Date) -> ClosedRange<Date>? {
   return Date(timeIntervalSince1970: prev.time)...Date(timeIntervalSince1970: next.time)
 }
 
+// A prayer's name on the day it falls. The baked names stay as they are (the sky and the filters go by them).
+func displayName(_ name: String, _ date: Date) -> String {
+  name.lowercased() == "dhuhr" && Calendar.current.component(.weekday, from: date) == 6 ? "Jumu’ah" : name
+}
+
+func displayName(_ p: PrayerTime) -> String {
+  displayName(p.name, Date(timeIntervalSince1970: p.time))
+}
+
+// How far the sky has turned into the next prayer's, in the minutes before it.
+func skyFade(_ data: WidgetData, now: Date) -> SkyFade? {
+  let t = now.timeIntervalSince1970
+  guard let next = data.times.first(where: { $0.time > t }) else { return nil }
+  let to = next.name.lowercased()
+  let span = (SKY_FADE_MINUTES[to] ?? 5) * 60
+  let left = next.time - t
+  guard left < span else { return nil }
+  return SkyFade(to: to, k: 1 - left / span)
+}
+
 private let ARABIC_NAMES: [String: String] = [
   "fajr": "الفجر", "sunrise": "الشروق", "dhuhr": "الظهر",
   "asr": "العصر", "maghrib": "المغرب", "isha": "العشاء",
@@ -111,9 +131,11 @@ func scenePeriod(_ data: WidgetData, now: Date) -> String {
 struct SceneBackground: View {
   let period: String
   let band: CGFloat
+  var fade: SkyFade? = nil
+  var date: Date = Date()
   var body: some View {
     VStack(spacing: 0) {
-      SkySceneView(period: period, labelTopLeft: true).frame(height: band)
+      SkySceneView(period: period, labelTopLeft: true, fade: fade, date: date).frame(height: band)
       SKY_INK
     }
     .background(SKY_INK)
@@ -122,12 +144,12 @@ struct SceneBackground: View {
 
 extension View {
   @ViewBuilder
-  func sceneBackground(period: String, band: CGFloat) -> some View {
+  func sceneBackground(period: String, band: CGFloat, fade: SkyFade? = nil, date: Date = Date()) -> some View {
     if #available(iOS 17.0, *) {
       // iOS 17+ insets content by the system margin; the background stays full-bleed.
-      self.containerBackground(for: .widget) { SceneBackground(period: period, band: band) }
+      self.containerBackground(for: .widget) { SceneBackground(period: period, band: band, fade: fade, date: date) }
     } else {
-      self.padding(16).background(SceneBackground(period: period, band: band))
+      self.padding(16).background(SceneBackground(period: period, band: band, fade: fade, date: date))
     }
   }
 }
@@ -157,7 +179,15 @@ struct Provider: TimelineProvider {
     var entries: [AthanEntry] = [AthanEntry(date: now, data: data)]
     if let data = data {
       let t = now.timeIntervalSince1970
-      for p in data.times where p.time > t {
+      for (i, p) in data.times.filter({ $0.time > t }).enumerated() {
+        // Widgets can't animate, so the next two days get a few skies on the way to each prayer.
+        if i < 12 {
+          let span = (SKY_FADE_MINUTES[p.name.lowercased()] ?? 5) * 60
+          for k in [0.3, 0.55, 0.8] {
+            let at = p.time - span * (1 - k)
+            if at > t { entries.append(AthanEntry(date: Date(timeIntervalSince1970: at), data: data)) }
+          }
+        }
         entries.append(AthanEntry(date: Date(timeIntervalSince1970: p.time), data: data))
       }
     }
@@ -261,8 +291,8 @@ private struct PrayerRowView: View {
   var showArabic: Bool = false
   var body: some View {
     HStack(spacing: 6) {
-      Text(p.name).font(DTFont.text(size, weight: isNext ? .semibold : .regular))
-      if showArabic, let ar = ARABIC_NAMES[p.name.lowercased()] {
+      Text(displayName(p)).font(DTFont.text(size, weight: isNext ? .semibold : .regular))
+      if showArabic, let ar = displayName(p) == p.name ? ARABIC_NAMES[p.name.lowercased()] : "الجمعة" {
         Text(ar).font(DTFont.text(size - 2)).foregroundColor(DTNight.skyTextSecondary)
       }
       Spacer(minLength: 4)
@@ -287,7 +317,7 @@ struct SmallView: View {
       Spacer(minLength: 0)
       if let n = next {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-          Text(n.name).font(DTFont.text(13, weight: .semibold))
+          Text(displayName(n.name, n.date)).font(DTFont.text(13, weight: .semibold))
           Text("at " + timeString(n.date, data.use24Hour ?? false)).font(DTFont.text(11)).foregroundColor(DTNight.skyTextSecondary)
         }
         .foregroundColor(DTNight.skyText)
@@ -297,7 +327,7 @@ struct SmallView: View {
       ProgressRule(window: prayerWindow(data, now: now))
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .sceneBackground(period: scenePeriod(data, now: now), band: 74)
+    .sceneBackground(period: scenePeriod(data, now: now), band: 74, fade: skyFade(data, now: now), date: now)
   }
 }
 
@@ -311,7 +341,7 @@ struct MediumView: View {
       Spacer(minLength: 0)
       if let n = next {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-          Text(n.name).font(DTFont.text(13, weight: .semibold)).foregroundColor(DTNight.skyText)
+          Text(displayName(n.name, n.date)).font(DTFont.text(13, weight: .semibold)).foregroundColor(DTNight.skyText)
           Text(n.date, style: .timer)
             .font(DTFont.display(22))
             .monospacedDigit()
@@ -325,7 +355,7 @@ struct MediumView: View {
           let isNext = isUpcoming(p, next)
           let isPast = p.time <= now.timeIntervalSince1970 && !isNext
           VStack(alignment: .leading, spacing: 1) {
-            Text(p.name).font(DTFont.text(10)).foregroundColor(DTNight.skyTextSecondary)
+            Text(displayName(p)).font(DTFont.text(10)).lineLimit(1).minimumScaleFactor(0.8).foregroundColor(DTNight.skyTextSecondary)
             Text(shortTime(Date(timeIntervalSince1970: p.time), data.use24Hour ?? false))
               .font(DTFont.text(13, weight: isNext ? .semibold : .regular))
               .monospacedDigit()
@@ -339,7 +369,7 @@ struct MediumView: View {
       .padding(.top, 8)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .sceneBackground(period: scenePeriod(data, now: now), band: 72)
+    .sceneBackground(period: scenePeriod(data, now: now), band: 72, fade: skyFade(data, now: now), date: now)
   }
 }
 
@@ -354,7 +384,7 @@ struct LargeView: View {
       Spacer(minLength: 0)
       if let n = next {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-          Text(n.name).font(DTFont.text(15, weight: .semibold))
+          Text(displayName(n.name, n.date)).font(DTFont.text(15, weight: .semibold))
           Text("at " + timeString(n.date, data.use24Hour ?? false)).font(DTFont.text(13)).foregroundColor(DTNight.skyTextSecondary)
         }
         .foregroundColor(DTNight.skyText)
@@ -382,7 +412,7 @@ struct LargeView: View {
       .padding(.top, 12)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    .sceneBackground(period: scenePeriod(data, now: now), band: 118)
+    .sceneBackground(period: scenePeriod(data, now: now), band: 118, fade: skyFade(data, now: now), date: now)
   }
 }
 
@@ -412,7 +442,7 @@ struct CircularView: View {
     ZStack {
       AccessoryWidgetBackground()
       VStack(spacing: 1) {
-        Text(next?.name ?? "--")
+        Text(next.map { displayName($0.name, $0.date) } ?? "--")
           .font(.system(size: 12, weight: .semibold))
           .minimumScaleFactor(0.5)
           .lineLimit(1)
@@ -439,7 +469,7 @@ struct RectangularView: View {
     VStack(alignment: .leading, spacing: 1) {
       HStack(spacing: 3) {
         Image(systemName: "moon.stars.fill").font(.system(size: 11))
-        Text(next?.name ?? "Athan").font(.system(size: 13, weight: .bold))
+        Text(next.map { displayName($0.name, $0.date) } ?? "Athan").font(.system(size: 13, weight: .bold))
       }
       .widgetAccentable()
       if let n = next {
@@ -465,7 +495,7 @@ struct InlineView: View {
     Group {
       if let n = next {
         Label {
-          Text("\(n.name) ") + Text(n.date, style: .timer)
+          Text("\(displayName(n.name, n.date)) ") + Text(n.date, style: .timer)
         } icon: {
           Image(systemName: "moon.stars.fill")
         }
@@ -500,7 +530,7 @@ struct PrayerGroupRectangularView: View {
         let isNext = isUpcoming(p, next)
         let isPast = p.time <= now.timeIntervalSince1970 && !isNext
         HStack {
-          Text(p.name).font(.system(size: 13, weight: isNext ? .bold : .regular))
+          Text(displayName(p)).font(.system(size: 13, weight: isNext ? .bold : .regular))
           Spacer()
           Text(shortTime(date, data.use24Hour ?? false))
             .font(.system(size: 13, weight: isNext ? .bold : .medium))

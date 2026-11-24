@@ -33,6 +33,18 @@ export function localDayAnchor(now: Date, timeZone?: string): Date {
   }
 }
 
+/** Milliseconds until midnight in `timeZone`. */
+export function msToMidnight(now: Date, timeZone?: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+    const passed = ((get('hour') * 60 + get('minute')) * 60 + get('second')) * 1000;
+    return Number.isFinite(passed) ? 24 * 60 * 60 * 1000 - passed : Infinity;
+  } catch {
+    return Infinity;
+  }
+}
+
 /** 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th ... 21st, 22nd, 23rd ... */
 export function ordinal(n: number): string {
   const tens = n % 100;

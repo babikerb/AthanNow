@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
+import type { SkyBlend } from './blend';
+import type { MoonPhase } from './moon';
 import type { ScenePeriod } from './palettes';
 
 /** Everything needed to draw the sky exactly as Home is drawing it right now. */
@@ -9,6 +11,8 @@ export interface HomeSky {
   zone?: { top: number; bottom: number };
   clearTop: number;
   groundLift: number;
+  blend: SkyBlend | null;
+  moon: MoonPhase;
 }
 
 // Home publishes its sky here; the launch overlay draws the same sky so the hand-off to Home only
@@ -23,6 +27,9 @@ export function publishHomeSky(next: HomeSky) {
     current.arc === next.arc &&
     current.clearTop === next.clearTop &&
     current.groundLift === next.groundLift &&
+    current.blend?.to === next.blend?.to &&
+    current.blend?.k === next.blend?.k &&
+    current.moon.fraction === next.moon.fraction &&
     current.zone?.top === next.zone?.top &&
     current.zone?.bottom === next.zone?.bottom;
   if (same) return;

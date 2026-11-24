@@ -39,6 +39,12 @@ export const SKY_TONES: Record<SkyTone, { text: string; secondary: string; terti
   dark: { text: '#17121F', secondary: 'rgba(23,18,31,0.72)', tertiary: 'rgba(23,18,31,0.5)', hairline: 'rgba(23,18,31,0.14)', track: 'rgba(23,18,31,0.16)', accent: '#3F2E00' },
 };
 
+/** The same tones under Increase Contrast: nothing on the sky is faint. */
+export const SKY_TONES_STRONG: Record<SkyTone, (typeof SKY_TONES)['light']> = {
+  light: { text: '#FFFFFF', secondary: 'rgba(255,255,255,0.94)', tertiary: 'rgba(255,255,255,0.82)', hairline: 'rgba(255,255,255,0.4)', track: 'rgba(255,255,255,0.4)', accent: '#FFE08A' },
+  dark: { text: '#0B0810', secondary: 'rgba(11,8,16,0.92)', tertiary: 'rgba(11,8,16,0.8)', hairline: 'rgba(11,8,16,0.36)', track: 'rgba(11,8,16,0.34)', accent: '#2A1E00' },
+};
+
 // Coordinates are in the scene's 390 x 340 viewBox.
 export const SCENES: Record<ScenePeriod, ScenePalette> = {
   fajr: {

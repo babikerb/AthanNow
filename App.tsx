@@ -150,11 +150,15 @@ function Root() {
 
 /** Feeds the saved Appearance preference to the design theme and the native window (tab bar, keyboard, alerts). */
 function AppThemes({ children }: { children: React.ReactNode }) {
-  const { appearance } = useSettings();
+  const { appearance, accessibility } = useSettings();
   useEffect(() => {
     Appearance.setColorScheme(appearance === 'system' ? 'unspecified' : appearance);
   }, [appearance]);
-  return <DesignThemeProvider preference={appearance}>{children}</DesignThemeProvider>;
+  return (
+    <DesignThemeProvider preference={appearance} strongContrast={accessibility.strongContrast} calm={accessibility.calmSky} bold={accessibility.boldText}>
+      {children}
+    </DesignThemeProvider>
+  );
 }
 
 /** The Quran tab's player, only when that tab is part of the build (config/features). */

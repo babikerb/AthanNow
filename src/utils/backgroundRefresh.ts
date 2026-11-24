@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { QURAN_ENABLED } from '../config/features';
 import * as BackgroundTask from 'expo-background-task';
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
@@ -8,18 +7,12 @@ import {
   DEFAULT_SETTINGS,
   mergeSettings,
   SETTINGS_STORAGE_KEY,
-  Settings,
 } from '../context/SettingsContext';
 import { AppLocation, detectMove, LOCATION_STORAGE_KEY } from '../hooks/useLocation';
-import { rescheduleNotifications } from './notifications';
+import { anyNotificationEnabled, rescheduleNotifications } from './notifications';
 import { refreshWidgetData } from './widgetData';
 
 export const BACKGROUND_REFRESH_TASK = 'athannow-background-refresh';
-
-function anyNotificationEnabled(s: Settings): boolean {
-  const n = s.notifications;
-  return Object.values(n.athanEnabled).some(Boolean) || (QURAN_ENABLED && n.quranMorningEnabled);
-}
 
 /**
  * Re-rolls the 7-day notification window and the widget's week of times while the

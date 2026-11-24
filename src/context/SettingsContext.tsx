@@ -40,6 +40,24 @@ export interface NotificationSettings {
   reminderMinutesBefore: number;
   /** "Good morning, start your day with Quran" notification around sunrise. */
   quranMorningEnabled: boolean;
+  /** Fridays, an hour before Jumu'ah. */
+  jumuahEnabled: boolean;
+  /** When the last third of the night begins. */
+  tahajjudEnabled: boolean;
+}
+
+/** The app's own accessibility options, on top of the ones it follows from iOS. */
+export interface AccessibilitySettings {
+  /** Holds the sky still, as Reduce Motion does, for this app only. */
+  calmSky: boolean;
+  /** Stronger contrast throughout, as Increase Contrast does, for this app only. */
+  strongContrast: boolean;
+  /** Heavier text, as Bold Text does, for this app only. */
+  boldText: boolean;
+  /** Vibrations that quicken as the phone turns towards the Qibla. */
+  qiblaVibration: boolean;
+  /** Spoken turns towards the Qibla while VoiceOver is on. */
+  qiblaSpoken: boolean;
 }
 
 export interface Settings {
@@ -52,6 +70,7 @@ export interface Settings {
   quranScrollDirection: ScrollDirection;
   onboardingComplete: boolean;
   appearance: Appearance;
+  accessibility: AccessibilitySettings;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -64,11 +83,14 @@ export const DEFAULT_SETTINGS: Settings = {
     athanVoice: DEFAULT_ATHAN_VOICE,
     reminderMinutesBefore: 10,
     quranMorningEnabled: false,
+    jumuahEnabled: false,
+    tahajjudEnabled: false,
   },
   quranLineMode: '15',
   quranScrollDirection: 'horizontal',
   onboardingComplete: false,
   appearance: 'dark',
+  accessibility: { calmSky: false, strongContrast: false, boldText: false, qiblaVibration: false, qiblaSpoken: true },
 };
 
 export interface SettingsContextValue extends Settings {
@@ -76,6 +98,7 @@ export interface SettingsContextValue extends Settings {
   ready: boolean;
   update: (partial: Partial<Settings>) => void;
   updateNotifications: (partial: Partial<NotificationSettings>) => void;
+  updateAccessibility: (partial: Partial<AccessibilitySettings>) => void;
   /** Resets everything to defaults, including onboarding (the "clear all data" action). */
   resetAllData: () => Promise<void>;
 }
@@ -85,6 +108,7 @@ const SettingsContext = createContext<SettingsContextValue>({
   ready: false,
   update: () => {},
   updateNotifications: () => {},
+  updateAccessibility: () => {},
   resetAllData: async () => {},
 });
 
@@ -93,6 +117,7 @@ export function mergeSettings(base: Settings, stored: Partial<Settings> | null):
   return {
     ...base,
     ...stored,
+    accessibility: { ...base.accessibility, ...(stored.accessibility ?? {}) },
     notifications: {
       ...base.notifications,
       ...(stored.notifications ?? {}),
@@ -155,6 +180,14 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
     [],
   );
 
+  const updateAccessibility = useCallback((partial: Partial<AccessibilitySettings>) => {
+    setSettings((prev) => {
+      const next: Settings = { ...prev, accessibility: { ...prev.accessibility, ...partial } };
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
   const resetAllData = useCallback(async () => {
     // Full wipe: settings (including `onboardingComplete`, which re-arms the
     // merged onboarding flow's auto-start), bookmarks, saved location, and
@@ -164,8 +197,8 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   }, [persist]);
 
   const value = useMemo<SettingsContextValue>(
-    () => ({ ...settings, ready, update, updateNotifications, resetAllData }),
-    [settings, ready, update, updateNotifications, resetAllData],
+    () => ({ ...settings, ready, update, updateNotifications, updateAccessibility, resetAllData }),
+    [settings, ready, update, updateNotifications, updateAccessibility, resetAllData],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

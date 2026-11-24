@@ -1,13 +1,15 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Linking, PanResponder, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationSheet } from '../components/LocationSheet';
 import SkyScene, { ScenePeriod } from '../components/SkyScene';
+import { accentFor, blendAt, mixStops } from '../components/sky/blend';
 import { HILLS_UNITS } from '../components/sky/SkyIllustration';
 import { publishHomeSky } from '../components/sky/homeSky';
-import { SCENES, SKY_TONES } from '../components/sky/palettes';
+import { moonPhase } from '../components/sky/moon';
+import { SCENES, SKY_TONES, SKY_TONES_STRONG } from '../components/sky/palettes';
 import { useLocation } from '../context/LocationContext';
 import { useSettings } from '../context/SettingsContext';
 import { haptic } from '../design/haptics';
@@ -16,8 +18,8 @@ import { useTheme } from '../design/theme';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
-import { getCelestialConfig, getHijriDate, getPrayerTimes } from '../utils/prayerEngine';
-import { formatClock, formatLongDate, localDayAnchor } from '../utils/time';
+import { getCelestialConfig, getHijriDate, getPrayerTimes, lastThirdStart, prayerLabel } from '../utils/prayerEngine';
+import { formatClock, formatLongDate, localDayAnchor, msToMidnight } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -36,8 +38,14 @@ function countdownText(now: Date, at: Date): string {
   return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
 }
 
-// Home is one fixed screen; text grows with Dynamic Type up to this factor.
-const HOME_MAX_SCALE = 1.35;
+// Home is one fixed screen while text is up to this factor; past it (the accessibility sizes) the page
+// scrolls instead, and text grows up to LARGE_MAX_SCALE.
+const FIXED_MAX_SCALE = 1.35;
+const LARGE_MAX_SCALE = 2;
+// In the last minutes the page goes quiet: only the next prayer keeps its full strength.
+const QUIET_MS = 5 * 60 * 1000;
+// Where dark text gives way to light (or the reverse), it waits for half of the sky's finish.
+const TONE_DELAY_MS = 800;
 
 export default function AthanScreen() {
   const { location, cityName, status, hasRestored, travelMismatch, refreshLocation, dismissTravel } = useLocation();
@@ -48,7 +56,10 @@ export default function AthanScreen() {
   const t = useTheme();
   const { fontScale, width: winW, height: winH } = useWindowDimensions();
 
-  const [now, setNow] = useState(new Date());
+  const [realNow, setNow] = useState(new Date());
+  // Development only: minutes to move the clock by, to see the sky at any time of day.
+  const [devShift, setDevShift] = useState(0);
+  const now = useMemo(() => (devShift ? new Date(realNow.getTime() + devShift * 60000) : realNow), [realNow, devShift]);
   const [locationSheetOpen, setLocationSheetOpen] = useState(false);
   // The open sky between the chrome and the hero, where the sun or moon travels (pt, screen coords).
   const [zone, setZone] = useState<{ top: number; bottom: number } | null>(null);
@@ -80,7 +91,7 @@ export default function AthanScreen() {
 
   const tz = location?.timezone;
   const prayerData = useMemo(
-    () => (location ? getPrayerTimes(location, localDayAnchor(now, tz), calcMethod, asrMadhab) : null),
+    () => (location ? getPrayerTimes(location, localDayAnchor(now, tz), calcMethod, asrMadhab, now) : null),
     [location, now, tz, calcMethod, asrMadhab],
   );
   // After Isha the next prayer is tomorrow's Fajr, so the list moves on to tomorrow's times.
@@ -90,13 +101,18 @@ export default function AthanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [location, dayKey, tz, calcMethod, asrMadhab],
   );
+  const yesterdayData = useMemo(
+    () => (location ? getPrayerTimes(location, localDayAnchor(new Date(now.getTime() - DAY_MS), tz), calcMethod, asrMadhab) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [location, dayKey, tz, calcMethod, asrMadhab],
+  );
 
   // Write a week of times to the widget only when the city or the day's times change, and never
   // from the Mecca seed before the saved city is restored.
   const widgetKey = prayerData && location ? `${cityName}|${prayerData.listRows[0]?.time.getTime()}|${use24Hour}|${calcMethod}|${asrMadhab}` : '';
   useEffect(() => {
     if (!prayerData || !location || !hasRestored) return;
-    refreshWidgetData(location, cityName, calcMethod, asrMadhab, use24Hour, now);
+    refreshWidgetData(location, cityName, calcMethod, asrMadhab, use24Hour);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetKey, hasRestored]);
 
@@ -105,8 +121,48 @@ export default function AthanScreen() {
   const overnight = !!currentStart && currentStart > now;
   const livePeriod: ScenePeriod = !prayerData ? 'night' : overnight ? 'night' : (prayerData.currentPrayer as ScenePeriod);
   const period = debugPeriod ?? livePeriod;
-  const tone = SKY_TONES[SCENES[period].full.tone];
-  useFocusedStatusBar(SCENES[period].full.tone === 'dark' ? 'dark' : 'light');
+
+  // The minutes before a prayer: how far the sky has turned into the next one. Isha turns to night at
+  // midnight, the one change that isn't a prayer.
+  const turning = useMemo(() => {
+    if (!prayerData || debugPeriod) return null;
+    if (livePeriod === 'isha') return blendAt('isha', 'night', msToMidnight(now, tz));
+    return blendAt(livePeriod, prayerData.nextPrayer.toLowerCase() as ScenePeriod, prayerData.nextPrayerTime.getTime() - now.getTime());
+  }, [prayerData, debugPeriod, livePeriod, now, tz]);
+  // Same object until it moves a step, so the sky only redraws when it does.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const blend = useMemo(() => turning, [turning?.to, turning?.k]);
+  const latitude = location?.latitude ?? 0;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const moon = useMemo(() => moonPhase(now, latitude), [dayKey, latitude]);
+
+  // The text's tone follows the sky, a moment late where it flips so the sky is on its way first.
+  const skyTone = SCENES[period].full.tone;
+  const [toneName, setToneName] = useState(skyTone);
+  useEffect(() => {
+    if (skyTone === toneName) return;
+    const timer = setTimeout(() => setToneName(skyTone), debugPeriod ? 0 : TONE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [skyTone, toneName, debugPeriod]);
+  const tone = useMemo(() => {
+    const base = (t.highContrast ? SKY_TONES_STRONG : SKY_TONES)[toneName];
+    return blend && !t.highContrast ? { ...base, accent: accentFor(period, blend.to, blend.colorK) } : base;
+  }, [toneName, t.highContrast, blend, period]);
+  useFocusedStatusBar(toneName === 'dark' ? 'dark' : 'light');
+
+  // VoiceOver hears a prayer arrive.
+  const spokenPeriod = useRef(livePeriod);
+  useEffect(() => {
+    if (spokenPeriod.current === livePeriod || !prayerData) return;
+    spokenPeriod.current = livePeriod;
+    if (livePeriod === 'night') return;
+    const row = prayerData.listRows.find((r) => r.id === livePeriod);
+    if (row && Math.abs(now.getTime() - row.time.getTime()) < 60000) {
+      const name = prayerLabel(row.id, row.time, tz);
+      AccessibilityInfo.announceForAccessibility(row.id === 'sunrise' ? 'Sunrise. Fajr time has ended.' : `It is time for ${name}.`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [livePeriod]);
 
   // Where the sun (sunrise to sunset) or the moon (sunset to sunrise) is along its arc right now.
   // Rounded so the sky redraws about once a minute rather than every second.
@@ -126,8 +182,8 @@ export default function AthanScreen() {
     const h = Math.floor(minutesToNext / 60);
     const m = minutesToNext % 60;
     const when = formatClock(prayerData.nextPrayerTime, use24Hour, tz);
-    const tomorrow = !prayerData.listRows.some((r) => r.id === prayerData.nextPrayer.toLowerCase() && r.time > new Date());
-    return `${prayerData.nextPrayer} in ${h > 0 ? `${h} hour${h === 1 ? '' : 's'} ` : ''}${m} minute${m === 1 ? '' : 's'}, at ${when}${tomorrow ? ' tomorrow' : ''}`;
+    const tomorrow = !prayerData.listRows.some((r) => r.id === prayerData.nextPrayer.toLowerCase() && r.time > now);
+    return `${prayerLabel(prayerData.nextPrayer.toLowerCase(), prayerData.nextPrayerTime, tz)} in ${h > 0 ? `${h} hour${h === 1 ? '' : 's'} ` : ''}${m} minute${m === 1 ? '' : 's'}, at ${when}${tomorrow ? ' tomorrow' : ''}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minutesToNext, prayerData?.nextPrayer, use24Hour, tz]);
 
@@ -152,7 +208,9 @@ export default function AthanScreen() {
   // them. When space is short the page compresses in a fixed order (row height, the progress rule,
   // then the open sky down to its floor), worked out from type sizes at the current text size so the
   // list never ends up under the tab bar. The Arabic names always stay.
-  const fs = Math.min(fontScale, HOME_MAX_SCALE);
+  const large = fontScale > FIXED_MAX_SCALE;
+  const maxScale = large ? LARGE_MAX_SCALE : FIXED_MAX_SCALE;
+  const fs = Math.min(fontScale, maxScale);
   const gutter = winW <= 375 ? t.spacing.lg : t.spacing.xl;
   const chromeH = insets.top + 52;
   // The whole illustration sits above the tab bar; under the bar is solid ground in the skyline's ink.
@@ -174,7 +232,7 @@ export default function AthanScreen() {
 
   // The launch overlay draws this same sky, so handing over to Home only reveals the text.
   useEffect(() => {
-    if (hasRestored && prayerData && zone) publishHomeSky({ period, arc, zone, clearTop: chromeH, groundLift });
+    if (hasRestored && prayerData && zone) publishHomeSky({ period, arc, zone, clearTop: chromeH, groundLift, blend, moon });
   });
 
   if (!prayerData) {
@@ -192,6 +250,14 @@ export default function AthanScreen() {
   const rows = showTomorrow ? tomorrowData!.listRows : listRows;
   const nextRowIdx = showTomorrow ? rows.findIndex((r) => r.id === nextPrayer.toLowerCase()) : nextIdx;
   const isNow = nextPrayerTime.getTime() <= now.getTime();
+  const heroName = prayerLabel(nextPrayer.toLowerCase(), nextPrayerTime, tz);
+  const quiet = !isNow && !t.highContrast && nextPrayerTime.getTime() - now.getTime() <= QUIET_MS;
+
+  // After Isha, and on past midnight until Fajr: when the last third of this night begins.
+  const timeOf = (data: typeof prayerData | null, id: string) => data?.listRows.find((r) => r.id === id)?.time;
+  const nightMaghrib = showTomorrow ? timeOf(prayerData, 'maghrib') : overnight ? timeOf(yesterdayData, 'maghrib') : undefined;
+  const nightFajr = showTomorrow ? timeOf(tomorrowData, 'fajr') : overnight ? timeOf(prayerData, 'fajr') : undefined;
+  const lastThird = nightMaghrib && nightFajr ? formatClock(lastThirdStart(nightMaghrib, nightFajr), use24Hour, tz) : null;
 
   // Unresolved states never pass Mecca off as the user's city.
   const unresolved = !!location && !location.isManual && hasRestored;
@@ -239,20 +305,24 @@ export default function AthanScreen() {
   const ink2 = { color: tone.secondary };
   const ink3 = { color: tone.tertiary };
 
+  // Past the fixed size the page scrolls over the skyline, so the list takes a panel of its own sky.
+  const skyNow = blend ? mixStops(SCENES[period].full.sky, SCENES[blend.to].full.sky, blend.colorK) : SCENES[period].full.sky;
+  const panel = large ? { backgroundColor: `${skyNow[Math.floor(skyNow.length / 2)][0]}F2`, borderRadius: t.radii.card } : null;
+
   return (
     <View style={[styles.container, { backgroundColor: SCENES[period].full.sky[0][0] }]}>
       <View style={StyleSheet.absoluteFill}>
-        <SkyScene period={period} width={winW} height={winH} layout="full" clearTop={chromeH} zone={zone ?? undefined} arc={arc} groundLift={groundLift} instant={debugSwitch} />
+        <SkyScene period={period} width={winW} height={winH} layout="full" clearTop={chromeH} zone={zone ?? undefined} arc={arc} groundLift={groundLift} instant={debugSwitch} blend={blend} moon={moon} />
       </View>
 
-      <View style={styles.flex}>
+      <HomePage scroll={large} minHeight={winH}>
         {/* City on the left, today's dates on the right. */}
         <View style={[styles.chrome, { paddingTop: insets.top + t.spacing.sm, paddingHorizontal: gutter }]}>
           <Pressable
             onPress={openLocation}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel={`Location, ${cityName}`}
+            accessibilityLabel={`${cityName}, location`}
             accessibilityHint="Changes the city"
             style={({ pressed }) => [styles.pill, { opacity: pressed ? 0.6 : 1 }]}
           >
@@ -262,7 +332,7 @@ export default function AthanScreen() {
             </Text>
             <SymbolView name="chevron.down" size={11} tintColor={tone.secondary} />
           </Pressable>
-          <View style={styles.dates} accessible accessibilityLabel={`${formatLongDate(now)}, ${getHijriDate(now)}`}>
+          <View style={[styles.dates, quiet && styles.quiet]} accessible accessibilityLabel={`${formatLongDate(now)}, ${getHijriDate(now)}`}>
             <Text variant="footnote" style={ink}>
               {formatLongDate(now)}
             </Text>
@@ -292,10 +362,11 @@ export default function AthanScreen() {
               style={[styles.debug, { right: gutter }]}
             >
               <Text variant="caption" style={{ color: '#F2EDF6' }}>
-                {debugPeriod ? `Sky: ${debugPeriod}` : 'Sky: live'}
+                {debugPeriod ? `Sky: ${debugPeriod}` : devShift ? `Clock ${formatClock(now, use24Hour, tz)}` : 'Sky: live'}
               </Text>
             </Pressable>
           )}
+          {__DEV__ && !debugPeriod && <DevClock shift={devShift} onShift={setDevShift} gutter={gutter} />}
         </View>
 
         {/* Hero: which prayer is next and how long until it. */}
@@ -303,9 +374,9 @@ export default function AthanScreen() {
           {/* Two lines: the prayer, then how long until it. Its clock time is already in the list below, in gold. */}
           <View accessible accessibilityRole="timer" accessibilityLabel={countdownLabel}>
             <Text variant="hero" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={ink}>
-              {nextPrayer}
+              {heroName}
             </Text>
-            <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant="title2" style={isNow ? { color: tone.accent } : ink}>
+            <Text maxFontSizeMultiplier={maxScale} variant="title2" style={isNow ? { color: tone.accent } : ink}>
               {isNow ? 'Now' : `in ${countdownText(now, nextPrayerTime)}`}
             </Text>
           </View>
@@ -318,33 +389,42 @@ export default function AthanScreen() {
 
         <View>
           {/* Today's prayers (tomorrow's after Isha). The next one's time is the only warm text; passed ones fade back. */}
-          <View style={{ paddingHorizontal: gutter, paddingTop: t.spacing.md }}>
-            {showTomorrow && (
-              <Text variant="footnote" maxFontSizeMultiplier={HOME_MAX_SCALE} style={[ink2, { paddingBottom: t.spacing.xs }]} accessibilityRole="header">
-                Tomorrow
-              </Text>
+          <View style={[{ paddingHorizontal: gutter, paddingTop: t.spacing.md }, panel]}>
+            {(showTomorrow || lastThird) && (
+              <View style={[styles.listHead, { paddingBottom: t.spacing.xs }]}>
+                <Text variant="footnote" maxFontSizeMultiplier={maxScale} style={ink2} accessibilityRole="header">
+                  {showTomorrow ? 'Tomorrow' : 'Today'}
+                </Text>
+                {lastThird && (
+                  <Text variant="footnote" maxFontSizeMultiplier={maxScale} style={ink2} accessibilityLabel={`The last third of the night begins at ${lastThird}`}>
+                    Last third {lastThird}
+                  </Text>
+                )}
+              </View>
             )}
             {rows.map((row, i) => {
               const isNext = i === nextRowIdx;
               const isPast = !showTomorrow && row.time <= now;
               const time = formatClock(row.time, use24Hour, tz);
               const isCurrent = !showTomorrow && row.id === currentPrayer && !overnight;
+              const name = prayerLabel(row.id, row.time, tz);
+              const strength = isPast ? ink3 : quiet && !isNext ? ink2 : ink;
               return (
                 <View
                   key={row.id}
                   accessible
-                  accessibilityLabel={`${row.label}, ${time}${isNext ? ', next prayer' : ''}${isCurrent ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
+                  accessibilityLabel={`${name}, ${time}${isNext ? ', next prayer' : ''}${isCurrent ? ', current prayer' : ''}${isPast ? ', passed' : ''}`}
                   style={[styles.row, { minHeight: rowMin }, i < rows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: tone.hairline }]}
                 >
                   <View style={styles.rowLabel}>
-                    <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant={isNext ? 'bodyEmph' : 'body'} style={isPast ? ink3 : ink}>
-                      {row.label}
+                    <Text maxFontSizeMultiplier={maxScale} variant={isNext ? 'bodyEmph' : 'body'} style={strength}>
+                      {name}
                     </Text>
-                    <Text variant="footnote" maxFontSizeMultiplier={HOME_MAX_SCALE} numberOfLines={1} style={ink3}>
-                      {getCelestialConfig(row.id).arabicName}
+                    <Text variant="footnote" maxFontSizeMultiplier={maxScale} numberOfLines={1} style={ink3}>
+                      {name === 'Jumu’ah' ? 'الجمعة' : getCelestialConfig(row.id).arabicName}
                     </Text>
                   </View>
-                  <Text maxFontSizeMultiplier={HOME_MAX_SCALE} variant={isNext ? 'bodyEmph' : 'body'} style={isNext ? { color: tone.accent } : isPast ? ink3 : ink}>
+                  <Text maxFontSizeMultiplier={maxScale} variant={isNext ? 'bodyEmph' : 'body'} style={isNext ? { color: tone.accent } : strength}>
                     {time}
                   </Text>
                 </View>
@@ -371,10 +451,47 @@ export default function AthanScreen() {
         </View>
 
         {/* The hills and skyline show through here, under the tab bar. */}
-        <View style={{ height: hillsH }} />
-      </View>
+        <View style={{ height: large ? groundLift + t.spacing.xxl : hillsH }} />
+      </HomePage>
 
       {locationSheet}
+    </View>
+  );
+}
+
+/** Home's page: one fixed screen, or a scrolling one at the accessibility text sizes. */
+function HomePage({ scroll, minHeight, children }: { scroll: boolean; minHeight: number; children: React.ReactNode }) {
+  if (!scroll) return <View style={styles.flex}>{children}</View>;
+  return (
+    <ScrollView style={styles.flex} contentContainerStyle={{ flexGrow: 1, minHeight }} contentInsetAdjustmentBehavior="never" showsVerticalScrollIndicator={false}>
+      {children}
+    </ScrollView>
+  );
+}
+
+/** Development only: drag across a day and watch the sky. Tap the label to come back to now. */
+function DevClock({ shift, onShift, gutter }: { shift: number; onShift: (minutes: number) => void; gutter: number }) {
+  const width = useRef(1);
+  const pan = useMemo(() => {
+    const set = (x: number) => onShift(Math.round(((x / width.current) * 2 - 1) * 12 * 60));
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: (e) => set(e.nativeEvent.locationX),
+      onPanResponderMove: (e) => set(e.nativeEvent.locationX),
+    });
+  }, [onShift]);
+  return (
+    <View style={[styles.devClock, { left: gutter }]} accessibilityElementsHidden>
+      <View {...pan.panHandlers} onLayout={(e) => (width.current = e.nativeEvent.layout.width)} style={styles.devTrack}>
+        <View pointerEvents="none" style={[styles.devThumb, { left: `${(shift / (12 * 60) + 1) * 50}%` }]} />
+      </View>
+      <Pressable onPress={() => onShift(0)} hitSlop={8}>
+        <Text variant="caption" style={{ color: '#F2EDF6' }}>
+          Now
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -386,6 +503,11 @@ const styles = StyleSheet.create({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, flexShrink: 1 },
   pillText: { flexShrink: 1 },
   dates: { alignItems: 'flex-end', flexShrink: 0, maxWidth: '50%' },
+  quiet: { opacity: 0.72 },
+  listHead: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 12 },
+  devClock: { position: 'absolute', bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(23,18,31,0.6)' },
+  devTrack: { width: 170, height: 28, justifyContent: 'center' },
+  devThumb: { position: 'absolute', width: 4, height: 18, marginLeft: -2, borderRadius: 2, backgroundColor: '#F2C14E' },
   rule: { height: 2, borderRadius: 1, overflow: 'hidden' },
   ruleFill: { height: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

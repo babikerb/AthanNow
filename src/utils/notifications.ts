@@ -3,7 +3,7 @@ import { athanVoice } from '../config/athanVoices';
 import { QURAN_ENABLED } from '../config/features';
 
 import { PrayerKey, Settings } from '../context/SettingsContext';
-import { getPrayerTimes } from './prayerEngine';
+import { getPrayerTimes, lastThirdStart, prayerLabel } from './prayerEngine';
 
 /** How many days ahead to schedule. Prayer times shift daily, so we use exact
  *  DATE triggers and refresh this window whenever the app opens or settings change.
@@ -17,14 +17,14 @@ export const DAYS_AHEAD = 7;
  *  same reason as `DAYS_AHEAD` above. */
 export const MAX_PENDING = 60;
 
-const PRAYER_LABELS: Record<PrayerKey, string> = {
-  fajr: 'Fajr',
-  sunrise: 'Sunrise',
-  dhuhr: 'Dhuhr',
-  asr: 'Asr',
-  maghrib: 'Maghrib',
-  isha: 'Isha',
-};
+/** How long before Jumu'ah its reminder comes. */
+const JUMUAH_LEAD_MIN = 60;
+
+/** Whether anything at all should be scheduled. */
+export function anyNotificationEnabled(s: Settings): boolean {
+  const n = s.notifications;
+  return Object.values(n.athanEnabled).some(Boolean) || (QURAN_ENABLED && n.quranMorningEnabled) || n.jumuahEnabled || n.tahajjudEnabled;
+}
 
 export function configureNotificationHandler() {
   Notifications.setNotificationHandler({
@@ -85,8 +85,8 @@ function formatClock(date: Date, use24Hour: boolean, timeZone?: string): string 
 }
 
 /**
- * Cancels everything and re-schedules the next `DAYS_AHEAD` days of athan,
- * jamaa, and morning-Quran notifications based on current settings + location.
+ * Cancels everything and re-schedules the next `DAYS_AHEAD` days of athan, Jumu'ah,
+ * Tahajjud and morning-Quran notifications based on current settings + location.
  */
 async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
@@ -113,6 +113,19 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
     day.setDate(now.getDate() + offset);
     const { listRows } = getPrayerTimes(coords, day, settings.calcMethod, settings.asrMadhab);
 
+    // The night that ends at this day's Fajr.
+    if (notifications.tahajjudEnabled) {
+      const before = new Date(day);
+      before.setDate(day.getDate() - 1);
+      const maghrib = getPrayerTimes(coords, before, settings.calcMethod, settings.asrMadhab).listRows.find((x) => x.id === 'maghrib')!.time;
+      const fajr = listRows.find((x) => x.id === 'fajr')!.time;
+      const fajrClock = formatClock(fajr, settings.use24Hour, coords.timezone);
+      await schedule(
+        { title: 'Time for Tahajjud', body: `The last third of the night has begun. Fajr is at ${fajrClock}.`, sound: 'default', interruptionLevel: 'timeSensitive' },
+        lastThirdStart(maghrib, fajr),
+      );
+    }
+
     for (const row of listRows) {
       if (count >= MAX_PENDING) break;
       const key = row.id as PrayerKey;
@@ -123,7 +136,13 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
       const reminderAt = new Date(time.getTime() - mins * 60_000);
       // Copy only: clock times are shown in the user's 12/24-hour preference, in the location's timezone.
       const clock = formatClock(time, settings.use24Hour, coords.timezone);
-      const label = PRAYER_LABELS[key];
+      const label = prayerLabel(key, time, coords.timezone);
+      if (notifications.jumuahEnabled && label === 'Jumu’ah') {
+        await schedule(
+          { title: 'Jumu’ah in an hour', body: `Jumu’ah is at ${clock}. A good time to get ready.`, sound: 'default', interruptionLevel: 'timeSensitive' },
+          new Date(time.getTime() - JUMUAH_LEAD_MIN * 60_000),
+        );
+      }
 
       if (key !== 'sunrise') {
         if (notifications.athanEnabled[key]) {

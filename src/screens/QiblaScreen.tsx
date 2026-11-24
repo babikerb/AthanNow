@@ -10,6 +10,7 @@ import { useTheme as useDesignTheme } from '../design/theme';
 import { colorTokens, textStyle } from '../design/tokens';
 import { LocationSheet } from '../components/LocationSheet';
 import { useLocation } from '../context/LocationContext';
+import { useSettings } from '../context/SettingsContext';
 import { useQibla } from '../hooks/useQibla';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { formatDistance } from '../utils/units';
@@ -154,7 +155,7 @@ const Rose = React.memo(function Rose({
 });
 
 /** The centre readout: the only part that re-renders on every heading reading. */
-function Readout({ heading, qiblaBearing, unavailable, calibrating, lock, under }: { heading: number; qiblaBearing: number; unavailable: boolean; calibrating: boolean; lock: Animated.Value; under: Animated.AnimatedInterpolation<number> }) {
+function Readout({ heading, qiblaBearing, unavailable, calibrating, aligned, lock, under }: { heading: number; qiblaBearing: number; unavailable: boolean; calibrating: boolean; aligned: boolean; lock: Animated.Value; under: Animated.AnimatedInterpolation<number> }) {
   if (unavailable) {
     // No compass: the dial stays north-up, so the Kaaba marker already sits at the true bearing. Show it statically.
     return (
@@ -178,7 +179,8 @@ function Readout({ heading, qiblaBearing, unavailable, calibrating, lock, under 
           {deg}
         </Animated.Text>
       </View>
-      <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{cardinalWord(toCardinal(heading))}</Text>
+      {/* Said in words as well as gold, so it doesn't rest on colour alone. */}
+      <Text style={styles.readoutCard} maxFontSizeMultiplier={1.2}>{aligned ? 'Facing the Qibla' : cardinalWord(toCardinal(heading))}</Text>
     </>
   );
 }
@@ -248,7 +250,7 @@ function Compass({
 
         {/* Fixed center heading readout */}
         <View style={styles.readout} pointerEvents="none">
-          <Readout heading={heading} qiblaBearing={qiblaBearing} unavailable={unavailable} calibrating={calibrating} lock={lock} under={under} />
+          <Readout heading={heading} qiblaBearing={qiblaBearing} unavailable={unavailable} calibrating={calibrating} aligned={isAligned} lock={lock} under={under} />
         </View>
       </View>
     </View>
@@ -290,6 +292,45 @@ export default function QiblaScreen() {
     }
     wasAligned.current = aligned;
   }, [aligned]);
+
+  // Turning towards the Qibla without looking: vibrations that quicken as it nears, and spoken turns
+  // under VoiceOver.
+  const { accessibility } = useSettings();
+  const guiding = focused && qibla.settled && qibla.hasLocation && !compassUnavailable && !qibla.isAligned && !error;
+  // Degrees to turn: positive is right.
+  const turn = ((((qibla.qiblaBearing - qibla.heading) % 360) + 540) % 360) - 180;
+  const turnRef = useRef(turn);
+  turnRef.current = turn;
+
+  useEffect(() => {
+    if (!guiding || !accessibility.qiblaVibration) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const pulse = () => {
+      haptic.light();
+      timer = setTimeout(pulse, 160 + (Math.min(180, Math.abs(turnRef.current)) / 180) * 1300);
+    };
+    timer = setTimeout(pulse, 400);
+    return () => clearTimeout(timer);
+  }, [guiding, accessibility.qiblaVibration]);
+
+  useEffect(() => {
+    if (!guiding || !accessibility.qiblaSpoken) return;
+    let alive = true;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const say = () => {
+      const by = Math.round(Math.abs(turnRef.current) / 5) * 5;
+      if (by > 0) AccessibilityInfo.announceForAccessibility(`Turn ${turnRef.current > 0 ? 'right' : 'left'} ${by} degrees`);
+    };
+    AccessibilityInfo.isScreenReaderEnabled().then((on) => {
+      if (!alive || !on) return;
+      say();
+      timer = setInterval(say, 4000);
+    });
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [guiding, accessibility.qiblaSpoken]);
 
   const warned = useRef(false);
   useEffect(() => {

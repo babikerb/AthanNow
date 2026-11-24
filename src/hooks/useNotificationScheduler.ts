@@ -1,18 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { QURAN_ENABLED } from '../config/features';
 
-import { Settings, SettingsContextValue } from '../context/SettingsContext';
+import { SettingsContextValue } from '../context/SettingsContext';
 import { AppLocation } from './useLocation';
 import {
+  anyNotificationEnabled,
   cancelAllNotifications,
   getNotificationPermissionState,
   rescheduleNotifications,
 } from '../utils/notifications';
-
-function anyNotificationEnabled(s: Settings): boolean {
-  const n = s.notifications;
-  return Object.values(n.athanEnabled).some(Boolean) || (QURAN_ENABLED && n.quranMorningEnabled);
-}
 
 /**
  * Re-schedules local notifications whenever the location or notification-relevant

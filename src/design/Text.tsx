@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
+import { StyleSheet, Text as RNText, type TextProps as RNTextProps } from 'react-native';
 
 import { useTheme } from './theme';
 import { typeTokens, type Palette, type TypeVariant } from './tokens';
@@ -26,9 +26,15 @@ export interface TextProps extends RNTextProps {
   header?: boolean;
 }
 
+// One step heavier. The display face ships a single weight, so it stays as it is.
+const HEAVIER: Record<string, '600' | '700' | '800'> = { '400': '600', '500': '700', '600': '700', '700': '800' };
+
 /** Themed text. Always scales with Dynamic Type; tabular + lining figures come from the variant. */
 export function Text({ variant = 'body', color = 'text', header, style, ...rest }: TextProps) {
   const t = useTheme();
+  const base = t.type(variant);
+  const weight = StyleSheet.flatten(style)?.fontWeight ?? base.fontWeight;
+  const heavier = t.boldText && weight ? { fontWeight: HEAVIER[String(weight)] ?? weight } : null;
   return (
     <RNText
       accessibilityRole={header ? 'header' : rest.accessibilityRole}
@@ -36,7 +42,7 @@ export function Text({ variant = 'body', color = 'text', header, style, ...rest 
       // Display-family sizes are large and wide; cap them (BRAND.md section 2). Callers can override.
       maxFontSizeMultiplier={typeTokens.scale[variant].family === 'display' ? 1.3 : undefined}
       {...rest}
-      style={[t.type(variant), { color: t.c[color] }, style]}
+      style={[base, { color: t.c[color] }, style, heavier]}
     />
   );
 }

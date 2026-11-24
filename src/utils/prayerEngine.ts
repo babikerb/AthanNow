@@ -1,6 +1,8 @@
 import { SFSymbol } from 'sf-symbols-typescript';
 import { CalculationMethod, Coordinates, HighLatitudeRule, Madhab, PrayerTimes } from 'adhan';
 
+import { localDayAnchor } from './time';
+
 /**
  * Per-row icon for the 6 prayer-list entries (the 5 real prayers + the
  * sunrise boundary marker), shared between the Athan/home screen's list and
@@ -69,7 +71,9 @@ export function getPrayerTimes(
   coords: { latitude: number; longitude: number }, 
   date: Date,
   methodName: string,
-  asrRule: string
+  asrRule: string,
+  /** The moment "current" and "next" are measured from. */
+  at: Date = new Date()
 ) {
   const coordinates = new Coordinates(coords.latitude, coords.longitude);
   
@@ -92,8 +96,8 @@ export function getPrayerTimes(
     { id: 'isha', label: 'Isha', time: pTimes.isha },
   ];
 
-  let currentPrayer = pTimes.currentPrayer() === 'none' ? 'isha' : pTimes.currentPrayer();
-  const nextPrayerKey = pTimes.nextPrayer();
+  let currentPrayer = pTimes.currentPrayer(at) === 'none' ? 'isha' : pTimes.currentPrayer(at);
+  const nextPrayerKey = pTimes.nextPrayer(at);
   
   let nextPrayerName = nextPrayerKey === 'none' ? 'fajr' : nextPrayerKey;
   let nextPrayerTime = pTimes.timeForPrayer(nextPrayerKey);
@@ -112,6 +116,17 @@ export function getPrayerTimes(
     nextPrayerTime,
     listRows: rows
   };
+}
+
+/** A prayer's name on the day it falls: Dhuhr is Jumu’ah on a Friday where the times are for. */
+export function prayerLabel(id: string, time: Date, timeZone?: string): string {
+  if (id === 'dhuhr' && localDayAnchor(time, timeZone).getDay() === 5) return 'Jumu’ah';
+  return id.charAt(0).toUpperCase() + id.slice(1);
+}
+
+/** When the last third of a night begins: the night runs from Maghrib to the next Fajr. */
+export function lastThirdStart(maghrib: Date, fajr: Date): Date {
+  return new Date(fajr.getTime() - (fajr.getTime() - maghrib.getTime()) / 3);
 }
 
 export function getHijriDate(date: Date): string {

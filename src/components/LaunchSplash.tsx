@@ -74,6 +74,8 @@ export function LaunchSplash() {
             zone={sky.zone}
             arc={sky.arc}
             groundLift={sky.groundLift}
+            blend={sky.blend}
+            moon={sky.moon}
           />
         </Animated.View>
       )}
