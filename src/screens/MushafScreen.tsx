@@ -11,7 +11,7 @@ import {
 } from "@react-navigation/native";
 import { setStatusBarHidden, setStatusBarStyle } from "expo-status-bar";
 import { SymbolView } from "expo-symbols";
-import { QuranReader, type ReaderAction, type WordRef } from "quran-reader";
+import { ayahText, QuranReader, type ReaderAction, type WordRef } from "quran-reader";
 import React, {
   useCallback,
   useEffect,
@@ -868,15 +868,29 @@ function ReaderSurface(props: {
   ) => void;
 }) {
   const r = useRecitation();
-  const { word } = useRecitationProgress();
+  const { word: timedWord, currentTime, duration } = useRecitationProgress();
+  // Reciters whose recordings time only the ayah: the word is estimated from how far through the
+  // ayah the recitation is, each word given time in proportion to its written length.
+  const shares = useMemo(() => {
+    if (r.reciter.qdc || !r.surahId) return null;
+    const words = ayahText(r.surahId, r.ayahIndex + 1).arabic.split(/\s+/).filter(Boolean);
+    // The last is the ayah's number, which isn't recited as a word.
+    const spoken = words.length > 1 ? words.slice(0, -1) : words;
+    const lengths = spoken.map((w) => w.replace(/[ً-ٰٟۖ-ۭ]/g, "").length || 1);
+    const total = lengths.reduce((a, b) => a + b, 0);
+    let run = 0;
+    return lengths.map((l) => (run += l) / total);
+  }, [r.reciter.qdc, r.surahId, r.ayahIndex]);
+  const estimated = shares && duration > 0 ? Math.min(shares.length, shares.findIndex((end) => currentTime / duration <= end) + 1 || shares.length) : 0;
+  const word = timedWord > 0 ? timedWord : estimated;
   // The word being recited. While it isn't known (the recording still loading, or a recitation
   // paused from an earlier session), it stays on the last word recited in this ayah, or the ayah's
-  // first: one highlight where it left off. Only reciters without word timing light the whole ayah.
+  // first: always one highlight, where it left off.
   const last = useRef({ key: "", word: 0 });
   const key = `${r.surahId}:${r.ayahIndex}`;
   let shown = word;
   if (word > 0) last.current = { key, word };
-  else if (r.reciter.qdc) shown = last.current.key === key ? last.current.word : 1;
+  else shown = last.current.key === key ? last.current.word : 1;
   const current: WordRef | null = r.surahId
     ? { surah: r.surahId, ayah: r.ayahIndex + 1, word: shown }
     : null;
