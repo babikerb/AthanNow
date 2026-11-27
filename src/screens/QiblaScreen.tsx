@@ -20,10 +20,9 @@ const c = colorTokens.dark;
 
 const KAABA = require('../../assets/kaaba.png');
 const KAABA_SIZE = 22;
-// The marker grows to this when facing the Qibla. It's drawn at this size and shown smaller until
-// then: iOS draws an image for its laid-out size, so growing a smaller one past it would blur it.
+// Facing the Qibla, the marker is this size: a second copy laid out at it, crossfaded in. Never
+// scaled, since iOS draws an image for its laid-out size and scaling it either way softens it.
 const KAABA_LOCKED = 28;
-const KAABA_REST = KAABA_SIZE / KAABA_LOCKED;
 
 const DIAL = 300;
 const R = DIAL / 2;
@@ -67,14 +66,12 @@ const Rose = React.memo(function Rose({
   hasLocation,
   lock,
   under,
-  dotScale,
 }: {
   headingAnim: Animated.Value;
   qiblaBearing: number;
   hasLocation: boolean;
   lock: Animated.Value;
   under: Animated.AnimatedInterpolation<number>;
-  dotScale: Animated.Value;
 }) {
   const dialSpin = useMemo(() => toDeg(headingAnim), [headingAnim]);
   // Keep every labelled mark upright as the dial turns.
@@ -148,9 +145,9 @@ const Rose = React.memo(function Rose({
             transform: [{ rotate: `${qiblaBearing}deg` }, { translateY: -(R - 30) }],
           }}
         >
-          <Animated.View style={{ transform: [{ scale: dotScale }, { rotate: kaabaUpright }] }}>
+          <Animated.View style={[styles.kaabaBox, { transform: [{ rotate: kaabaUpright }] }]}>
             <Animated.Image source={KAABA} style={[styles.kaaba, { tintColor: c.skyText, opacity: under }]} />
-            <Animated.Image source={KAABA} style={[styles.kaaba, styles.stack, { tintColor: c.accent, opacity: lock }]} />
+            <Animated.Image source={KAABA} style={[styles.kaabaLocked, { tintColor: c.accent, opacity: lock }]} />
           </Animated.View>
         </View>
       )}
@@ -207,20 +204,16 @@ function Compass({
   unavailable: boolean;
 }) {
   // One warm moment: the gold accent appears only when the phone is facing the Qibla, earned with a short native-driver
-  // crossfade (ring, lubber, crosshair, dot, readout) and a spring on the dot instead of an instant swap.
+  // crossfade (ring, lubber, crosshair, the Kaaba marker growing into its gold copy, readout) instead of an instant swap.
   const { reduceMotion, motion } = useDesignTheme();
   const lock = useRef(new Animated.Value(isAligned ? 1 : 0)).current;
-  const dotScale = useRef(new Animated.Value(isAligned ? 1 : KAABA_REST)).current;
   useEffect(() => {
     Animated.timing(lock, {
       toValue: isAligned ? 1 : 0,
       duration: reduceMotion ? motion.duration.reducedFade : motion.duration.standard,
       useNativeDriver: true,
     }).start();
-    const to = isAligned ? 1 : KAABA_REST;
-    if (reduceMotion) dotScale.setValue(to);
-    else Animated.spring(dotScale, { toValue: to, useNativeDriver: true, ...motion.spring.snappy }).start();
-  }, [isAligned, reduceMotion, lock, dotScale, motion]);
+  }, [isAligned, reduceMotion, lock, motion]);
 
   // Underlays vanish at the very end of the crossfade so anti-aliased edges never fringe through the accent copy.
   // Memoised so the memoised Rose receives a stable prop and skips re-render on every heading change.
@@ -247,7 +240,7 @@ function Compass({
         <Animated.View style={[styles.crossV, { backgroundColor: c.accentSoft, opacity: lock }]} />
         <Animated.View style={[styles.crossH, { backgroundColor: c.accentSoft, opacity: lock }]} />
 
-        <Rose headingAnim={headingAnim} qiblaBearing={qiblaBearing} hasLocation={hasLocation} lock={lock} under={under} dotScale={dotScale} />
+        <Rose headingAnim={headingAnim} qiblaBearing={qiblaBearing} hasLocation={hasLocation} lock={lock} under={under} />
 
         {/* Aligned ring: constant width, fades in over the hairline ring */}
         <Animated.View pointerEvents="none" style={[styles.ring, { opacity: lock }]} />
@@ -437,7 +430,9 @@ const styles = StyleSheet.create({
   crossH: { position: 'absolute', height: 1, width: DIAL - 8, backgroundColor: c.hairline },
   markLetter: { ...textStyle('headline'), color: c.skyText },
   markNumber: { ...textStyle('caption'), color: c.skyTextSecondary },
-  kaaba: { width: KAABA_LOCKED, height: KAABA_LOCKED, resizeMode: 'contain' },
+  kaabaBox: { width: KAABA_LOCKED, height: KAABA_LOCKED, alignItems: 'center', justifyContent: 'center' },
+  kaaba: { width: KAABA_SIZE, height: KAABA_SIZE, resizeMode: 'contain' },
+  kaabaLocked: { position: 'absolute', width: KAABA_LOCKED, height: KAABA_LOCKED, resizeMode: 'contain' },
   // Aligned ring overlay: same circle as the dial, accent, fades in (the base hairline ring never changes width).
   ring: { position: 'absolute', top: -1, left: -1, width: DIAL, height: DIAL, borderRadius: R, borderWidth: 2, borderColor: c.accent },
   // Second copy of an element stacked exactly on the first (crossfaded with opacity).
