@@ -14,6 +14,7 @@ import { useTheme } from '../../design/theme';
 import { ayahAfter, ayahBefore, commentaryText, DEFAULT_MEANING_SOURCE, loadMeaning, MEANING_SOURCES, type AyahRef, type Meaning } from '../../quran/meaning';
 import { QURAN_FONT } from '../../recitation/format';
 import { NativeMenu } from '../NativeMenu';
+import { SheetHeader, SheetIconButton } from '../Sheet';
 
 const SOURCE_KEY = 'athannow.meaning.source.v1';
 
@@ -169,33 +170,35 @@ function SheetBody({
 
   return (
     <>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.lg, paddingBottom: t.spacing.sm }}>
-        <NativeMenu
-          height={44}
-          colorScheme={t.scheme}
-          items={
-            <MenuSection title="Commentary">
-              {MEANING_SOURCES.map((s) => (
-                <MenuButton key={s.id} label={s.name} systemImage={s.id === source ? 'checkmark' : undefined} onPress={() => onSource(s.id)} />
-              ))}
-            </MenuSection>
-          }
-        >
-          <View style={{ flex: 1, justifyContent: 'center' }} accessibilityLabel={`Commentary, ${sourceName}`}>
-            <Text variant="title3" header numberOfLines={1}>
-              Meaning
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text variant="footnote" color="textSecondary" numberOfLines={1}>
-                {sourceName}
+      <SheetHeader
+        title={
+          <NativeMenu
+            height={48}
+            colorScheme={t.scheme}
+            items={
+              <MenuSection title="Commentary">
+                {MEANING_SOURCES.map((s) => (
+                  <MenuButton key={s.id} label={s.name} systemImage={s.id === source ? 'checkmark' : undefined} onPress={() => onSource(s.id)} />
+                ))}
+              </MenuSection>
+            }
+          >
+            <View style={{ flex: 1, justifyContent: 'center' }} accessibilityLabel={`Commentary, ${sourceName}`} accessibilityHint="Choose another commentary">
+              <Text variant="title3" header numberOfLines={1} style={{ fontWeight: '700' }}>
+                Meaning
               </Text>
-              <SymbolView name="chevron.up.chevron.down" size={10} tintColor={t.c.textSecondary} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text variant="footnote" color="textSecondary" numberOfLines={1}>
+                  {sourceName}
+                </Text>
+                <SymbolView name="chevron.up.chevron.down" size={10} tintColor={t.c.textSecondary} />
+              </View>
             </View>
-          </View>
-        </NativeMenu>
-        <IconButton name="square.and.arrow.up" label="Share" onPress={onShare} disabled={!meaning} />
-        <IconButton name="xmark" label="Close" onPress={onClose} />
-      </View>
+          </NativeMenu>
+        }
+        right={<SheetIconButton name="square.and.arrow.up" label="Share" onPress={onShare} disabled={!meaning} />}
+        onClose={onClose}
+      />
 
       <ScrollView ref={scrollRef} contentContainerStyle={{ paddingHorizontal: t.spacing.xl, paddingBottom: insets.bottom + t.spacing.xxxl }}>
         {surah ? (
@@ -280,17 +283,6 @@ function SheetBody({
         </View>
       </ScrollView>
     </>
-  );
-}
-
-function IconButton({ name, label, onPress, disabled }: { name: 'square.and.arrow.up' | 'xmark'; label: string; onPress: () => void; disabled?: boolean }) {
-  const t = useTheme();
-  return (
-    <PressableScale haptic="select" onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label}>
-      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.c.surface2, alignItems: 'center', justifyContent: 'center' }}>
-        <SymbolView name={name} size={15} tintColor={disabled ? t.c.glyphQuiet : t.c.text} style={{ width: 20, height: 20 }} />
-      </View>
-    </PressableScale>
   );
 }
 

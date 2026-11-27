@@ -2,7 +2,7 @@ import { DatePicker, Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
 import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import { SURAHS } from '../../data/surahs';
 import { TOTAL_PAGES } from '../../data/surahPages';
@@ -10,6 +10,7 @@ import { PressableScale } from '../../design/PressableScale';
 import { SegmentedControl } from '../../design/SegmentedControl';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
+import { Sheet, SheetIconButton } from '../Sheet';
 import { dayKey, fromKey, GOAL_SUGGESTIONS, goalTitle, surahPages, type GoalSchedule, type GoalTarget, type NewGoal } from '../../quran/goals';
 import { TapTarget } from '../recitation/TapTarget';
 
@@ -79,36 +80,24 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
   const card = { borderRadius: t.radii.card, borderCurve: 'continuous' as const, backgroundColor: t.c.surface1, padding: t.spacing.lg };
 
   return (
-    <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: t.c.bg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
-          <PressableScale haptic="select" onPress={onClose} accessibilityRole="button" accessibilityLabel="Cancel">
-            <View style={{ height: 44, justifyContent: 'center' }}>
-              <Text variant="body">Cancel</Text>
-            </View>
-          </PressableScale>
-          <Text variant="headline" header>
-            New Goal
-          </Text>
-          <PressableScale
-            haptic="success"
-            disabled={!valid}
-            onPress={() => {
-              onAdd(goal);
-              onClose();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Add goal"
-            accessibilityState={{ disabled: !valid }}
-          >
-            <View style={{ height: 44, justifyContent: 'center' }}>
-              <Text variant="body" color={valid ? 'accentText' : 'textTertiary'} style={{ fontWeight: '600' }}>
-                Add
-              </Text>
-            </View>
-          </PressableScale>
-        </View>
-
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="New goal"
+      headerRight={
+        <SheetIconButton
+          name="checkmark"
+          label="Add goal"
+          tint="accent"
+          disabled={!valid}
+          onPress={() => {
+            onAdd(goal);
+            onClose();
+          }}
+        />
+      }
+    >
+      <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: t.spacing.xl, paddingBottom: t.spacing.xxxl * 2 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -t.spacing.xl, marginTop: t.spacing.md }} contentContainerStyle={{ gap: t.spacing.sm, paddingHorizontal: t.spacing.xl }}>
             {GOAL_SUGGESTIONS.map((s) => (
@@ -249,6 +238,6 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
           </View>
         </ScrollView>
       </View>
-    </Modal>
+    </Sheet>
   );
 }

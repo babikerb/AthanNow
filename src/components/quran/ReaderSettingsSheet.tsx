@@ -1,5 +1,19 @@
-import { BottomSheet, Form, Group, Host, Picker, Section, Text as SwiftText, Toggle } from '@expo/ui/swift-ui';
-import { pickerStyle, presentationDetents, presentationDragIndicator, tag, tint } from '@expo/ui/swift-ui/modifiers';
+import { BottomSheet, Button, Form, Group, HStack, Host, Picker, Section, Spacer, Text as SwiftText, Toggle, VStack } from '@expo/ui/swift-ui';
+import {
+  buttonBorderShape,
+  buttonStyle,
+  font,
+  foregroundColor,
+  labelStyle,
+  padding,
+  pickerStyle,
+  presentationBackground,
+  presentationDetents,
+  presentationDragIndicator,
+  scrollContentBackground,
+  tag,
+  tint,
+} from '@expo/ui/swift-ui/modifiers';
 import type { ReaderView } from 'quran-reader';
 import React from 'react';
 
@@ -29,8 +43,20 @@ export function ReaderSettingsSheet({ open, onClose, display }: { open: boolean;
   return (
     <Host style={{ position: 'absolute', width: 0, height: 0 }} colorScheme={t.scheme}>
       <BottomSheet isPresented={open} onIsPresentedChange={(v) => !v && onClose()}>
-        <Group modifiers={[presentationDetents(['medium', 'large']), presentationDragIndicator('visible'), tint(t.c.accent)]}>
-          <Form>
+        <Group modifiers={[presentationDetents(['medium', 'large']), presentationDragIndicator('visible'), presentationBackground(t.c.bg), tint(t.c.accent)]}>
+          <VStack spacing={0}>
+          {/* The header every sheet has: the title at the left, a round close button at the right. */}
+          <HStack modifiers={[padding({ leading: 20, trailing: 20, top: 22, bottom: 4 })]}>
+            <SwiftText modifiers={[font({ size: 20, weight: 'bold' }), foregroundColor(t.c.text)]}>Reading settings</SwiftText>
+            <Spacer />
+            <Button
+              label="Close"
+              systemImage="xmark"
+              onPress={onClose}
+              modifiers={[labelStyle('iconOnly'), buttonStyle('bordered'), buttonBorderShape('circle'), tint(t.c.textSecondary)]}
+            />
+          </HStack>
+          <Form modifiers={[scrollContentBackground('hidden')]}>
             <Section title="Layout" footer={<SwiftText>Pinch any layout to read it larger.</SwiftText>}>
               <Picker selection={display.view} onSelectionChange={(v: string) => display.set({ view: v as ReaderView })} modifiers={[pickerStyle('inline')]}>
                 {LAYOUTS.map((l) => (
@@ -63,6 +89,7 @@ export function ReaderSettingsSheet({ open, onClose, display }: { open: boolean;
               <Toggle label="Keep the screen on" systemImage="sun.max" isOn={display.keepAwake} onIsOnChange={(v) => display.set({ keepAwake: v })} />
             </Section>
           </Form>
+          </VStack>
         </Group>
       </BottomSheet>
     </Host>

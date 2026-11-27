@@ -1,11 +1,12 @@
 import { Button as MenuButton } from '@expo/ui/swift-ui';
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useState } from 'react';
-import { Modal, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 
 import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
+import { Sheet, SheetIconButton } from '../Sheet';
 import { todayHeadline, todaySummary, type Goal, type GoalStatus } from '../../quran/goals';
 import type { QuranProgress } from '../../quran/useQuranProgress';
 import { NativeMenu } from '../NativeMenu';
@@ -86,28 +87,15 @@ export function GoalsSheet({ visible, onClose, progress, dark, onOpenGoal }: { v
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="pageSheet">
-      <View style={{ flex: 1, backgroundColor: t.c.bg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
-          <PressableScale haptic="select" onPress={() => setAdding(true)} accessibilityRole="button" accessibilityLabel="Add a goal">
-            <View style={{ height: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <SymbolView name="plus" size={15} tintColor={t.c.accentText} style={{ width: 18, height: 18 }} />
-              <Text variant="body" color="accentText" style={{ fontWeight: '600' }}>
-                Add Goal
-              </Text>
-            </View>
-          </PressableScale>
-          <PressableScale haptic="select" onPress={onClose} accessibilityRole="button" accessibilityLabel="Done">
-            <View style={{ height: 44, justifyContent: 'center' }}>
-              <Text variant="body" style={{ fontWeight: '600' }}>
-                Done
-              </Text>
-            </View>
-          </PressableScale>
-        </View>
-
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      title="Goals"
+      headerRight={<SheetIconButton name="plus" label="Add a goal" tint="accent" onPress={() => setAdding(true)} />}
+    >
+      <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingHorizontal: t.spacing.xl, paddingBottom: t.spacing.xxxl * 2 }}>
-          <Text variant="title1" header style={{ marginTop: t.spacing.md }}>
+          <Text variant="title2" header style={{ marginTop: t.spacing.xs }}>
             {todayHeadline(progress.statuses)}
           </Text>
           <Text variant="subhead" color="textSecondary" style={{ marginTop: t.spacing.xs }}>
@@ -150,13 +138,13 @@ export function GoalsSheet({ visible, onClose, progress, dark, onOpenGoal }: { v
                 No goals yet
               </Text>
               <Text variant="subhead" color="textSecondary" style={{ textAlign: 'center' }}>
-                Add Goal above: some pages or a surah every day or on chosen days, or the whole Quran by a date.
+                Tap + above to add one: some pages or a surah every day or on chosen days, or the whole Quran by a date.
               </Text>
             </View>
           ) : null}
         </ScrollView>
         <GoalEditor visible={adding} onClose={() => setAdding(false)} onAdd={progress.addGoal} />
       </View>
-    </Modal>
+    </Sheet>
   );
 }

@@ -1,5 +1,4 @@
 import { Button as MenuButton } from '@expo/ui/swift-ui';
-import { SymbolView } from 'expo-symbols';
 import { ayahText, canShareAyahImage, HAFS_FONT, shareAyah } from 'quran-reader';
 import React, { useMemo } from 'react';
 import { Text as RNText, Share, View } from 'react-native';
@@ -10,6 +9,7 @@ import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { pageForAyah } from '../../quran/pageLayout';
 import { NativeMenu } from '../NativeMenu';
+import { RoundIcon } from '../Sheet';
 
 // Short ayahs that stand on their own, one a day in turn.
 const AYAHS: [number, number][] = [
@@ -39,12 +39,6 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
     if (!done) Share.share({ message: `${title} ${ayah}\n\n${arabic}\n\n“${translation}”\n\nShared from AthanNow, free on the App Store` }).catch(() => {});
   };
 
-  const shareButton = (
-    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.c.surface2, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel="Share this ayah">
-      <SymbolView name="square.and.arrow.up" size={15} tintColor={t.c.text} style={{ width: 20, height: 20 }} />
-    </View>
-  );
-
   return (
     <View style={{ marginTop: t.spacing.md, borderRadius: t.radii.feature, borderCurve: 'continuous', backgroundColor: t.c.surface1, paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md, paddingBottom: t.spacing.sm }}>
       <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
@@ -62,25 +56,20 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
         <Text variant="footnote" style={{ fontWeight: '600' }}>
           {title} {ayah}
         </Text>
-        {canShareAyahImage ? (
-          <NativeMenu
-            width={40}
-            height={40}
-            colorScheme={t.scheme}
-            items={
-              <>
-                <MenuButton label="As image" systemImage="photo" onPress={() => share(true)} />
-                <MenuButton label="As text" systemImage="text.quote" onPress={() => share(false)} />
-              </>
-            }
-          >
-            {shareButton}
-          </NativeMenu>
-        ) : (
-          <PressableScale haptic="select" onPress={() => share(false)} accessibilityRole="button">
-            {shareButton}
-          </PressableScale>
-        )}
+        {/* Share, as an image card or as text, like sharing from the mushaf. */}
+        <NativeMenu
+          width={36}
+          height={36}
+          colorScheme={t.scheme}
+          items={
+            <>
+              <MenuButton label="As image" systemImage="photo" onPress={() => share(canShareAyahImage)} />
+              <MenuButton label="As text" systemImage="text.quote" onPress={() => share(false)} />
+            </>
+          }
+        >
+          <RoundIcon name="square.and.arrow.up" label="Share this ayah" />
+        </NativeMenu>
       </View>
     </View>
   );

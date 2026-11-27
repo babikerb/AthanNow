@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useTheme } from '../context/ThemeContext';
 import { getSurah, Surah, SURAHS } from '../data/surahs';
@@ -8,7 +8,7 @@ import { TOTAL_PAGES } from '../data/surahPages';
 import { radiiTokens, textStyle } from '../design/tokens';
 import { Palette, QURAN_FONT } from '../theme/colors';
 import { AyahHit, searchAyat, searchTranslation } from '../utils/quran';
-import { Sheet } from './Sheet';
+import { Sheet, SheetSearchField } from './Sheet';
 
 interface SurahPickerSheetProps {
   visible: boolean;
@@ -137,19 +137,12 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
 
   return (
     <Sheet visible={visible} onClose={onClose} title="Go to" palette={colors}>
-      <View style={[styles.searchRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.separator }]}>
-        <SymbolView name="magnifyingglass" size={18} tintColor={colors.textTertiary} />
-        <TextInput
-          style={[styles.input, { color: colors.textPrimary }]}
-          placeholder="Surah, ayah, page, or a word like 'mercy'"
-          placeholderTextColor={colors.textTertiary}
-          value={query}
-          onChangeText={setQuery}
-          autoCorrect={false}
-          keyboardType="default"
-          keyboardAppearance="light"
-        />
-      </View>
+      <SheetSearchField
+        placeholder="Surah, ayah, page, or a word like 'mercy'"
+        value={query}
+        onChangeText={setQuery}
+        accessibilityLabel="Search the Quran"
+      />
       {verseRef && onSelectVerse && (
         <Pressable
           onPress={() => {
@@ -263,20 +256,6 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
 }
 
 const styles = StyleSheet.create({
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: radiiTokens.control,
-    borderCurve: 'continuous',
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    height: 44,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 12,
-  },
-  input: { flex: 1, ...textStyle('body'), lineHeight: undefined },
   gotoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: radiiTokens.control, borderCurve: 'continuous' },
   gotoText: { ...textStyle('bodyEmph') },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },

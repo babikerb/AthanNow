@@ -1,14 +1,13 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useLocation } from '../context/LocationContext';
 import { haptic } from '../design/haptics';
 import { Text } from '../design/Text';
 import { useTheme } from '../design/theme';
-import { textStyle } from '../design/tokens';
 import { AppLocation, PlaceSuggestion, searchPlaces } from '../hooks/useLocation';
-import { Sheet } from './Sheet';
+import { Sheet, SheetSearchField } from './Sheet';
 
 type Search = { state: 'idle' } | { state: 'searching' } | { state: 'done'; places: PlaceSuggestion[] } | { state: 'offline' };
 
@@ -89,24 +88,15 @@ export function LocationSheet({ visible, onClose }: { visible: boolean; onClose:
 
   return (
     <Sheet visible={visible} onClose={close} title="Location">
-      <View style={[styles.searchWrap]}>
-        <View style={[styles.field, { backgroundColor: t.c.surface2 }]}>
-          <SymbolView name="magnifyingglass" size={16} tintColor={t.c.textTertiary} />
-          <TextInput
-            style={[styles.input, { color: t.c.text }]}
-            placeholder="Search city or town"
-            placeholderTextColor={t.c.textTertiary}
-            value={query}
-            onChangeText={setQuery}
-            returnKeyType="search"
-            onSubmitEditing={() => search.state === 'done' && search.places[0] && pickPlace(search.places[0])}
-            autoCorrect={false}
-            autoFocus={visible && status !== 'ready'}
-            clearButtonMode="while-editing"
-            accessibilityLabel="Search city or town"
-          />
-        </View>
-      </View>
+      <SheetSearchField
+        placeholder="Search city or town"
+        value={query}
+        onChangeText={setQuery}
+        returnKeyType="search"
+        onSubmitEditing={() => search.state === 'done' && search.places[0] && pickPlace(search.places[0])}
+        autoFocus={visible && status !== 'ready'}
+        accessibilityLabel="Search city or town"
+      />
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" automaticallyAdjustKeyboardInsets>
         {q.length >= 2 ? (
@@ -246,10 +236,6 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  searchWrap: { paddingHorizontal: 16, paddingBottom: 8 },
-  field: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 40, borderRadius: 12, paddingHorizontal: 12 },
-  // No lineHeight on a single-line TextInput: it shifts the baseline on iOS.
-  input: { flex: 1, ...textStyle('body'), lineHeight: undefined, height: 40 },
   body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
   group: { borderRadius: 20, overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, paddingVertical: 8 },

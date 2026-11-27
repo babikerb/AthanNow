@@ -1,92 +1,151 @@
 import { SymbolView } from 'expo-symbols';
+import type { SFSymbol } from 'sf-symbols-typescript';
 import React from 'react';
-import {
-  Modal,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, TextInput, View, type TextInputProps } from 'react-native';
 
-import { useTheme } from '../context/ThemeContext';
-import { Palette } from '../theme/colors';
-import { hitSlopFor, iconSize } from '../theme/icons';
-import { spacing as space } from '../design/tokens';
+import { PressableScale } from '../design/PressableScale';
+import { Text } from '../design/Text';
+import { useTheme } from '../design/theme';
 import { textStyle } from '../design/tokens';
+import type { Palette } from '../theme/colors';
+
+/**
+ * Every sheet in the app looks the same: a grabber, the title at the left (with an optional line
+ * under it), any actions, then a round close button at the right. The parts are exported for the
+ * sheets that host their own container (the Meaning sheet's half-height native sheet).
+ */
+
+/**
+ * The round icon every small action uses (close, share, add), drawn without a press handler so it
+ * can also be the label of a native menu.
+ */
+export function RoundIcon({ name, label, disabled, tint }: { name: SFSymbol; label?: string; disabled?: boolean; tint?: 'accent' }) {
+  const t = useTheme();
+  const accent = tint === 'accent' && !disabled;
+  return (
+    <View accessibilityLabel={label} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: accent ? t.c.accent : t.c.surface2, alignItems: 'center', justifyContent: 'center' }}>
+      <SymbolView name={name} size={14} weight="semibold" tintColor={accent ? t.c.onAccent : disabled ? t.c.glyphQuiet : t.c.text} style={{ width: 18, height: 18 }} />
+    </View>
+  );
+}
+
+/** A round button for a sheet's header, and any small action elsewhere: close, share, add. */
+export function SheetIconButton({
+  name,
+  label,
+  onPress,
+  disabled,
+  tint,
+}: {
+  name: SFSymbol;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  /** Filled with the accent: the sheet's main action. */
+  tint?: 'accent';
+}) {
+  return (
+    <PressableScale haptic="select" onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}>
+      <RoundIcon name={name} disabled={disabled} tint={tint} />
+    </PressableScale>
+  );
+}
+
+/** A sheet's header: the title (and a line under it), its actions, and close. */
+export function SheetHeader({
+  title,
+  subtitle,
+  right,
+  onClose,
+  closeLabel = 'Close',
+}: {
+  title?: React.ReactNode;
+  subtitle?: React.ReactNode;
+  right?: React.ReactNode;
+  onClose?: () => void;
+  closeLabel?: string;
+}) {
+  const t = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, paddingHorizontal: t.spacing.xl, paddingTop: t.spacing.sm, paddingBottom: t.spacing.md, minHeight: 52 }}>
+      <View style={{ flex: 1 }}>
+        {typeof title === 'string' ? (
+          <Text variant="title3" header numberOfLines={1} style={{ fontWeight: '700' }}>
+            {title}
+          </Text>
+        ) : (
+          title
+        )}
+        {typeof subtitle === 'string' ? (
+          <Text variant="footnote" color="textSecondary" numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : (
+          subtitle
+        )}
+      </View>
+      {right}
+      {onClose ? <SheetIconButton name="xmark" label={closeLabel} onPress={onClose} /> : null}
+    </View>
+  );
+}
+
+/** The grabber at a sheet's top edge. */
+export function SheetGrabber() {
+  const t = useTheme();
+  return (
+    <View style={{ alignItems: 'center', paddingTop: t.spacing.sm }}>
+      <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: t.c.glyphQuiet, opacity: 0.5 }} />
+    </View>
+  );
+}
+
+/** The search field every sheet that searches uses. */
+export function SheetSearchField(props: TextInputProps) {
+  const t = useTheme();
+  return (
+    <View style={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, height: 44, borderRadius: t.radii.control, borderCurve: 'continuous', paddingHorizontal: t.spacing.md, backgroundColor: t.c.surface2 }}>
+        <SymbolView name="magnifyingglass" size={16} tintColor={t.c.textTertiary} style={{ width: 20, height: 20 }} />
+        <TextInput
+          placeholderTextColor={t.c.textTertiary}
+          keyboardAppearance={t.scheme}
+          autoCorrect={false}
+          clearButtonMode="while-editing"
+          {...props}
+          // No lineHeight on a single-line TextInput: it shifts the baseline on iOS.
+          style={[{ flex: 1, ...textStyle('body'), lineHeight: undefined, height: 44, color: t.c.text }, props.style]}
+        />
+      </View>
+    </View>
+  );
+}
 
 interface SheetProps {
   visible: boolean;
   onClose: () => void;
   title?: string;
-  /** Optional trailing header action (e.g. a "Done" or refresh control). */
+  subtitle?: string;
+  /** Actions in the header, before close (a share or add button). */
   headerRight?: React.ReactNode;
   children: React.ReactNode;
-  /** Overrides the app's default (dark) palette, used by the Quran tab's
-   *  sheets, which stay on the forced-light reading palette instead. */
+  /** @deprecated Sheets follow the app's colours; kept so older call sites still compile. */
   palette?: Palette;
 }
 
 /**
- * Native iOS page-sheet (RN `Modal` with `presentationStyle="pageSheet"`).
- * Used app-wide for popups/modals so content sheets get the system slide-up,
- * swipe-to-dismiss card while still hosting arbitrary RN content.
+ * The app's sheet: a native iOS page sheet (slides up, swipes down to close) hosting the content
+ * under the standard header.
  */
-export function Sheet({ visible, onClose, title, headerRight, children, palette }: SheetProps) {
-  const { colors: themeColors } = useTheme();
-  const colors = palette ?? themeColors;
-
+export function Sheet({ visible, onClose, title, subtitle, headerRight, children }: SheetProps) {
+  const t = useTheme();
   return (
-    <Modal
-      visible={visible}
-      onRequestClose={onClose}
-      animationType="slide"
-      presentationStyle="pageSheet"
-    >
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.grabberWrap}>
-          <View style={[styles.grabber, { backgroundColor: colors.separator }]} />
-        </View>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
-            {title}
-          </Text>
-          <View style={styles.headerRight}>
-            {headerRight}
-            <Pressable
-              onPress={onClose}
-              hitSlop={hitSlopFor(iconSize.xl)}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              style={({ pressed }) => [styles.closeButton, { width: iconSize.xl, height: iconSize.xl }, pressed && { opacity: 0.6 }]}
-            >
-              <SymbolView name="xmark.circle.fill" size={iconSize.xl} tintColor={colors.textQuaternary} weight="semibold" />
-            </Pressable>
-          </View>
-        </View>
-        <View style={styles.body}>{children}</View>
-      </SafeAreaView>
+    <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="pageSheet">
+      <View style={{ flex: 1, backgroundColor: t.c.bg }}>
+        <SheetGrabber />
+        <SheetHeader title={title} subtitle={subtitle} right={headerRight} onClose={onClose} />
+        <View style={{ flex: 1 }}>{children}</View>
+      </View>
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  grabberWrap: { alignItems: 'center', paddingTop: space.sm },
-  grabber: { width: 36, height: 5, borderRadius: 3 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.xl,
-    // 10 sits exactly between the xs/sm tokens; kept as-is rather than
-    // visibly tightening or loosening this header row.
-    paddingTop: 10,
-    paddingBottom: space.md,
-  },
-  // Sheet titles use `textStyle('title3')` (20/600): a quiet title, not a heavy header.
-  title: { ...textStyle('title3'), flex: 1 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  closeButton: { marginLeft: space.xs, alignItems: 'center', justifyContent: 'center' },
-  body: { flex: 1 },
-});

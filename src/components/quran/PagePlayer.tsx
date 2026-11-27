@@ -14,6 +14,7 @@ import { clock } from '../../recitation/format';
 import { RECITERS } from '../../recitation/reciters';
 import { useRecitation, useRecitationProgress } from '../../recitation/RecitationProvider';
 import { NativeMenu } from '../NativeMenu';
+import { SheetIconButton } from '../Sheet';
 import { Scrubber } from '../recitation/Scrubber';
 import { TapTarget } from '../recitation/TapTarget';
 
@@ -168,19 +169,14 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
             </View>
           </View>
         </NativeMenu>
-        <PressableScale
-          haptic="select"
+        <SheetIconButton
+          name="xmark"
+          label="Stop"
           onPress={() => {
             onCollapse();
             r.stop();
           }}
-          accessibilityRole="button"
-          accessibilityLabel="Stop"
-        >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.c.surface2, alignItems: 'center', justifyContent: 'center' }}>
-            <SymbolView name="xmark" size={14} tintColor={t.c.text} style={{ width: 18, height: 18 }} />
-          </View>
-        </PressableScale>
+        />
       </View>
 
       {/* Where the recitation is, and what that ayah means. */}
