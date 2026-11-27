@@ -159,6 +159,9 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   // Bismillah taken from Al-Fatihah: when it ends, the surah it opens starts at ayah 1.
   const loaded = useRef<{ key: string; audio: SurahAudio; then?: { surah: number; who: Reciter; handed?: boolean } } | null>(null);
   const pendingSeek = useRef<{ seconds: number; since: number } | null>(null);
+  // Just after a new recording goes on, statuses can still describe the last one (its position, its
+  // end): they're set aside until one describes the new recording.
+  const settling = useRef<{ since: number; expected: number } | null>(null);
   const request = useRef(0);
   const playingRef = useRef(isPlaying);
   playingRef.current = isPlaying;
@@ -225,12 +228,26 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
         .then((audio) => {
           if (aborted()) return;
           loaded.current = { key, audio, then };
-          pendingSeek.current = { seconds: (audio.ayahs[bismillahFirst ? 0 : index]?.[0] ?? 0) / 1000, since: Date.now() };
-          return retry(() => player.replace({ uri: audio.url }), aborted).then((ok) => {
-            if (!ok) throw new Error('replace');
-            player.setPlaybackRate(rateRef.current);
-            setLoadedTick((x) => x + 1);
-          });
+          const seconds = (audio.ayahs[bismillahFirst ? 0 : index]?.[0] ?? 0) / 1000;
+          // From the very start (a surah's opening, the Bismillah), the recording just plays from 0:00:
+          // a playing player carries straight on into a new source, so waiting to seek to 0:00 once it
+          // had loaded jumped it back a second in. Anywhere else it's paused first, so it doesn't start
+          // from 0:00 before the seek to its ayah.
+          const fromStart = seconds < 0.05;
+          pendingSeek.current = fromStart ? null : { seconds, since: Date.now() };
+          settling.current = { since: Date.now(), expected: audio.ayahs[audio.ayahs.length - 1][1] / 1000 };
+          const prepare = fromStart ? Promise.resolve(true) : retry(() => player.pause(), aborted);
+          return prepare
+            .then(() => retry(() => player.replace({ uri: audio.url }), aborted))
+            .then((ok) => {
+              if (!ok) throw new Error('replace');
+              player.setPlaybackRate(rateRef.current);
+              setLoadedTick((x) => x + 1);
+              if (fromStart) {
+                setLoading(false);
+                if (playingRef.current) startPlayback(player, aborted);
+              }
+            });
         })
         .catch(() => {
           if (aborted()) return;
@@ -270,6 +287,12 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
         return;
       }
 
+      const fresh = settling.current;
+      if (fresh) {
+        const ours = st.isLoaded && st.duration > 0 && Math.abs(st.duration - fresh.expected) < 15;
+        if (!ours && Date.now() - fresh.since < 4000) return;
+        settling.current = null;
+      }
       const ms = st.currentTime * 1000;
       // The Bismillah from Al-Fatihah: at its end, on into the surah it opens.
       if (have.then) {
@@ -350,7 +373,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
 
   // Player -> intent, for pauses that didn't come from the app (the lock screen, a call, headphones).
   useEffect(() => {
-    if (!loaded.current || pendingSeek.current || loading || !status.isLoaded || status.isBuffering || status.didJustFinish) return;
+    if (!loaded.current || pendingSeek.current || settling.current || loading || !status.isLoaded || status.isBuffering || status.didJustFinish) return;
     if (status.playing !== isPlaying) setIsPlaying(status.playing);
   }, [status.playing]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -83,16 +83,22 @@ enum MushafResources {
   }
 }
 
-/// The bundled font, registered for this process: KFGQPC HAFS Uthmanic Script v18 (the text when
-/// a page's own font isn't there yet, the Bismillah and the surah names).
+/// The bundled fonts, registered for this process: KFGQPC HAFS Uthmanic Script v18 (the text when
+/// a page's own font isn't there yet), and the QCF surah header font (from the Quranic Universal
+/// Library), which draws each surah's framed header, name and all, as one glyph.
 enum MushafFont {
   private(set) static var name = "KFGQPCHAFSUthmanicScript-Regula"
+  private(set) static var surahHeader = "QCF_SurahHeader_COLOR"
+  /// The Quranic Universal Library's common font: its U+FDFD is the printed page's line-wide Bismillah.
+  private(set) static var common = "quran-common"
   private static var registered = false
 
   static func register() {
     if registered { return }
     registered = true
     if let n = registerBundled("UthmanicHafs") { name = n }
+    if let n = registerBundled("SurahHeader") { surahHeader = n }
+    if let n = registerBundled("QuranCommon") { common = n }
   }
 
   private static func registerBundled(_ file: String) -> String? {
