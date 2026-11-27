@@ -39,7 +39,7 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import QiblaScreen from './src/screens/QiblaScreen';
 import { QURAN_ENABLED, RECITATION_ENABLED } from './src/config/features';
 import QuranScreen from './src/screens/QuranScreen';
-import RecitationScreen from './src/screens/RecitationScreen';
+import MushafScreen from './src/screens/MushafScreen';
 import { RecitationProvider } from './src/recitation/RecitationProvider';
 import { useImmersive } from './src/navigation/immersive';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -85,7 +85,7 @@ function MainTabs() {
         {RECITATION_ENABLED && (
           <Tab.Screen
             name="Quran"
-            component={RecitationScreen}
+            component={MushafScreen}
             options={{
               title: 'Quran',
               tabBarIcon: ({ focused }: { focused: boolean }) => tabIcon('book', focused)

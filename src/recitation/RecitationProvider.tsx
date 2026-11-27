@@ -59,6 +59,7 @@ export interface Recitation {
   stop: () => void;
   setReciter: (id: string) => void;
   cycleRepeat: () => void;
+  setRepeat: (mode: RepeatMode) => void;
   setAutoplay: (on: boolean) => void;
   setRate: (rate: number) => void;
   setShowTranslation: (on: boolean) => void;
@@ -682,6 +683,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       stop,
       setReciter: (id) => patch({ reciterId: id }),
       cycleRepeat: () => patch({ repeat: repeat === 'off' ? 'ayah' : repeat === 'ayah' ? 'surah' : 'off' }),
+      setRepeat: (mode) => patch({ repeat: mode }),
       setAutoplay: (on) => patch({ autoplay: on }),
       setRate: (r) => patch({ rate: r }),
       setShowTranslation: (on) => patch({ showTranslation: on }),

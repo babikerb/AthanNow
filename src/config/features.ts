@@ -5,8 +5,8 @@
 export const QURAN_ENABLED = false;
 
 /**
- * The Quran tab (listening to recitations, src/screens/RecitationScreen.tsx and src/recitation).
- * Held back from this release; while off, the tab is hidden and the player isn't mounted, so it
- * never takes the lock screen controls.
+ * The Quran tab: the printed mushaf with the recitation over it (src/screens/MushafScreen.tsx and
+ * src/recitation). While off, the tab is hidden and the player isn't mounted, so it never takes the
+ * lock screen controls. Needs background audio on in app.json (expo-audio enableBackgroundPlayback).
  */
-export const RECITATION_ENABLED = false;
+export const RECITATION_ENABLED = true;
