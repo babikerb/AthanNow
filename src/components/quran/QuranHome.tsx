@@ -384,26 +384,29 @@ function HadithCard() {
         The Prophet ﷺ said
       </Text>
       {/* Every hadith is laid out in the same place, the longest setting the card's height, so the
-          card never changes size as they turn; only the current one shows. */}
-      <View>
+          card never changes size as they turn; only the current one shows, centred between the
+          heading and its source, which keeps to the card's foot. */}
+      <View style={{ marginVertical: t.spacing.sm }}>
         {HADITH.map((x, i) => (
           <Animated.View
             key={i}
             importantForAccessibility="no"
             style={[
-              { opacity: i === index ? fade : 0 },
-              i === LONGEST ? null : { position: "absolute", top: 0, left: 0, right: 0 },
+              { opacity: i === index ? fade : 0, justifyContent: "center" },
+              i === LONGEST ? null : { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
             ]}
           >
-            <Text variant="body" style={{ marginTop: t.spacing.xs, lineHeight: 22, fontWeight: "600" }}>
+            <Text variant="body" style={{ lineHeight: 22, fontWeight: "600" }}>
               “{x.text}”
-            </Text>
-            <Text variant="footnote" color="textSecondary" style={{ marginTop: t.spacing.xs }}>
-              {x.source}
             </Text>
           </Animated.View>
         ))}
       </View>
+      <Animated.View style={{ opacity: fade }} importantForAccessibility="no">
+        <Text variant="footnote" color="textSecondary" numberOfLines={1}>
+          {h.source}
+        </Text>
+      </Animated.View>
     </View>
   );
 }
