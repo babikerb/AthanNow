@@ -1,30 +1,39 @@
 import SwiftUI
 import UIKit
 
-/// Sharing an ayah: as text (the ayah, its meaning, and where it's from) or as an image card drawn in
-/// the reader's colours, through the iOS share sheet.
+/// Sharing an ayah: as text (the ayah, its meaning, and where it's from) or as an image card,
+/// through the iOS share sheet.
 enum AyahShare {
-  /// "Al-Kahf 18:10".
-  static func reference(_ word: MushafWord, title: String) -> String {
-    "\(title) \(word.surah):\(word.ayah)"
+  /// "Al-Kahf 10".
+  static func reference(surah: Int, ayah: Int, title: String) -> String {
+    "\(title) \(ayah)"
+  }
+
+  static func text(surah: Int, ayah: Int, title: String) -> String {
+    let arabic = MushafStore.shared.ayahText[surah * 1000 + ayah] ?? ""
+    let meaning = MushafStore.shared.translation(surah, ayah)
+    return "\(reference(surah: surah, ayah: ayah, title: title))\n\n\(arabic)\n\n\u{201C}\(meaning)\u{201D}\n\nShared from AthanNow, free on the App Store"
   }
 
   static func text(_ word: MushafWord, title: String) -> String {
-    let arabic = MushafStore.shared.ayahText[word.ayahKey] ?? ""
-    let meaning = MushafStore.shared.translation(word.surah, word.ayah)
-    return "\(arabic)\n\n\u{201C}\(meaning)\u{201D}\n\n\(reference(word, title: title))"
+    text(surah: word.surah, ayah: word.ayah, title: title)
   }
 
   @MainActor
-  static func image(_ word: MushafWord, title: String, theme: ReaderTheme) -> UIImage? {
-    let renderer = ImageRenderer(content: ShareCard(word: word, title: title, theme: theme))
+  static func image(surah: Int, ayah: Int, title: String, theme: ReaderTheme) -> UIImage? {
+    let renderer = ImageRenderer(content: ShareCard(surah: surah, ayah: ayah, title: title, theme: theme))
     renderer.scale = 3
     return renderer.uiImage
   }
 
+  @MainActor
+  static func image(_ word: MushafWord, title: String, theme: ReaderTheme) -> UIImage? {
+    image(surah: word.surah, ayah: word.ayah, title: title, theme: theme)
+  }
+
   /// The share sheet, once the menu that asked for it has gone.
-  static func present(_ items: [Any]) {
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+  static func present(_ items: [Any], delay: Double = 0.35) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
       let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first { $0.activationState == .foregroundActive }
       guard var top = scene?.keyWindow?.rootViewController else { return }
       while let presented = top.presentedViewController { top = presented }
@@ -33,21 +42,28 @@ enum AyahShare {
       top.present(sheet, animated: true)
     }
   }
+
+  /// The app's icon, for the card's foot.
+  static let icon: UIImage? = {
+    guard let url = MushafResources.url("ShareIcon", "png"), let data = try? Data(contentsOf: url) else { return nil }
+    return UIImage(data: data)
+  }()
 }
 
-/// The card an ayah is shared as: the surah's name in calligraphy, the ayah, its meaning, and where
-/// it's from, in the reader's colours. 360 points wide (1080 pixels as rendered).
+/// The card an ayah is shared as: the surah and ayah, the ayah in Arabic, its meaning, and the app at
+/// the foot. 360 points wide (1080 pixels as rendered).
 struct ShareCard: View {
-  let word: MushafWord
+  let surah: Int
+  let ayah: Int
   let title: String
   let theme: ReaderTheme
 
   var body: some View {
-    let arabic = MushafStore.shared.ayahText[word.ayahKey] ?? word.text
-    let meaning = MushafStore.shared.translation(word.surah, word.ayah)
-    VStack(spacing: 18) {
-      Text("سورة \(MushafStore.shared.name(word.surah))")
-        .font(.custom(MushafFont.name, size: 24))
+    let arabic = MushafStore.shared.ayahText[surah * 1000 + ayah] ?? ""
+    let meaning = MushafStore.shared.translation(surah, ayah)
+    VStack(spacing: 0) {
+      Text(AyahShare.reference(surah: surah, ayah: ayah, title: title))
+        .font(.system(size: 15, weight: .semibold))
         .foregroundColor(theme.ink.opacity(0.8))
 
       Text(arabic)
@@ -57,32 +73,42 @@ struct ShareCard: View {
         .lineSpacing(10)
         .environment(\.layoutDirection, .rightToLeft)
         .fixedSize(horizontal: false, vertical: true)
-
-      Capsule().fill(theme.recited).frame(width: 36, height: 3)
+        .padding(.top, 22)
 
       if !meaning.isEmpty {
         Text(meaning)
           .font(.system(size: meaning.count > 400 ? 13 : 15))
-          .foregroundColor(theme.ink.opacity(0.85))
+          .foregroundColor(theme.ink.opacity(0.8))
           .multilineTextAlignment(.center)
           .lineSpacing(3)
           .fixedSize(horizontal: false, vertical: true)
+          .padding(.top, 18)
       }
 
-      HStack {
-        Text(AyahShare.reference(word, title: title).replacingOccurrences(of: " \(word.surah):", with: ", \(word.surah):"))
-          .font(.system(size: 12, weight: .semibold))
-          .foregroundColor(theme.ink.opacity(0.75))
-        Spacer()
-        Text("AthanNow")
-          .font(.system(size: 12, weight: .semibold))
-          .foregroundColor(theme.recited)
+      Rectangle().fill(theme.ink.opacity(0.12)).frame(height: 1).padding(.top, 26)
+
+      HStack(spacing: 10) {
+        if let icon = AyahShare.icon {
+          Image(uiImage: icon)
+            .resizable()
+            .frame(width: 34, height: 34)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        VStack(alignment: .leading, spacing: 1) {
+          Text("AthanNow")
+            .font(.system(size: 13, weight: .bold))
+            .foregroundColor(theme.ink)
+          Text("Get it free on the App Store")
+            .font(.system(size: 11))
+            .foregroundColor(theme.ink.opacity(0.6))
+        }
+        Spacer(minLength: 0)
       }
-      .padding(.top, 6)
+      .padding(.top, 14)
     }
     .padding(.horizontal, 28)
-    .padding(.top, 30)
-    .padding(.bottom, 22)
+    .padding(.top, 28)
+    .padding(.bottom, 20)
     .frame(width: 360)
     .background(theme.background)
   }

@@ -21,6 +21,22 @@ public class QuranReaderModule: Module {
       ]
     }
 
+    /// Shares an ayah through the share sheet: as the image card, or as text. `title` is the surah's
+    /// English name; the colours are the app's, as #RRGGBB.
+    Function("shareAyah") { (surah: Int, ayah: Int, title: String, asImage: Bool, background: String, ink: String, accent: String, dark: Bool) in
+      MushafStore.shared.load()
+      DispatchQueue.main.async {
+        if asImage {
+          let theme = ReaderTheme.app(background: background, ink: ink, accent: accent, recited: "", dark: dark)
+          if let image = AyahShare.image(surah: surah, ayah: ayah, title: title, theme: theme) {
+            AyahShare.present([image], delay: 0.05)
+          }
+        } else {
+          AyahShare.present([AyahShare.text(surah: surah, ayah: ayah, title: title)], delay: 0.05)
+        }
+      }
+    }
+
     View(QuranReaderView.self)
 
     View(AirPlayView.self) {

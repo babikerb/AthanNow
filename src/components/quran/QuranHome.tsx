@@ -15,6 +15,7 @@ import { firstAyahOnPage, pageForAyah, surahsOnPage } from "../../quran/pageLayo
 import type { QuranProgress } from "../../quran/useQuranProgress";
 import { QURAN_FONT } from "../../recitation/format";
 import { useRecitation, useRecitationProgress } from "../../recitation/RecitationProvider";
+import { AyahOfTheDay } from "./AyahOfTheDay";
 import { GoalRings } from "./GoalRings";
 
 const NO_PAGES: number[] = [];
@@ -153,6 +154,8 @@ export function QuranHome({
         <HadithCard />
 
         <ContinueCard dark={dark} lastPage={lastPage} onContinue={onContinue} onOpenPage={onOpenPage} />
+
+        <AyahOfTheDay dark={dark} onOpenPage={onOpenPage} />
 
         {friday && !(kahfGoal && kahfGoal.done) ? (
           <PressableScale

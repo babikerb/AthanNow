@@ -76,7 +76,30 @@ type NativeProps = Omit<QuranReaderProps, 'current' | 'from' | 'onPageChange' | 
 };
 
 const NativeReader: React.ComponentType<NativeProps> | null = Platform.OS === 'ios' ? requireNativeView('QuranReader') : null;
-const NativeModule = Platform.OS === 'ios' ? requireOptionalNativeModule<{ ayah: (surah: number, ayah: number) => { arabic: string; translation: string } }>('QuranReader') : null;
+const NativeModule =
+  Platform.OS === 'ios'
+    ? requireOptionalNativeModule<{
+        ayah: (surah: number, ayah: number) => { arabic: string; translation: string };
+        shareAyah?: (surah: number, ayah: number, title: string, asImage: boolean, background: string, ink: string, accent: string, dark: boolean) => void;
+      }>('QuranReader')
+    : null;
+
+/** Whether this build can share an ayah as the image card (builds before it can only share text). */
+export const canShareAyahImage = !!NativeModule?.shareAyah;
+
+/**
+ * Shares an ayah through the iOS share sheet, as the image card or as text. Returns false where the
+ * build can't, so the caller can share text its own way.
+ */
+export function shareAyah(opts: { surah: number; ayah: number; title: string; asImage: boolean; colors: { bg: string; text: string; accent: string }; dark: boolean }): boolean {
+  if (!NativeModule?.shareAyah) return false;
+  try {
+    NativeModule.shareAyah(opts.surah, opts.ayah, opts.title, opts.asImage, opts.colors.bg, opts.colors.text, opts.colors.accent, opts.dark);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** An ayah's text (KFGQPC Hafs) and its Saheeh International translation, from the bundled data. */
 export function ayahText(surah: number, ayah: number): { arabic: string; translation: string } {
