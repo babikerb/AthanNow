@@ -4,9 +4,9 @@ import UIKit
 /// Sharing an ayah: as text (the ayah, its meaning, and where it's from) or as an image card,
 /// through the iOS share sheet.
 enum AyahShare {
-  /// "Al-Kahf 10".
+  /// "Ad-Duha 93:3".
   static func reference(surah: Int, ayah: Int, title: String) -> String {
-    "\(title) \(ayah)"
+    "\(title) \(surah):\(ayah)"
   }
 
   static func text(surah: Int, ayah: Int, title: String) -> String {
