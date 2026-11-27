@@ -230,7 +230,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
         <View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: t.spacing.sm, paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.md }}>
             {JUZ_START.map((p, i) => (
-              <PressableScale key={i} haptic="select" onPress={() => close(() => onSelectPage?.(p))} accessibilityRole="button" accessibilityLabel={`Juz ${i + 1}, page ${p}`}>
+              <PressableScale key={i} haptic="select" onPress={() => close(() => onSelectPage?.(p))} accessibilityRole="button" accessibilityLabel={`Juz ${i + 1}, page ${p}`} hitSlop={{ top: 4, bottom: 4 }}>
                 <View style={{ height: 36, paddingHorizontal: t.spacing.md, borderRadius: 18, justifyContent: 'center', backgroundColor: t.c.surface2 }}>
                   <Text variant="subhead" style={{ fontWeight: '600' }}>
                     Juz {i + 1}

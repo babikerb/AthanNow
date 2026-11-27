@@ -20,7 +20,15 @@ export function RoundIcon({ name, label, disabled, tint }: { name: SFSymbol; lab
   );
 }
 
-/** The app's round icon button: close, share, add, previous and next. */
+/** Apple's minimum touch target: every icon control is at least this big to tap. */
+export const TOUCH_TARGET = 44;
+
+/** A 44 point square to tap, with its 36 point icon centred in it. */
+export function IconTarget({ children }: { children: React.ReactNode }) {
+  return <View style={{ width: TOUCH_TARGET, height: TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' }}>{children}</View>;
+}
+
+/** The app's round icon button: close, share, add, previous and next. A 44 point target. */
 export function IconButton({
   name,
   label,
@@ -37,7 +45,9 @@ export function IconButton({
 }) {
   return (
     <PressableScale haptic="select" onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}>
-      <RoundIcon name={name} disabled={disabled} tint={tint} />
+      <IconTarget>
+        <RoundIcon name={name} disabled={disabled} tint={tint} />
+      </IconTarget>
     </PressableScale>
   );
 }

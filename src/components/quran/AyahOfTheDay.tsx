@@ -9,7 +9,7 @@ import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { pageForAyah } from '../../quran/pageLayout';
 import { NativeMenu } from '../NativeMenu';
-import { RoundIcon } from '../Sheet';
+import { IconTarget, RoundIcon, TOUCH_TARGET } from '../../design/IconButton';
 
 // Short ayahs that stand on their own, one a day in turn.
 const AYAHS: [number, number][] = [
@@ -58,8 +58,8 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
         </Text>
         {/* Share, as an image card or as text, like sharing from the mushaf. */}
         <NativeMenu
-          width={36}
-          height={36}
+          width={TOUCH_TARGET}
+          height={TOUCH_TARGET}
           colorScheme={t.scheme}
           items={
             <>
@@ -68,7 +68,9 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
             </>
           }
         >
-          <RoundIcon name="square.and.arrow.up" label="Share this ayah" />
+          <IconTarget>
+            <RoundIcon name="square.and.arrow.up" label="Share this ayah" />
+          </IconTarget>
         </NativeMenu>
       </View>
     </View>

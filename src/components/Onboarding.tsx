@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   root: { zIndex: 100 },
   flexShrink: { flexShrink: 1 },
   topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  back: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   content: { position: 'absolute', left: 0, right: 0, overflow: 'hidden' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', gap: 8 },
   secondary: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },

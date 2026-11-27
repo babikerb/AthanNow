@@ -115,6 +115,7 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={s.label}
+                hitSlop={{ top: 4, bottom: 4 }}
               >
                 <View style={{ height: 36, paddingHorizontal: t.spacing.md, borderRadius: 18, borderWidth: 1, borderColor: t.c.hairline, justifyContent: 'center' }}>
                   <Text variant="subhead">{s.label}</Text>

@@ -223,7 +223,7 @@ export default function QuranScreen() {
               <Pressable
                 key={c}
                 onPress={() => markPage(c)}
-                hitSlop={6}
+                hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={`${BOOKMARK_COLOR_NAMES[c]} bookmark`}
                 accessibilityState={{ selected: !!selected }}

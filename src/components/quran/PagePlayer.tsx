@@ -190,7 +190,7 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
           </Text>
         </PressableScale>
         {onMeaning ? (
-          <PressableScale haptic="select" onPress={onMeaning} accessibilityRole="button" accessibilityLabel={`Meaning of ayah ${r.ayahIndex + 1}`}>
+          <PressableScale haptic="select" onPress={onMeaning} accessibilityRole="button" accessibilityLabel={`Meaning of ayah ${r.ayahIndex + 1}`} hitSlop={{ top: 4, bottom: 4 }}>
             <View
               style={{
                 height: 36,
