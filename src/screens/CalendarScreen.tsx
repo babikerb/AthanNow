@@ -1,13 +1,13 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLocation } from '../context/LocationContext';
 import { useSettings } from '../context/SettingsContext';
 import { Button } from '../design/Button';
 import { haptic } from '../design/haptics';
+import { IconButton } from '../design/IconButton';
 import { Text } from '../design/Text';
 import { useTheme } from '../design/theme';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
@@ -168,18 +168,18 @@ export default function CalendarScreen() {
 
       {/* Month switcher. */}
       <View style={[styles.monthBar, { paddingHorizontal: gutter - 10 }]}>
-        <Pressable onPress={() => goMonth(-1)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Previous month" style={styles.chevron}>
-          <SymbolView name="chevron.left" size={17} tintColor={c.text} />
-        </Pressable>
+        <View style={styles.chevron}>
+          <IconButton name="chevron.left" label="Previous month" onPress={() => goMonth(-1)} />
+        </View>
         <View style={styles.monthTitle} accessible accessibilityRole="header" accessibilityLabel={`${monthTitle}, ${hijriRange}`}>
           <Text variant="headline">{monthTitle}</Text>
           <Text variant="footnote" color="textSecondary" numberOfLines={1}>
             {hijriRange}
           </Text>
         </View>
-        <Pressable onPress={() => goMonth(1)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Next month" style={styles.chevron}>
-          <SymbolView name="chevron.right" size={17} tintColor={c.text} />
-        </Pressable>
+        <View style={styles.chevron}>
+          <IconButton name="chevron.right" label="Next month" onPress={() => goMonth(1)} />
+        </View>
       </View>
 
       {/* Column header, fixed above the scrolling days. */}

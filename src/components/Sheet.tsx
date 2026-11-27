@@ -1,9 +1,8 @@
 import { SymbolView } from 'expo-symbols';
-import type { SFSymbol } from 'sf-symbols-typescript';
 import React from 'react';
 import { Modal, TextInput, View, type TextInputProps } from 'react-native';
 
-import { PressableScale } from '../design/PressableScale';
+import { IconButton as SheetIconButton } from '../design/IconButton';
 import { Text } from '../design/Text';
 import { useTheme } from '../design/theme';
 import { textStyle } from '../design/tokens';
@@ -15,42 +14,8 @@ import type { Palette } from '../theme/colors';
  * sheets that host their own container (the Meaning sheet's half-height native sheet).
  */
 
-/**
- * The round icon every small action uses (close, share, add), drawn without a press handler so it
- * can also be the label of a native menu.
- */
-export function RoundIcon({ name, label, disabled, tint }: { name: SFSymbol; label?: string; disabled?: boolean; tint?: 'accent' }) {
-  const t = useTheme();
-  const accent = tint === 'accent' && !disabled;
-  return (
-    <View accessibilityLabel={label} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: accent ? t.c.accent : t.c.surface2, alignItems: 'center', justifyContent: 'center' }}>
-      <SymbolView name={name} size={14} weight="semibold" tintColor={accent ? t.c.onAccent : disabled ? t.c.glyphQuiet : t.c.text} style={{ width: 18, height: 18 }} />
-    </View>
-  );
-}
-
-/** A round button for a sheet's header, and any small action elsewhere: close, share, add. */
-export function SheetIconButton({
-  name,
-  label,
-  onPress,
-  disabled,
-  tint,
-}: {
-  name: SFSymbol;
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  /** Filled with the accent: the sheet's main action. */
-  tint?: 'accent';
-}) {
-  return (
-    <PressableScale haptic="select" onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }}>
-      <RoundIcon name={name} disabled={disabled} tint={tint} />
-    </PressableScale>
-  );
-}
-
+// The round icon button is the app's, not only the sheets'.
+export { RoundIcon, IconButton as SheetIconButton } from '../design/IconButton';
 /** A sheet's header: the title (and a line under it), its actions, and close. */
 export function SheetHeader({
   title,

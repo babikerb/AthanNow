@@ -1,7 +1,7 @@
 import { SymbolView } from "expo-symbols";
 import { QuranReader } from "quran-reader";
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, ScrollView, useWindowDimensions, View } from "react-native";
+import { Animated, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getSurah } from "../../data/surahs";
@@ -116,9 +116,12 @@ export function QuranHome({
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
-              paddingHorizontal: t.spacing.md,
+              paddingHorizontal: t.spacing.lg,
               borderRadius: t.radii.control,
+              borderCurve: "continuous",
               backgroundColor: t.c.surface2,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: t.c.hairline,
             }}
           >
             {today.length ? (
@@ -136,9 +139,7 @@ export function QuranHome({
                 style={{ width: 20, height: 20 }}
               />
             )}
-            <Text variant="subhead" style={{ fontWeight: "600" }}>
-              Goals
-            </Text>
+            <Text variant="headline">Goals</Text>
           </View>
         </PressableScale>
       </View>
