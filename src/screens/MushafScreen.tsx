@@ -78,11 +78,12 @@ const LAST_COLOR_KEY = "athannow.quran.lastcolor.v1";
 const DARK_KEY = "athannow.quran.reader.dark.v1";
 
 const TITLES = SURAHS.map((s) => s.transliteration);
-// The top bar (44 high, 4 below the status bar) and the controls at the foot: the player and the
-// page strip under it (56 each, 8 apart, 8 above the home indicator). The page sits between them
-// with the same gap above and below, so nothing of it is ever behind the controls.
+// The top bar (44 high, 4 below the status bar) and the player (56 high, 8 above the home
+// indicator); the page sits between them with the same gap above and below. The page strip under
+// the player overlaps the foot of the page on purpose: the page stays as large as it can be, and a
+// tap to focus clears the controls away to show all of it.
 const TOP_BAR = 4 + 44;
-const PLAYER = 8 + 56 + 8 + 56;
+const PLAYER = 8 + 56;
 const PAGE_GAP = 18;
 // A page counts as read after this long on it.
 const READ_AFTER_MS = 12000;
