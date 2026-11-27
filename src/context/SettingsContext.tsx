@@ -189,9 +189,9 @@ export const SettingsProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   const resetAllData = useCallback(async () => {
-    // Full wipe: settings (including `onboardingComplete`, which re-arms the
-    // merged onboarding flow's auto-start), bookmarks, saved location, and
-    // cached Quran data, everything the app has stored, then back to defaults.
+    // Saved data only. Settings' Reset all data uses resetApp (src/utils/resetApp), which also
+    // clears notifications, the widget, files and caches, and restarts the app so nothing held in
+    // memory is saved back.
     await AsyncStorage.clear().catch(() => {});
     persist(DEFAULT_SETTINGS);
   }, [persist]);

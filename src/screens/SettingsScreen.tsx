@@ -18,6 +18,7 @@ import { Toggle } from '../design/Toggle';
 import { useLocation } from '../context/LocationContext';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { CALC_METHOD_WHY, CALC_METHODS, calcMethodForCountry, localeCountryCode } from '../utils/calcMethodDefaults';
+import { resetApp } from '../utils/resetApp';
 import {
   anyNotificationEnabled,
   getNotificationPermissionState,
@@ -185,14 +186,14 @@ export default function SettingsScreen() {
   const [creditsOpen, setCreditsOpen] = useState(false);
 
   const confirmReset = () => {
-    Alert.alert('Reset all data', 'This clears your preferences and onboarding, returning the app to defaults. This cannot be undone.', [
+    Alert.alert('Reset all data', 'This erases everything AthanNow has saved: settings, location, bookmarks, goals and reading progress, downloads, and scheduled athans. The app then starts over as if newly installed. This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Reset',
+        text: 'Erase Everything',
         style: 'destructive',
         onPress: () => {
           haptic.warning();
-          settings.resetAllData();
+          resetApp();
         },
       },
     ]);
