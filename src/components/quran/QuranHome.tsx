@@ -318,7 +318,7 @@ function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolea
             />
           </View>
         </PressableScale>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: t.spacing.md, paddingHorizontal: t.spacing.xs, marginTop: t.spacing.xs }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: t.spacing.md, paddingHorizontal: t.spacing.md, paddingTop: t.spacing.md, paddingBottom: t.spacing.md }}>
           <View style={{ flex: 1 }}>
             <Text variant="headline" numberOfLines={1}>
               {surah.transliteration}
@@ -329,7 +329,7 @@ function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolea
           </View>
           <Text style={{ fontFamily: QURAN_FONT, fontSize: 22, lineHeight: 40, color: t.c.text }}>{surah.arabicName}</Text>
         </View>
-        <View style={{ flexDirection: "row", gap: t.spacing.sm, marginTop: t.spacing.xs }}>
+        <View style={{ flexDirection: "row", gap: t.spacing.sm }}>
           <PressableScale haptic="light" onPress={open} accessibilityRole="button" accessibilityLabel={listening ? "Back to the recitation" : "Continue"} style={{ flex: 1 }}>
             <View style={{ height: 44, borderRadius: 22, backgroundColor: t.c.accent, alignItems: "center", justifyContent: "center" }}>
               <Text variant="body" style={{ color: t.c.onAccent, fontWeight: "600" }}>
