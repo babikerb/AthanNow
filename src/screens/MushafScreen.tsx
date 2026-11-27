@@ -78,12 +78,14 @@ const LAST_COLOR_KEY = "athannow.quran.lastcolor.v1";
 const DARK_KEY = "athannow.quran.reader.dark.v1";
 
 const TITLES = SURAHS.map((s) => s.transliteration);
-// The page is as large as it can be: from just under the top bar to just over the focused view's
-// buttons (Aa and play, 60 high, 8 above the home indicator), a small gap at each end. The player
-// and page strip lie over its foot until a tap to focus clears them away.
+// The page is as large as it can be, laid out as printed: a running header just under the top edge
+// (the surahs, the juz) and the page number at the foot, the page between. Tapping it brings the
+// top bar and the player over it; tap again for the page alone.
+// The top bar shown over the page: 44 high, 4 below the status bar.
 const TOP_BAR = 4 + 44;
-const FOOT = 8 + 60;
-const PAGE_GAP = 6;
+const HEAD = 26;
+const FOOT = 34;
+const PAGE_GAP = 4;
 // A page counts as read after this long on it.
 const READ_AFTER_MS = 12000;
 
@@ -296,6 +298,10 @@ function Reader({ display }: { display: Display }) {
     if (focused)
       setStatusBarStyle((reading ? dark : appDark) ? "light" : "dark", true);
   }, [focused, reading, dark, appDark]);
+  // With the page alone, the status bar goes too, as on a printed page.
+  useEffect(() => {
+    setStatusBarHidden(focused && reading && hidden, "fade");
+  }, [focused, reading, hidden]);
 
   // ---- Playback on the page ----
   const playingPage = r.surahId
@@ -421,8 +427,9 @@ function Reader({ display }: { display: Display }) {
   const juz = juzForPage(page);
   // The page fills the space between the top bar and the player, an equal gap from each. It keeps
   // that place when the controls hide.
-  const topInset = insets.top + TOP_BAR + PAGE_GAP;
-  const bottomInset = insets.bottom + FOOT + PAGE_GAP;
+  // The status bar is hidden with the page alone; its height still clears the island.
+  const topInset = Math.max(insets.top - 14, 12) + HEAD + PAGE_GAP;
+  const bottomInset = Math.max(insets.bottom - 6, 6) + FOOT + PAGE_GAP;
   const capsule = {
     backgroundColor: dark ? "rgba(26, 27, 31, 0.94)" : "rgba(255, 253, 248, 0.94)",
     borderWidth: 1,
@@ -467,6 +474,11 @@ function Reader({ display }: { display: Display }) {
   );
   // Every surah on the page, as the mushaf's running head names them: "An-Nur and Al-Furqan".
   const pageTitle = surah.transliteration;
+  // The running head, as the mushaf prints it: every surah on the page.
+  const runningHead = surahsOnPage(page)
+    .map((id) => getSurah(id)?.transliteration)
+    .filter(Boolean)
+    .join(" and ") || pageTitle;
 
   const sheets = (
     <>
@@ -561,11 +573,38 @@ function Reader({ display }: { display: Display }) {
                 {/* Flowing text fades out under the bars instead of running behind them. */}
                 {display.view !== "mushaf" || zoomed ? (
                   <>
-                    <EdgeFade edge="top" color={t.c.bg} height={insets.top + TOP_BAR + 36} solid={insets.top + TOP_BAR - 4} />
-                    <EdgeFade edge="bottom" color={t.c.bg} height={insets.bottom + (hidden ? 110 : 170)} solid={insets.bottom + (hidden ? 70 : 128)} />
+                    <EdgeFade edge="top" color={t.c.bg} height={hidden ? topInset + 18 : insets.top + TOP_BAR + 36} solid={hidden ? topInset - 6 : insets.top + TOP_BAR - 4} />
+                    <EdgeFade edge="bottom" color={t.c.bg} height={hidden ? bottomInset + 18 : insets.bottom + 170} solid={hidden ? bottomInset - 6 : insets.bottom + 128} />
                   </>
                 ) : null}
 
+                {hidden ? (
+                  // The page alone: its running head, as printed. The surahs on the page, and the juz.
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      top: Math.max(insets.top - 14, 12),
+                      left: t.spacing.xl,
+                      right: t.spacing.xl,
+                      height: HEAD,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: t.spacing.md,
+                    }}
+                    accessible
+                    accessibilityLabel={`${runningHead}, Juz ${juz}, page ${page}`}
+                  >
+                    <Text variant="subhead" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ flexShrink: 1 }}>
+                      {runningHead}
+                    </Text>
+                    <Text variant="subhead" color="textSecondary" maxFontSizeMultiplier={1.2}>
+                      Juz {juz}
+                    </Text>
+                  </View>
+                ) : (
+                  <>
                 {/* Surah (or surahs), juz and page; tap for the index and search. Focused, it widens to the
               full width and the back and options buttons step aside. */}
                 <View
@@ -697,6 +736,9 @@ function Reader({ display }: { display: Display }) {
                   ) : null}
                 </View>
 
+                  </>
+                )}
+
                 {/* The player over the foot of the page; focused, a small capsule of search, the page's
               options and play. */}
                 {!hidden ? (
@@ -733,39 +775,35 @@ function Reader({ display }: { display: Display }) {
                     </View>
                   </View>
                 ) : (
-                  // Focused: the page almost alone. The reading settings at the left, play at the right.
+                  // The page alone: its number at the foot, as printed.
                   <View
-                    pointerEvents="box-none"
+                    pointerEvents="none"
                     style={{
                       position: "absolute",
-                      left: t.spacing.lg,
-                      right: t.spacing.lg,
-                      bottom: insets.bottom + t.spacing.sm,
-                      flexDirection: "row",
+                      left: 0,
+                      right: 0,
+                      bottom: Math.max(insets.bottom - 6, 6),
+                      height: FOOT,
                       alignItems: "center",
-                      justifyContent: "space-between",
+                      justifyContent: "center",
                     }}
                   >
-                    <PressableScale haptic="select" onPress={() => setDisplayOpen(true)} accessibilityRole="button" accessibilityLabel="Reading settings">
-                      <View style={[capsule, { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" }]}>
-                        <SymbolView name="textformat.size" size={19} tintColor={t.c.text} style={{ width: 26, height: 26 }} />
-                      </View>
-                    </PressableScale>
-                    <PressableScale
-                      haptic="light"
-                      onPress={() => (r.surahId ? r.togglePlay() : playPage())}
-                      accessibilityRole="button"
-                      accessibilityLabel={r.isPlaying ? "Pause" : "Play from this page"}
+                    <View
+                      style={{
+                        minWidth: 64,
+                        height: 26,
+                        paddingHorizontal: t.spacing.md,
+                        borderRadius: 13,
+                        borderWidth: 1,
+                        borderColor: t.c.hairline,
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
                     >
-                      <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: t.c.accent, alignItems: "center", justifyContent: "center" }}>
-                        <SymbolView
-                          name={r.isPlaying ? "pause.fill" : "play.fill"}
-                          size={22}
-                          tintColor={t.c.onAccent}
-                          style={{ width: 26, height: 26, marginLeft: r.isPlaying ? 0 : 3 }}
-                        />
-                      </View>
-                    </PressableScale>
+                      <Text variant="subhead" maxFontSizeMultiplier={1.2} style={{ fontVariant: ["tabular-nums"] }}>
+                        {page}
+                      </Text>
+                    </View>
                   </View>
                 )}
 
