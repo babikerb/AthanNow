@@ -112,17 +112,14 @@ struct ReaderContext {
 
   /// Whether this word is the one being recited (or, without word timing, in the ayah being recited).
   func isCurrent(_ word: MushafWord) -> Bool {
-    guard playing else { return false }
-    return wordLevel ? word.order == current : word.ayahKey == currentAyah
+    playing && wordLevel && word.order == current
   }
 
   func color(_ word: MushafWord, page: Int) -> Color {
     guard playing, page == currentPage else { return theme.ink }
     if !wordLevel {
-      let key = word.ayahKey
-      if key == currentAyah { return theme.ink }
-      if key > currentAyah { return theme.quiet }
-      return key >= from / 1000 ? theme.recited : theme.ink
+      // Timed only by the ayah: the ayah being recited is lit in the recited colour, the rest plain.
+      return word.ayahKey == currentAyah ? theme.recited : theme.ink
     }
     let order = word.order
     if order == current { return theme.ink }
@@ -189,19 +186,11 @@ struct WordView: View {
       .background {
         if isCurrent {
           // A soft pill of the recited colour behind the word: rounded all round, no outline.
-          if ctx.wordLevel {
-            Capsule(style: .continuous)
-              .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.3 : 0.15))
-              .padding(.horizontal, -size * 0.2)
-              .padding(.vertical, size * 0.16)
-              .matchedGeometryEffect(id: "highlight", in: ctx.ns)
-          } else {
-            // The whole ayah: one soft band, word to word.
-            Capsule(style: .continuous)
-              .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.24 : 0.12))
-              .padding(.horizontal, -size * 0.1)
-              .padding(.vertical, size * 0.16)
-          }
+          Capsule(style: .continuous)
+            .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.3 : 0.15))
+            .padding(.horizontal, -size * 0.2)
+            .padding(.vertical, size * 0.16)
+            .matchedGeometryEffect(id: "highlight", in: ctx.ns)
         } else if ctx.inFocus(word) {
           // Being explained in the Meaning sheet: fainter than the recitation's highlight.
           Capsule(style: .continuous)
