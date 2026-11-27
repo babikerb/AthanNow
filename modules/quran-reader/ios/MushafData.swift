@@ -11,6 +11,9 @@ struct MushafWord: Hashable {
   let text: String
   /// The word's glyph in quran.com's QCF V2 font for its page (one to a few characters).
   let glyph: String
+  /// The word's English meaning and transliteration (empty for an end marker).
+  var meaning: String = ""
+  var translit: String = ""
 
   /// Reading order across the whole Quran. The end marker comes after the ayah's words.
   var order: Int { MushafWord.order(surah, ayah, word) }
@@ -33,6 +36,32 @@ struct MushafPage: Identifiable {
   let number: Int
   let lines: [MushafLine]
   var id: Int { number }
+
+  /// The page as its surah openings and its ayahs, each ayah's words together (pages hold whole ayahs).
+  var blocks: [PageBlock] {
+    var out: [PageBlock] = []
+    for line in lines {
+      switch line {
+      case .header(let s): out.append(.header(s))
+      case .bismillah: out.append(.bismillah)
+      case .words(let words, _):
+        for word in words {
+          if case .ayah(let key, let list) = out.last, key == word.ayahKey {
+            out[out.count - 1] = .ayah(key, list + [word])
+          } else {
+            out.append(.ayah(word.ayahKey, [word]))
+          }
+        }
+      }
+    }
+    return out
+  }
+}
+
+enum PageBlock {
+  case header(Int)
+  case bismillah
+  case ayah(Int, [MushafWord])
 }
 
 /// Marker class for finding this module's resources.
@@ -171,7 +200,12 @@ final class MushafStore {
                   let a = (item[1] as? NSNumber)?.intValue,
                   let w = (item[2] as? NSNumber)?.intValue,
                   let t = item[3] as? String else { continue }
-            let word = MushafWord(surah: s, ayah: a, word: w, text: t, glyph: item.count > 4 ? (item[4] as? String ?? "") : "")
+            let word = MushafWord(
+              surah: s, ayah: a, word: w, text: t,
+              glyph: item.count > 4 ? (item[4] as? String ?? "") : "",
+              meaning: item.count > 5 ? (item[5] as? String ?? "") : "",
+              translit: item.count > 6 ? (item[6] as? String ?? "") : ""
+            )
             lineWords.append(word)
             words[word.ayahKey, default: []].append(t)
             if ayahPage[word.ayahKey] == nil { ayahPage[word.ayahKey] = index + 1 }

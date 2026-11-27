@@ -45,6 +45,9 @@ import { haptic } from "../design/haptics";
 import { PressableScale } from "../design/PressableScale";
 import { Text } from "../design/Text";
 import { ThemeProvider, useTheme } from "../design/theme";
+import { useDisplaySettings, type Display } from "../quran/display";
+import { DisplayPanel } from "../components/quran/DisplayPanel";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import {
   Bookmark,
   BOOKMARK_COLORS,
@@ -87,35 +90,18 @@ const READ_AFTER_MS = 12000;
  * the word being recited sits under glass. Press and hold a word for its native menu.
  */
 export default function MushafScreen() {
-  const system = useColorScheme();
-  const [darkChoice, setDarkChoice] = useState<boolean | null>(null);
-  const dark = darkChoice ?? system === "dark";
-
-  useEffect(() => {
-    AsyncStorage.getItem(DARK_KEY)
-      .then((v) => v != null && setDarkChoice(v === "1"))
-      .catch(() => {});
-  }, []);
-  const chooseDark = useCallback((on: boolean) => {
-    setDarkChoice(on);
-    AsyncStorage.setItem(DARK_KEY, on ? "1" : "0").catch(() => {});
-  }, []);
-
+  const display = useDisplaySettings();
   // The controls take the reader's light or dark, not the app's.
   return (
-    <ThemeProvider preference={dark ? "dark" : "light"}>
-      <Reader dark={dark} onDark={chooseDark} />
+    <ThemeProvider preference={display.dark ? "dark" : "light"}>
+      <Reader display={display} />
     </ThemeProvider>
   );
 }
 
-function Reader({
-  dark,
-  onDark,
-}: {
-  dark: boolean;
-  onDark: (on: boolean) => void;
-}) {
+function Reader({ display }: { display: Display }) {
+  const dark = display.dark;
+  const [displayOpen, setDisplayOpen] = useState(false);
   const t = useTheme();
   const r = useRecitation();
   const insets = useSafeAreaInsets();
@@ -250,6 +236,15 @@ function Reader({
     });
     return off;
   }, [navigation, focused, closeReader]);
+
+  // The screen stays on while the mushaf is open (if chosen), and sleeps as usual elsewhere.
+  useEffect(() => {
+    if (!reading || !focused || !display.keepAwake) return;
+    activateKeepAwakeAsync("quran-reader").catch(() => {});
+    return () => {
+      deactivateKeepAwake("quran-reader");
+    };
+  }, [reading, focused, display.keepAwake]);
 
   // A page counts towards today once it has been open a little while, with the app in front.
   const [active, setActive] = useState(AppState.currentState === "active");
@@ -405,7 +400,7 @@ function Reader({
 
   const pageMenu = (
     <>
-      <MenuToggle label="Dark page" systemImage="moon" isOn={dark} onIsOnChange={onDark} />
+      <MenuButton label="Display" systemImage="textformat.size" onPress={() => setDisplayOpen(true)} />
       <MenuDivider />
       {pageMark ? (
         <MenuButton label="Remove bookmark" systemImage="bookmark.slash" role="destructive" onPress={() => removeBookmark(pageMark)} />
@@ -470,6 +465,8 @@ function Reader({
         onContinue={() => jumpTo(page)}
         onOpenPage={jumpTo}
         onOpenGoals={() => setGoalsOpen(true)}
+        pageColor={display.pageColor}
+        textTone={display.textTone}
         onPlayPage={playPage}
         onMeaning={() => r.surahId && setMeaningAyah({ surah: r.surahId, ayah: r.ayahIndex + 1 })}
       />
@@ -478,7 +475,7 @@ function Reader({
           style={[
             StyleSheet.absoluteFill,
             {
-              backgroundColor: dark ? "#000000" : "#F8F8FC",
+              backgroundColor: { night: "#000000", charcoal: "#1C1C1F", sepia: "#F4ECD8", paper: "#F8F8FC" }[display.pageColor],
               transform: [
                 {
                   translateX: push.interpolate({
@@ -501,6 +498,7 @@ function Reader({
               bottomInset={bottomInset}
               bookmarkedPages={bookmarkedPages}
               focus={focus}
+              display={display}
               onPageChange={setPage}
               onTap={() => {
                 LayoutAnimation.configureNext(LayoutAnimation.create(240, "easeInEaseOut", "opacity"));
@@ -591,11 +589,11 @@ function Reader({
                     <SymbolView name="magnifyingglass" size={19} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
                   </View>
                 </PressableScale>
-                <NativeMenu width={52} height={48} colorScheme={dark ? "dark" : "light"} items={pageMenu}>
-                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }} accessibilityLabel="Page options">
+                <PressableScale haptic="select" onPress={() => setDisplayOpen(true)} accessibilityRole="button" accessibilityLabel="Display">
+                  <View style={{ width: 52, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: displayOpen ? t.c.surface2 : "transparent" }}>
                     <SymbolView name="slider.horizontal.3" size={19} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
                   </View>
-                </NativeMenu>
+                </PressableScale>
                 <PressableScale
                   haptic="light"
                   onPress={() => (r.surahId ? r.togglePlay() : playPage())}
@@ -612,6 +610,8 @@ function Reader({
               </View>
             </View>
           )}
+
+          {displayOpen ? <DisplayPanel display={display} onClose={() => setDisplayOpen(false)} /> : null}
 
           {/* The left edge: swipe in to go back. */}
           <View
@@ -651,6 +651,7 @@ function ReaderSurface(props: {
   bottomInset: number;
   bookmarkedPages: number[];
   focus: { from: number; to: number } | null;
+  display: Display;
   onPageChange: (page: number) => void;
   onTap: () => void;
   onAction: (
@@ -688,6 +689,12 @@ function ReaderSurface(props: {
       bookmarkedPages={props.bookmarkedPages}
       focusFrom={props.focus?.from ?? 0}
       focusTo={props.focus?.to ?? 0}
+      view={props.display.view}
+      pageColor={props.display.pageColor}
+      textTone={props.display.textTone}
+      textScale={props.display.textScale}
+      showTranslit={props.display.translit}
+      onTextScale={(scale) => props.display.set({ textScale: scale })}
       onPageChange={props.onPageChange}
       onTap={props.onTap}
       onAction={props.onAction}

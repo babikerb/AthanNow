@@ -27,6 +27,17 @@ final class QuranReaderProps: ExpoSwiftUI.ViewProps {
   @Field var focusTo: Int = 0
   /// A still snapshot of the page's opening lines (the home screen's Continue card): no gestures or menus.
   @Field var preview: Bool = false
+  /// "mushaf" (the printed page, pinch to zoom), "translation" (each ayah with its meaning under it)
+  /// or "words" (each word with its meaning under it).
+  @Field var view: String = "mushaf"
+  /// "night", "charcoal", "sepia" or "paper"; empty follows `dark`.
+  @Field var pageColor: String = ""
+  /// "standard", "soft" or "warm".
+  @Field var textTone: String = "standard"
+  /// The flowing text's size (zoomed in, translation, words), 1 being the page's own.
+  @Field var textScale: Double = 1.6
+  @Field var showTranslit: Bool = false
+  var onTextScale = EventDispatcher()
   var onPageChange = EventDispatcher()
   var onTap = EventDispatcher()
   var onAction = EventDispatcher()
@@ -45,11 +56,26 @@ struct ReaderTheme {
   let ornament: Color
 
   static func make(dark: Bool) -> ReaderTheme {
-    dark
-      ? ReaderTheme(dark: true, background: Color(hex: 0x000000), ink: Color(hex: 0xF4F3F8), quiet: Color(hex: 0x6E6A7C), recited: Color(hex: 0xA5A1FF),
-                    frame: Color(hex: 0x6B6779), band: Color(hex: 0x1C1B22), ornament: Color(hex: 0x8C889B))
-      : ReaderTheme(dark: false, background: Color(hex: 0xF8F8FC), ink: Color(hex: 0x1D1B26), quiet: Color(hex: 0xA6A2B4), recited: Color(hex: 0x4338CA),
-                    frame: Color(hex: 0xB3AFC3), band: Color(hex: 0xECEAF3), ornament: Color(hex: 0x8F8AA3))
+    make(color: dark ? "night" : "paper", tone: "standard")
+  }
+
+  /// A page colour and a text tone. Night and Charcoal are dark; Sepia and Paper are light.
+  static func make(color: String, tone: String) -> ReaderTheme {
+    switch color {
+    case "night", "charcoal":
+      let bg: UInt32 = color == "night" ? 0x000000 : 0x1C1C1F
+      let ink: UInt32 = tone == "soft" ? 0xC9C6D3 : tone == "warm" ? 0xF1E3C8 : 0xF4F3F8
+      return ReaderTheme(dark: true, background: Color(hex: bg), ink: Color(hex: ink), quiet: Color(hex: 0x6E6A7C), recited: Color(hex: 0xA5A1FF),
+                         frame: Color(hex: 0x6B6779), band: Color(hex: color == "night" ? 0x1C1B22 : 0x2A2930), ornament: Color(hex: 0x8C889B))
+    case "sepia":
+      let ink: UInt32 = tone == "soft" ? 0x5E5244 : tone == "warm" ? 0x4A3220 : 0x2B2118
+      return ReaderTheme(dark: false, background: Color(hex: 0xF4ECD8), ink: Color(hex: ink), quiet: Color(hex: 0xA79A82), recited: Color(hex: 0x4F3FB0),
+                         frame: Color(hex: 0xC6B795), band: Color(hex: 0xEADFC4), ornament: Color(hex: 0x9C8A63))
+    default:
+      let ink: UInt32 = tone == "soft" ? 0x4A4756 : tone == "warm" ? 0x3B2A1E : 0x1D1B26
+      return ReaderTheme(dark: false, background: Color(hex: 0xF8F8FC), ink: Color(hex: ink), quiet: Color(hex: 0xA6A2B4), recited: Color(hex: 0x4338CA),
+                         frame: Color(hex: 0xB3AFC3), band: Color(hex: 0xECEAF3), ornament: Color(hex: 0x8F8AA3))
+    }
   }
 }
 
@@ -506,6 +532,123 @@ struct FlowPage: View {
   }
 }
 
+/// Translation: each ayah in large flowing text (the page's own font), its meaning beneath, and a way
+/// into its commentary; surah openings between, as on the page.
+struct TranslationPage: View {
+  let page: MushafPage
+  let size: CGFloat
+  let width: CGFloat
+  let zoom: CGFloat
+  let ctx: ReaderContext
+  var qcf: PageFonts.Metrics? = nil
+  var qcfSize: CGFloat = 0
+
+  var body: some View {
+    let meaningSize = min(16 * max(1, zoom * 0.62), 24)
+    VStack(spacing: size * 0.6) {
+      ForEach(Array(page.blocks.enumerated()), id: \.offset) { _, block in
+        switch block {
+        case .header(let s):
+          SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
+        case .bismillah:
+          BismillahLine(size: size * 0.8, theme: ctx.theme)
+        case .ayah(let key, let words):
+          VStack(spacing: 10) {
+            if let q = qcf, qcfSize > 0 {
+              FlowingLines(gap: qcfSize * 0.12, lineHeight: qcfSize * 1.75) {
+                ForEach(words, id: \.order) { word in
+                  WordView(word: word, page: page.number, size: qcfSize, ctx: ctx, font: q.name, useGlyph: true).id(word.order)
+                }
+              }
+              .frame(width: width)
+            } else {
+              FlowingLines(gap: size * 0.3, lineHeight: size * 2.05) {
+                ForEach(words, id: \.order) { word in
+                  WordView(word: word, page: page.number, size: size, ctx: ctx).id(word.order)
+                }
+              }
+              .frame(width: width)
+            }
+            Text(MushafStore.shared.translation(key / 1000, key % 1000))
+              .font(.system(size: meaningSize))
+              .foregroundColor(ctx.theme.ink.opacity(0.82))
+              .frame(maxWidth: .infinity, alignment: .leading)
+              .fixedSize(horizontal: false, vertical: true)
+            if let first = words.first {
+              Button {
+                ctx.act("meaning", first, page.number)
+              } label: {
+                Label("Meaning", systemImage: "text.book.closed")
+                  .font(.footnote.weight(.semibold))
+                  .foregroundColor(ctx.theme.recited)
+              }
+              .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            Rectangle().fill(ctx.theme.frame.opacity(0.35)).frame(height: 0.5).padding(.top, 6)
+          }
+        }
+      }
+    }
+  }
+}
+
+/// Word by word: every word with its English meaning (and, if chosen, its transliteration) beneath it,
+/// flowing right to left into centred lines.
+struct WordsPage: View {
+  let page: MushafPage
+  let size: CGFloat
+  let width: CGFloat
+  let zoom: CGFloat
+  let ctx: ReaderContext
+  var qcf: PageFonts.Metrics? = nil
+  var qcfSize: CGFloat = 0
+  var translit: Bool = false
+
+  var body: some View {
+    let glyphSize = qcf != nil && qcfSize > 0 ? qcfSize : size
+    let gloss = min(12 * max(1, zoom * 0.55), 18)
+    let lineHeight = glyphSize * 1.7 + gloss * (translit ? 2.9 : 1.6) + 10
+    VStack(spacing: size * 0.6) {
+      ForEach(Array(page.blocks.enumerated()), id: \.offset) { _, block in
+        switch block {
+        case .header(let s):
+          SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
+        case .bismillah:
+          BismillahLine(size: size * 0.8, theme: ctx.theme)
+        case .ayah(_, let words):
+          FlowingLines(gap: glyphSize * 0.45, lineHeight: lineHeight) {
+            ForEach(words, id: \.order) { word in
+              VStack(spacing: 2) {
+                if let q = qcf, qcfSize > 0 {
+                  WordView(word: word, page: page.number, size: qcfSize, ctx: ctx, font: q.name, useGlyph: true)
+                } else {
+                  WordView(word: word, page: page.number, size: size, ctx: ctx)
+                }
+                if word.word > 0 {
+                  Text(word.meaning)
+                    .font(.system(size: gloss))
+                    .foregroundColor(ctx.theme.ink.opacity(0.75))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: max(glyphSize * 3.2, 90))
+                    .fixedSize(horizontal: false, vertical: true)
+                  if translit {
+                    Text(word.translit)
+                      .font(.system(size: gloss * 0.92).italic())
+                      .foregroundColor(ctx.theme.quiet)
+                      .lineLimit(1)
+                  }
+                }
+              }
+              .id(word.order)
+            }
+          }
+          .frame(width: width)
+        }
+      }
+    }
+  }
+}
+
 struct QuranReaderView: ExpoSwiftUI.View {
   @ObservedObject var props: QuranReaderProps
   @Namespace private var ns
@@ -530,7 +673,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
   }
 
   var body: some View {
-    let theme = ReaderTheme.make(dark: props.dark)
+    let theme = props.pageColor.isEmpty ? ReaderTheme.make(dark: props.dark) : ReaderTheme.make(color: props.pageColor, tone: props.textTone)
+    let flowing = props.view != "mushaf"
     GeometryReader { geo in
       let area = CGSize(
         width: geo.size.width - sidePadding * 2,
@@ -543,12 +687,14 @@ struct QuranReaderView: ExpoSwiftUI.View {
           ProgressView()
         } else if props.preview {
           previewPage(width: geo.size.width - 28, theme: theme)
-        } else if zoom <= 1.001 {
+        } else if !flowing && zoom <= 1.001 {
           pageMode(area: area, size: base, theme: theme, full: geo.size)
             .scaleEffect(pinch)
         } else {
-          flowMode(area: area, size: base * zoom, zoom: zoom, theme: theme, full: geo.size)
+          let z = flowing ? CGFloat(props.textScale) : zoom
+          flowMode(area: area, size: base * z, zoom: z, theme: theme, full: geo.size)
             .scaleEffect(pinch)
+            .id("flow-\(props.view)")
         }
       }
       .simultaneousGesture(magnify)
@@ -569,9 +715,13 @@ struct QuranReaderView: ExpoSwiftUI.View {
         }
       }
     }
+    .onChange(of: props.view) { newValue in
+      if newValue != "mushaf" { openFlow(at: page) }
+      zoom = 1
+    }
     .onChange(of: props.pageNonce) { _ in
       let target = clampPage(props.page)
-      if zoom > 1.001 {
+      if zoom > 1.001 || props.view != "mushaf" {
         openFlow(at: target)
         flowTarget = target
         page = target
@@ -694,8 +844,17 @@ struct QuranReaderView: ExpoSwiftUI.View {
       ScrollView(.vertical, showsIndicators: false) {
         LazyVStack(spacing: size * 1.2) {
           ForEach(flowPages) { p in
-            FlowPage(page: p, size: size, width: area.width, ctx: ctx, qcf: fonts.metrics(p.number),
-                     qcfSize: fonts.metrics(p.number).map { min(area.width * 0.985 / max($0.widest, 1) * 100, lineHeight * 0.72) * zoom } ?? 0)
+            let metrics = fonts.metrics(p.number)
+            let qs = metrics.map { min(area.width * 0.985 / max($0.widest, 1) * 100, lineHeight * 0.72) * zoom } ?? 0
+            Group {
+              if props.view == "translation" {
+                TranslationPage(page: p, size: size, width: area.width, zoom: zoom, ctx: ctx, qcf: metrics, qcfSize: qs)
+              } else if props.view == "words" {
+                WordsPage(page: p, size: size, width: area.width, zoom: zoom, ctx: ctx, qcf: metrics, qcfSize: qs, translit: props.showTranslit)
+              } else {
+                FlowPage(page: p, size: size, width: area.width, ctx: ctx, qcf: metrics, qcfSize: qs)
+              }
+            }
               .id(-p.number)
               .onAppear {
                 // Near the end of what's laid out: lay out more.
@@ -759,12 +918,23 @@ struct QuranReaderView: ExpoSwiftUI.View {
   private var magnify: some Gesture {
     MagnificationGesture()
       .onChanged { value in
+        let current = props.view != "mushaf" ? CGFloat(props.textScale) : zoom
+        if props.view != "mushaf" {
+          pinch = min(max(current * value, 0.9), maxZoom + 0.3) / current
+          return
+        }
         let next = zoom * value
         // Held a little past the ends, so the limits feel soft rather than stuck.
         let soft = next < 1 ? 1 - (1 - next) * 0.35 : next > maxZoom ? maxZoom + (next - maxZoom) * 0.3 : next
         pinch = soft / zoom
       }
       .onEnded { value in
+        if props.view != "mushaf" {
+          let scale = min(max(CGFloat(props.textScale) * value, 1), maxZoom)
+          withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) { pinch = 1 }
+          props.onTextScale(["scale": Double(scale)])
+          return
+        }
         let next = min(max(zoom * value, 1), maxZoom)
         let wasZoomed = zoom > 1.001
         if !wasZoomed && next >= 1.12 { openFlow(at: page) }

@@ -419,8 +419,8 @@ struct LargeView: View {
 // MARK: - Lock-screen (accessory) views
 //
 // Lock-screen widgets render monochrome/vibrant, so gradients and custom colors
-// are ignored, the system tints everything. We keep these to crisp text and an
-// AccessoryWidgetBackground, and rely on `.widgetAccentable()` for emphasis.
+// are ignored, the system tints everything. We keep these to crisp text, and rely on
+// `.widgetAccentable()` for emphasis.
 
 // Lock-screen widgets must still declare a container background on iOS 17+.
 extension View {
@@ -439,17 +439,17 @@ struct CircularView: View {
   let now: Date
   var body: some View {
     let next = nextPrayer(data, now: now)
+    // Just the text, no ring behind it, so it sits on the wallpaper like the clock.
     ZStack {
-      AccessoryWidgetBackground()
       VStack(spacing: 1) {
         Text(next.map { displayName($0.name, $0.date) } ?? "--")
-          .font(.system(size: 12, weight: .semibold))
+          .font(.system(size: 13, weight: .semibold))
           .minimumScaleFactor(0.5)
           .lineLimit(1)
           .widgetAccentable()
         if let n = next {
           Text(shortTime(n.date, data.use24Hour ?? false))
-            .font(.system(size: 13, weight: .bold))
+            .font(.system(size: 15, weight: .bold))
             .monospacedDigit()
             .minimumScaleFactor(0.6)
             .lineLimit(1)

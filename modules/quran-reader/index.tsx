@@ -37,9 +37,23 @@ export interface QuranReaderProps {
   /** Ayahs being explained (the Meaning sheet), from and to as surah * 1000 + ayah: a soft tint. */
   focusFrom?: number;
   focusTo?: number;
+  /** Mushaf (the printed page), Translation (each ayah with its meaning) or Word by word. */
+  view?: ReaderView;
+  pageColor?: PageColor;
+  textTone?: TextTone;
+  /** The flowing text's size, 1 being the page's own. */
+  textScale?: number;
+  showTranslit?: boolean;
+  /** Pinching in the flowing views asks for a new text size. */
+  onTextScale?: (scale: number) => void;
 }
 
-type NativeProps = Omit<QuranReaderProps, 'current' | 'from' | 'onPageChange' | 'onTap' | 'onAction' | 'onZoomChange'> & {
+export type ReaderView = 'mushaf' | 'translation' | 'words';
+export type PageColor = 'night' | 'charcoal' | 'sepia' | 'paper';
+export type TextTone = 'standard' | 'soft' | 'warm';
+
+type NativeProps = Omit<QuranReaderProps, 'current' | 'from' | 'onPageChange' | 'onTap' | 'onAction' | 'onZoomChange' | 'onTextScale'> & {
+  onTextScale: (e: { nativeEvent: { scale: number } }) => void;
   highlighting: boolean;
   curSurah: number;
   curAyah: number;
@@ -69,7 +83,7 @@ export function ayahText(surah: number, ayah: number): { arabic: string; transla
 export const HAFS_FONT = 'KFGQPCHAFSUthmanicScript-Regula';
 
 /** The native mushaf (modules/quran-reader/ios). iOS only. */
-export function QuranReader({ current, from, onPageChange, onTap, onAction, onZoomChange, style, ...rest }: QuranReaderProps) {
+export function QuranReader({ current, from, onPageChange, onTap, onAction, onZoomChange, onTextScale, style, ...rest }: QuranReaderProps) {
   if (!NativeReader) return <View style={style} />;
   const cur = current ?? null;
   const start = from ?? cur;
@@ -90,6 +104,7 @@ export function QuranReader({ current, from, onPageChange, onTap, onAction, onZo
         onTap={() => onTap()}
         onAction={(e) => onAction(e.nativeEvent.action, e.nativeEvent.surah, e.nativeEvent.ayah, e.nativeEvent.page)}
         onZoomChange={(e) => onZoomChange?.(e.nativeEvent.zoomed)}
+        onTextScale={(e) => onTextScale?.(e.nativeEvent.scale)}
       />
     </Host>
   );

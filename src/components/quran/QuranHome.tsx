@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import { QuranReader } from 'quran-reader';
+import { QuranReader, type PageColor, type TextTone } from 'quran-reader';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,8 +48,12 @@ export function QuranHome({
   onOpenGoals,
   onPlayPage,
   onMeaning,
+  pageColor,
+  textTone,
 }: {
   dark: boolean;
+  pageColor: PageColor;
+  textTone: TextTone;
   lastPage: number;
   progress: QuranProgress;
   bookmarks: Bookmark[];
@@ -119,10 +123,12 @@ export function QuranHome({
         </Text>
         <View style={{ borderRadius: t.radii.feature, borderCurve: 'continuous', backgroundColor: t.c.surface1, padding: t.spacing.md }}>
           <PressableScale scaleTo={0.99} onPress={onContinue} accessibilityRole="button" accessibilityLabel={`Continue reading ${surah.transliteration}, page ${lastPage}`}>
-            <View pointerEvents="none" style={{ height: 150, borderRadius: t.radii.card, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: dark ? '#000000' : '#F8F8FC' }}>
+            <View pointerEvents="none" style={{ height: 150, borderRadius: t.radii.card, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: { night: '#000000', charcoal: '#1C1C1F', sepia: '#F4ECD8', paper: '#F8F8FC' }[pageColor] }}>
               <QuranReader
                 style={{ flex: 1 }}
                 preview
+                pageColor={pageColor}
+                textTone={textTone}
                 page={lastPage}
                 pageNonce={lastPage}
                 dark={dark}
