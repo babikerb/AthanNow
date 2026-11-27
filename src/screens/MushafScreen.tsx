@@ -869,8 +869,16 @@ function ReaderSurface(props: {
 }) {
   const r = useRecitation();
   const { word } = useRecitationProgress();
+  // The word being recited. While it isn't known (the recording still loading, or a recitation
+  // paused from an earlier session), it stays on the last word recited in this ayah, or the ayah's
+  // first: one highlight where it left off. Only reciters without word timing light the whole ayah.
+  const last = useRef({ key: "", word: 0 });
+  const key = `${r.surahId}:${r.ayahIndex}`;
+  let shown = word;
+  if (word > 0) last.current = { key, word };
+  else if (r.reciter.qdc) shown = last.current.key === key ? last.current.word : 1;
   const current: WordRef | null = r.surahId
-    ? { surah: r.surahId, ayah: r.ayahIndex + 1, word }
+    ? { surah: r.surahId, ayah: r.ayahIndex + 1, word: shown }
     : null;
   // The recited run starts where play began, or earlier if the recitation has gone back before it.
   const order = (w: WordRef) => w.surah * 1_000_000 + w.ayah * 1000 + w.word;
