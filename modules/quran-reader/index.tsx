@@ -116,8 +116,17 @@ export function QuranReader({ current, from, onPageChange, onTap, onAction, onZo
   );
 }
 
-const NativeAirPlay: React.ComponentType<{ tintHex: string; style?: StyleProp<ViewStyle> }> | null =
-  Platform.OS === 'ios' ? requireNativeView('QuranReader', 'AirPlayView') : null;
+// Optional: a build from before the AirPlay view simply goes without the button.
+const NativeAirPlay: React.ComponentType<{ tintHex: string; style?: StyleProp<ViewStyle> }> | null = (() => {
+  if (Platform.OS !== 'ios') return null;
+  try {
+    const views = (globalThis as { expo?: { getViewConfig?: (m: string, v?: string) => unknown } }).expo?.getViewConfig?.('QuranReader', 'AirPlayView');
+    if (views === null) return null;
+    return requireNativeView('QuranReader', 'AirPlayView');
+  } catch {
+    return null;
+  }
+})();
 
 /** Apple's AirPlay picker, as a 44 point button. */
 export function AirPlayButton({ tint, style }: { tint: string; style?: StyleProp<ViewStyle> }) {
