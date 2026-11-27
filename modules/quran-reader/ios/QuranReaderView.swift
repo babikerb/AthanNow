@@ -733,6 +733,11 @@ struct QuranReaderView: ExpoSwiftUI.View {
     props.highlighting ? MushafWord.order(props.curSurah, props.curAyah, props.curWord) : -1
   }
 
+  /// The first word of the ayah being recited, during a recitation; -1 otherwise.
+  private var recitedAyahStart: Int {
+    props.highlighting ? MushafWord.order(props.curSurah, props.curAyah, 1) : -1
+  }
+
   /// A word to scroll to for the recitation: the word being recited, or the first word of the ayah
   /// where the timing goes only by the ayah (or the Bismillah is still being recited).
   private var recitedWord: Int {
@@ -926,9 +931,18 @@ struct QuranReaderView: ExpoSwiftUI.View {
         }
       }
       .onChange(of: recitedWord) { word in
-        guard props.follow, word > 0 else { return }
+        // The zoomed page follows word by word. Ayah by ayah and Word by word move only when a new
+        // ayah starts (below), so the reader can scroll on through an ayah's meaning meanwhile.
+        guard props.follow, word > 0, props.view == "mushaf" else { return }
         withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
           proxy.scrollTo(word, anchor: .center)
+        }
+      }
+      .onChange(of: recitedAyahStart) { word in
+        guard props.follow, word > 0, props.view != "mushaf" else { return }
+        // The new ayah near the top, its meaning below it in view.
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.9)) {
+          proxy.scrollTo(word, anchor: UnitPoint(x: 0.5, y: 0.22))
         }
       }
       .onChange(of: recitedPage) { recited in
