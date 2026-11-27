@@ -1,30 +1,25 @@
 export interface Reciter {
   id: string;
-  /** Al Quran Cloud audio edition, which also names the per-ayah audio folder. */
-  edition: string;
-  /** Bitrate folder of the per-ayah MP3s on cdn.islamic.network. */
-  bitrate: number;
+  /** quran.com's audio reciter id: one continuous recording per surah, with every ayah's timing. */
+  qdc: number;
   name: string;
   arabic: string;
   origin: string;
-  style: 'Murattal' | 'Mujawwad';
-  /** Word-by-word timing verified against this reciter's audio (see wordTiming in quranAudio.ts). */
-  wordTiming: boolean;
+  style: 'Murattal' | 'Mujawwad' | 'Muallim';
 }
 
 export const RECITERS: Reciter[] = [
-  { id: 'mishary', edition: 'ar.alafasy', bitrate: 128, name: 'Mishary Alafasy', arabic: 'مشاري العفاسي', origin: 'Kuwait', style: 'Murattal', wordTiming: true },
-  { id: 'sudais', edition: 'ar.abdurrahmaansudais', bitrate: 192, name: 'Abdur-Rahman As-Sudais', arabic: 'عبد الرحمن السديس', origin: 'Saudi Arabia', style: 'Murattal', wordTiming: true },
-  { id: 'mahermuaiqly', edition: 'ar.mahermuaiqly', bitrate: 128, name: 'Maher Al-Muaiqly', arabic: 'ماهر المعيقلي', origin: 'Saudi Arabia', style: 'Murattal', wordTiming: true },
-  { id: 'saoodshuraym', edition: 'ar.saoodshuraym', bitrate: 64, name: 'Saud Ash-Shuraim', arabic: 'سعود الشريم', origin: 'Saudi Arabia', style: 'Murattal', wordTiming: true },
-  { id: 'shaatree', edition: 'ar.shaatree', bitrate: 128, name: 'Abu Bakr Ash-Shatri', arabic: 'أبو بكر الشاطري', origin: 'Saudi Arabia', style: 'Murattal', wordTiming: true },
-  { id: 'minshawi', edition: 'ar.minshawi', bitrate: 128, name: 'Al-Minshawi', arabic: 'محمد صديق المنشاوي', origin: 'Egypt', style: 'Murattal', wordTiming: true },
-  { id: 'husary', edition: 'ar.husary', bitrate: 128, name: 'Mahmoud Al-Husary', arabic: 'محمود خليل الحصري', origin: 'Egypt', style: 'Murattal', wordTiming: true },
-  { id: 'husarymujawwad', edition: 'ar.husarymujawwad', bitrate: 128, name: 'Al-Husary (Mujawwad)', arabic: 'محمود خليل الحصري', origin: 'Egypt', style: 'Mujawwad', wordTiming: true },
-  { id: 'abdulbasit', edition: 'ar.abdulbasitmurattal', bitrate: 192, name: 'Abdul Basit', arabic: 'عبد الباسط عبد الصمد', origin: 'Egypt', style: 'Murattal', wordTiming: true },
-  { id: 'hanirifai', edition: 'ar.hanirifai', bitrate: 192, name: 'Hani Ar-Rifai', arabic: 'هاني الرفاعي', origin: 'Syria', style: 'Murattal', wordTiming: true },
-  { id: 'muhammadjibreel', edition: 'ar.muhammadjibreel', bitrate: 128, name: 'Muhammad Jibreel', arabic: 'محمد جبريل', origin: 'Egypt', style: 'Murattal', wordTiming: false },
-  { id: 'abdullahbasfar', edition: 'ar.abdullahbasfar', bitrate: 192, name: 'Abdullah Basfar', arabic: 'عبد الله بصفر', origin: 'Saudi Arabia', style: 'Murattal', wordTiming: false },
+  { id: 'mishary', qdc: 7, name: 'Mishary Alafasy', arabic: 'مشاري العفاسي', origin: 'Kuwait', style: 'Murattal' },
+  { id: 'sudais', qdc: 3, name: 'Abdur-Rahman As-Sudais', arabic: 'عبد الرحمن السديس', origin: 'Saudi Arabia', style: 'Murattal' },
+  { id: 'saoodshuraym', qdc: 10, name: 'Saud Ash-Shuraim', arabic: 'سعود الشريم', origin: 'Saudi Arabia', style: 'Murattal' },
+  { id: 'dossary', qdc: 97, name: 'Yasser Ad-Dossary', arabic: 'ياسر الدوسري', origin: 'Saudi Arabia', style: 'Murattal' },
+  { id: 'shaatree', qdc: 4, name: 'Abu Bakr Ash-Shatri', arabic: 'أبو بكر الشاطري', origin: 'Saudi Arabia', style: 'Murattal' },
+  { id: 'minshawi', qdc: 9, name: 'Al-Minshawi', arabic: 'محمد صديق المنشاوي', origin: 'Egypt', style: 'Murattal' },
+  { id: 'husary', qdc: 6, name: 'Mahmoud Al-Husary', arabic: 'محمود خليل الحصري', origin: 'Egypt', style: 'Murattal' },
+  { id: 'husarymuallim', qdc: 12, name: 'Al-Husary (Teaching)', arabic: 'محمود خليل الحصري', origin: 'Egypt', style: 'Muallim' },
+  { id: 'abdulbasit', qdc: 2, name: 'Abdul Basit', arabic: 'عبد الباسط عبد الصمد', origin: 'Egypt', style: 'Murattal' },
+  { id: 'abdulbasitmujawwad', qdc: 1, name: 'Abdul Basit (Mujawwad)', arabic: 'عبد الباسط عبد الصمد', origin: 'Egypt', style: 'Mujawwad' },
+  { id: 'hanirifai', qdc: 5, name: 'Hani Ar-Rifai', arabic: 'هاني الرفاعي', origin: 'Syria', style: 'Murattal' },
 ];
 
 export const DEFAULT_RECITER = RECITERS[0];

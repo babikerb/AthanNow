@@ -4,13 +4,14 @@ import { setStatusBarHidden } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text as RNText, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Animated, StyleSheet, Text as RNText, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookmarkSheet } from '../components/BookmarkSheet';
-import { MushafPager, type Highlight, type MushafPagerHandle } from '../components/quran/MushafPager';
+import { Button as MenuButton, Divider as MenuDivider, Section as MenuSection } from '@expo/ui/swift-ui';
+
+import { MushafPager, type Highlight, type MenuFor, type MushafPagerHandle } from '../components/quran/MushafPager';
 import { PagePlayer } from '../components/quran/PagePlayer';
-import { ReciterSheet } from '../components/recitation/ReciterSheet';
 import { SurahPickerSheet } from '../components/SurahPickerSheet';
 import { getSurah } from '../data/surahs';
 import { pageForSurah, surahForPage, TOTAL_PAGES } from '../data/surahPages';
@@ -36,19 +37,12 @@ const LAST_COLOR_KEY = 'athannow.quran.lastcolor.v1';
 const HEAD_H = 26;
 const FOOT_H = 26;
 
-// The playing ayah, warm gold behind the ink; an ayah held for its menu, a little darker.
+// The playing ayah, warm gold behind the ink.
 const PLAYING = 'rgba(184, 134, 11, 0.2)';
-const SELECTED = 'rgba(46, 40, 51, 0.13)';
-
-interface Selection {
-  page: number;
-  ref: AyahRef;
-  y: number;
-}
 
 /**
  * The Quran tab: the printed mushaf, page by page, with the recitation over it. Play starts at the top
- * of the page; press and hold an ayah to play from it. The playing ayah is lit and the pages turn with
+ * of the page; press and hold an ayah for the native menu, to play from it or repeat it. The playing ayah is lit and the pages turn with
  * the recitation.
  */
 export default function MushafScreen() {
@@ -56,7 +50,6 @@ export default function MushafScreen() {
   const r = useRecitation();
   const insets = useSafeAreaInsets();
   const tabBar = useTabBarHeight();
-  const { height } = useWindowDimensions();
   const colors = readingPalette;
   useFocusedStatusBar('dark');
   const { bookmarks, bookmarkForPage, setPageBookmark, removeBookmark } = useBookmarks();
@@ -68,8 +61,6 @@ export default function MushafScreen() {
   const [lastColor, setLastColor] = useState<BookmarkColor>('red');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
-  const [recitersOpen, setRecitersOpen] = useState(false);
-  const [selection, setSelection] = useState<Selection | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,10 +104,7 @@ export default function MushafScreen() {
     }, [hidden]),
   );
 
-  const onTap = useCallback(() => {
-    if (selection) setSelection(null);
-    else setHidden((h) => !h);
-  }, [selection]);
+  const onTap = useCallback(() => setHidden((h) => !h), []);
 
   const jumpTo = useCallback((p: number, animated = false) => {
     pager.current?.goTo(p, animated);
@@ -157,18 +145,7 @@ export default function MushafScreen() {
     if (first) playFrom(first, pageRef.current);
   }, [playFrom]);
 
-  const highlights = useMemo<Highlight[]>(() => {
-    const h: Highlight[] = [];
-    if (playing) h.push({ ref: playing, color: PLAYING });
-    if (selection) h.push({ ref: selection.ref, color: SELECTED });
-    return h;
-  }, [playing?.surah, playing?.ayah, selection]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const onAyahLongPress = useCallback((p: number, ref: AyahRef, y: number) => {
-    haptic.select();
-    setHidden(false);
-    setSelection({ page: p, ref, y });
-  }, []);
+  const highlights = useMemo<Highlight[]>(() => (playing ? [{ ref: playing, color: PLAYING }] : []), [playing?.surah, playing?.ayah]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Bookmarks ----
   const pageMark = bookmarkForPage(page);
@@ -190,6 +167,53 @@ export default function MushafScreen() {
     const first = firstAyahOnPage(page);
     markPage({ page, surahId: first?.surah ?? surahForPage(page), ayah: first?.ayah ?? 1 });
   }, [pageMark, page, removeBookmark, markPage]);
+
+  // The native press-and-hold menu on a page: the held ayah's actions, then the page's.
+  const menuFor = useCallback<MenuFor>(
+    (p, ayah) => {
+      const mark = bookmarkForPage(p);
+      const first = firstAyahOnPage(p);
+      const name = ayah ? getSurah(ayah.surah)?.transliteration : undefined;
+      return (
+        <>
+          {ayah ? (
+            <MenuSection title={`${name}, Ayah ${ayah.ayah}`}>
+              <MenuButton
+                label="Play from here"
+                systemImage="play.fill"
+                onPress={() => {
+                  if (r.repeat === 'ayah') r.setRepeat('off');
+                  playFrom(ayah, p);
+                }}
+              />
+              <MenuButton
+                label="Repeat this ayah"
+                systemImage="repeat.1"
+                onPress={() => {
+                  r.setRepeat('ayah');
+                  playFrom(ayah, p);
+                }}
+              />
+            </MenuSection>
+          ) : first ? (
+            <MenuButton label="Play from the top of the page" systemImage="play.fill" onPress={() => playFrom(first, p)} />
+          ) : null}
+          <MenuDivider />
+          {mark ? (
+            <MenuButton label="Remove bookmark" systemImage="bookmark.slash" role="destructive" onPress={() => removeBookmark(mark)} />
+          ) : (
+            <MenuButton
+              label="Bookmark this page"
+              systemImage="bookmark"
+              onPress={() => markPage({ page: p, surahId: ayah?.surah ?? first?.surah ?? surahForPage(p), ayah: ayah?.ayah ?? first?.ayah ?? 1 })}
+            />
+          )}
+        </>
+      );
+    },
+    [bookmarkForPage, playFrom, r, removeBookmark, markPage],
+  );
+  const menuKey = `${bookmarks.length}:${bookmarks[0]?.page ?? 0}:${r.repeat}`;
 
   const surah = getSurah(surahForPage(page))!;
   const juz = juzForPage(page);
@@ -213,9 +237,10 @@ export default function MushafScreen() {
           bottomInset={bottomInset}
           colors={colors}
           highlights={highlights}
+          menuKey={menuKey}
+          menuFor={menuFor}
           onPageChange={setPage}
           onTap={onTap}
-          onAyahLongPress={onAyahLongPress}
         />
       ) : (
         <View style={styles.center}>
@@ -273,32 +298,9 @@ export default function MushafScreen() {
 
       {/* The player, just above the tab bar. */}
       <Animated.View pointerEvents={pointer} style={{ position: 'absolute', left: t.spacing.md, right: t.spacing.md, bottom: tabBar + t.spacing.sm, opacity: fade }}>
-        <PagePlayer onPlayPage={playPage} onReciters={() => setRecitersOpen(true)} />
+        <PagePlayer onPlayPage={playPage} />
       </Animated.View>
 
-      {selection ? (
-        <AyahMenu
-          selection={selection}
-          height={height}
-          top={insets.top + 56}
-          bottom={tabBar + 76}
-          onClose={() => setSelection(null)}
-          onPlay={() => {
-            r.setRepeat(r.repeat === 'ayah' ? 'off' : r.repeat);
-            playFrom(selection.ref, selection.page);
-            setSelection(null);
-          }}
-          onRepeat={() => {
-            r.setRepeat('ayah');
-            playFrom(selection.ref, selection.page);
-            setSelection(null);
-          }}
-          onBookmark={() => {
-            markPage({ page: selection.page, surahId: selection.ref.surah, ayah: selection.ref.ayah });
-            setSelection(null);
-          }}
-        />
-      ) : null}
 
       <SurahPickerSheet
         visible={pickerOpen}
@@ -320,7 +322,6 @@ export default function MushafScreen() {
         onRemove={removeBookmark}
         palette={colors}
       />
-      <ReciterSheet visible={recitersOpen} selectedId={r.reciter.id} onSelect={r.setReciter} onClose={() => setRecitersOpen(false)} />
     </View>
   );
 }
@@ -352,80 +353,6 @@ function RoundButton({
     >
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <SymbolView name={name} size={17} tintColor={tint ?? t.c.text} style={{ width: 22, height: 22 }} />
-      </View>
-    </PressableScale>
-  );
-}
-
-/** What can be done with a held ayah, beside it: above the line in the lower half, below it above. */
-function AyahMenu({
-  selection,
-  height,
-  top,
-  bottom,
-  onClose,
-  onPlay,
-  onRepeat,
-  onBookmark,
-}: {
-  selection: Selection;
-  height: number;
-  top: number;
-  bottom: number;
-  onClose: () => void;
-  onPlay: () => void;
-  onRepeat: () => void;
-  onBookmark: () => void;
-}) {
-  const t = useTheme();
-  const surah = getSurah(selection.ref.surah);
-  const MENU_H = 104;
-  const GAP = 36;
-  const below = selection.y < height / 2;
-  const y = below ? Math.min(selection.y + GAP, height - bottom - MENU_H) : Math.max(top, selection.y - GAP - MENU_H);
-
-  return (
-    <View style={StyleSheet.absoluteFill}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
-      <View
-        accessibilityViewIsModal
-        style={{
-          position: 'absolute',
-          top: y,
-          left: t.spacing.lg,
-          right: t.spacing.lg,
-          height: MENU_H,
-          borderRadius: t.radii.card,
-          borderCurve: 'continuous',
-          backgroundColor: t.c.surface1,
-          borderWidth: 1,
-          borderColor: t.c.hairline,
-          paddingHorizontal: t.spacing.sm,
-          paddingTop: t.spacing.sm,
-        }}
-      >
-        <Text variant="footnote" color="textSecondary" style={{ textAlign: 'center' }} numberOfLines={1} header>
-          {surah?.transliteration}, Ayah {selection.ref.ayah}
-        </Text>
-        <View style={{ flex: 1, flexDirection: 'row' }}>
-          <MenuButton name="play.fill" label="Play from here" onPress={onPlay} primary />
-          <MenuButton name="repeat.1" label="Repeat" onPress={onRepeat} />
-          <MenuButton name="bookmark" label="Bookmark" onPress={onBookmark} />
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function MenuButton({ name, label, onPress, primary }: { name: SFSymbol; label: string; onPress: () => void; primary?: boolean }) {
-  const t = useTheme();
-  return (
-    <PressableScale haptic="select" onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1 }}>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-        <SymbolView name={name} size={19} tintColor={primary ? t.c.accent : t.c.text} style={{ width: 24, height: 24 }} />
-        <Text variant="caption" color={primary ? 'accentText' : 'text'} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-          {label}
-        </Text>
       </View>
     </PressableScale>
   );

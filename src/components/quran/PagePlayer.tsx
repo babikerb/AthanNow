@@ -1,3 +1,5 @@
+import { Button, Picker, Section, Text as SwiftText } from '@expo/ui/swift-ui';
+import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { SymbolView } from 'expo-symbols';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import React, { useState } from 'react';
@@ -8,20 +10,37 @@ import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { clock, rateLabel } from '../../recitation/format';
+import { RECITERS } from '../../recitation/reciters';
 import { PLAYBACK_RATES, useRecitation, useRecitationProgress } from '../../recitation/RecitationProvider';
+import { NativeMenu } from '../NativeMenu';
 import { Scrubber } from '../recitation/Scrubber';
 import { TapTarget } from '../recitation/TapTarget';
+
+/** The reciters as a native picker, the chosen one ticked. */
+function ReciterItems() {
+  const r = useRecitation();
+  return (
+    <Section title="Reciter">
+      <Picker selection={r.reciter.id} onSelectionChange={(id: string) => r.setReciter(id)} modifiers={[pickerStyle('inline')]}>
+        {RECITERS.map((x) => (
+          <SwiftText key={x.id} modifiers={[tag(x.id)]}>
+            {x.name}
+          </SwiftText>
+        ))}
+      </Picker>
+    </Section>
+  );
+}
 
 /**
  * The player over the page: a slim strip with the reciter and play, which opens into a card with the
  * position, speed, repeat and skip. Before anything has played, play starts at the top of the page.
  */
-export function PagePlayer({ onPlayPage, onReciters }: { onPlayPage: () => void; onReciters: () => void }) {
+export function PagePlayer({ onPlayPage }: { onPlayPage: () => void }) {
   const t = useTheme();
   const r = useRecitation();
   const [open, setOpen] = useState(false);
   const surah = r.surahId ? getSurah(r.surahId) : undefined;
-  const expanded = open && !!surah;
 
   const card = {
     borderRadius: t.radii.card,
@@ -32,33 +51,34 @@ export function PagePlayer({ onPlayPage, onReciters }: { onPlayPage: () => void;
     overflow: 'hidden' as const,
   };
 
-  if (expanded) return <Expanded onCollapse={() => setOpen(false)} onReciters={onReciters} style={card} />;
+  if (open && surah) return <Expanded onCollapse={() => setOpen(false)} style={card} />;
 
-  const title = surah ? `${surah.transliteration}, ${r.inBismillah ? 'Bismillah' : `Ayah ${r.ayahIndex + 1}`}` : r.reciter.name;
-  const detail = r.preparing ? `Loading ${r.preparing.done} of ${r.preparing.total}` : surah ? r.reciter.name : 'Listen from this page';
+  const label = (
+    <View style={{ minHeight: 54, justifyContent: 'center' }}>
+      <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600' }} maxFontSizeMultiplier={1.4}>
+        {surah ? `${surah.transliteration}, Ayah ${r.ayahIndex + 1}` : r.reciter.name}
+      </Text>
+      <Text variant="footnote" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1.4}>
+        {r.loading ? 'Loading' : surah ? r.reciter.name : 'Listen from this page'}
+      </Text>
+    </View>
+  );
 
   return (
     <View style={[card, { height: 56 }]}>
-      <PressableScale
-        scaleTo={0.99}
-        onPress={() => (surah ? setOpen(true) : onReciters())}
-        accessibilityRole="button"
-        accessibilityLabel={surah ? `${title}, ${r.reciter.name}` : `Reciter, ${r.reciter.name}`}
-        accessibilityHint={surah ? 'Opens the player controls' : 'Choose a reciter'}
-        style={{ flex: 1 }}
-      >
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: t.spacing.lg, paddingRight: t.spacing.xs, gap: t.spacing.sm }}>
-          <View style={{ flex: 1 }}>
-            <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600' }} maxFontSizeMultiplier={1.4}>
-              {title}
-            </Text>
-            <Text variant="footnote" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1.4}>
-              {detail}
-            </Text>
-          </View>
-          <PlayButton onPlayPage={onPlayPage} />
-        </View>
-      </PressableScale>
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingLeft: t.spacing.lg, paddingRight: t.spacing.xs, gap: t.spacing.sm }}>
+        {surah ? (
+          <PressableScale scaleTo={0.99} onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel={`${surah.transliteration}, Ayah ${r.ayahIndex + 1}, ${r.reciter.name}`} accessibilityHint="Opens the player controls" style={{ flex: 1 }}>
+            {label}
+          </PressableScale>
+        ) : (
+          // Before anything plays, the strip is where the reciter is chosen.
+          <NativeMenu style={{ flex: 1 }} items={<ReciterItems />}>
+            {label}
+          </NativeMenu>
+        )}
+        <PlayButton onPlayPage={onPlayPage} />
+      </View>
       {surah ? <ProgressLine /> : null}
     </View>
   );
@@ -107,28 +127,30 @@ function Icon({ name, label, onPress, active, disabled, size = 20 }: { name: SFS
   );
 }
 
-function Expanded({ onCollapse, onReciters, style }: { onCollapse: () => void; onReciters: () => void; style: object }) {
+function Expanded({ onCollapse, style }: { onCollapse: () => void; style: object }) {
   const t = useTheme();
   const r = useRecitation();
   const p = useRecitationProgress();
   const surah = getSurah(r.surahId!)!;
-  const nextRate = PLAYBACK_RATES[(PLAYBACK_RATES.indexOf(r.rate as (typeof PLAYBACK_RATES)[number]) + 1) % PLAYBACK_RATES.length];
   const repeatLabel = r.repeat === 'off' ? 'Repeat off' : r.repeat === 'ayah' ? 'Repeating this ayah' : 'Repeating this surah';
 
   return (
     <View style={[style, { paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.sm, paddingBottom: t.spacing.sm }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
         <Icon name="chevron.down" label="Hide the player controls" onPress={onCollapse} size={17} />
-        <PressableScale onPress={onReciters} accessibilityRole="button" accessibilityLabel={`Reciter, ${r.reciter.name}`} accessibilityHint="Choose a reciter" style={{ flex: 1 }}>
-          <View style={{ alignItems: 'center' }}>
-            <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600' }} maxFontSizeMultiplier={1.4}>
-              {r.reciter.name}
-            </Text>
+        <NativeMenu style={{ flex: 1 }} items={<ReciterItems />}>
+          <View style={{ alignItems: 'center', minHeight: 44, justifyContent: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600', flexShrink: 1 }} maxFontSizeMultiplier={1.4}>
+                {r.reciter.name}
+              </Text>
+              <SymbolView name="chevron.up.chevron.down" size={11} tintColor={t.c.textSecondary} />
+            </View>
             <Text variant="footnote" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1.4}>
-              {surah.transliteration}, {r.inBismillah ? 'Bismillah' : `Ayah ${r.ayahIndex + 1}`}
+              {surah.transliteration}, Ayah {r.ayahIndex + 1}
             </Text>
           </View>
-        </PressableScale>
+        </NativeMenu>
         <Icon
           name="xmark"
           label="Stop"
@@ -146,26 +168,36 @@ function Expanded({ onCollapse, onReciters, style }: { onCollapse: () => void; o
         </Text>
       ) : null}
       <View style={{ marginTop: t.spacing.xs }}>
-        <Scrubber progress={r.preparing ? r.preparing.done / r.preparing.total : p.duration > 0 ? p.currentTime / p.duration : 0} onSeek={p.seekTo} />
+        <Scrubber progress={p.duration > 0 ? p.currentTime / p.duration : 0} onSeek={p.seekTo} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <Text variant="caption" color="textSecondary" style={{ fontVariant: ['tabular-nums'] }}>
-            {r.preparing ? 'Loading' : clock(p.currentTime)}
+            {r.loading ? 'Loading' : clock(p.currentTime)}
           </Text>
           <Text variant="caption" color="textSecondary" style={{ fontVariant: ['tabular-nums'] }}>
-            {r.preparing ? `${r.preparing.done} of ${r.preparing.total}` : `-${clock(Math.max(0, p.duration - p.currentTime))}`}
+            -{clock(Math.max(0, p.duration - p.currentTime))}
           </Text>
         </View>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.xs }}>
-        <TapTarget haptic="select" onPress={() => r.setRate(nextRate)} accessibilityRole="button" accessibilityLabel={`Speed ${rateLabel(r.rate)}`} accessibilityHint={`Changes to ${rateLabel(nextRate)}`}>
-          <Text variant="subhead" color={r.rate !== 1 ? 'accentText' : 'text'} style={{ fontWeight: '600' }} maxFontSizeMultiplier={1.2}>
-            {rateLabel(r.rate)}
-          </Text>
-        </TapTarget>
-        <Icon name="backward.fill" label="Previous ayah" size={22} onPress={r.previous} disabled={r.ayahIndex === 0 && !r.inBismillah} />
+        <NativeMenu
+          items={
+            <Section title="Speed">
+              {PLAYBACK_RATES.map((rate) => (
+                <Button key={rate} label={rateLabel(rate)} systemImage={rate === r.rate ? 'checkmark' : undefined} onPress={() => r.setRate(rate)} />
+              ))}
+            </Section>
+          }
+        >
+          <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Speed ${rateLabel(r.rate)}`}>
+            <Text variant="subhead" color={r.rate !== 1 ? 'accentText' : 'text'} style={{ fontWeight: '600' }} maxFontSizeMultiplier={1.2}>
+              {rateLabel(r.rate)}
+            </Text>
+          </View>
+        </NativeMenu>
+        <Icon name="backward.fill" label="Previous ayah" size={22} onPress={r.previous} disabled={r.ayahIndex === 0} />
         <PlayButton onPlayPage={() => {}} size={56} filled />
-        <Icon name="forward.fill" label="Next ayah" size={22} onPress={r.next} disabled={r.ayahIndex >= surah.totalVerses - 1 && !r.inBismillah} />
+        <Icon name="forward.fill" label="Next ayah" size={22} onPress={r.next} disabled={r.ayahIndex >= surah.totalVerses - 1} />
         <Icon name={r.repeat === 'ayah' ? 'repeat.1' : 'repeat'} label={repeatLabel} active={r.repeat !== 'off'} onPress={r.cycleRepeat} />
       </View>
     </View>
