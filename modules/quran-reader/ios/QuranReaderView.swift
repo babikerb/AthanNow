@@ -387,7 +387,7 @@ struct PageView: View {
   /// The QCF size that brings the widest line to the full width, kept within the line's height.
   private var qcfSize: CGFloat {
     guard let q = qcf else { return size }
-    return min(width * 0.985 / max(q.widest, 1) * 100, lineHeight * 0.72)
+    return min(width * 0.985 / max(q.widest, 1) * 100, lineHeight * 0.8)
   }
 
   var body: some View {
@@ -852,7 +852,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
           // reach before the page has been built. (Words use their order, always above 1,000,000.)
           ForEach(flowPages) { p in
             let metrics = fonts.metrics(p.number)
-            let qs = metrics.map { min(area.width * 0.985 / max($0.widest, 1) * 100, lineHeight * 0.72) * zoom } ?? 0
+            let qs = metrics.map { min(area.width * 0.985 / max($0.widest, 1) * 100, lineHeight * 0.8) * zoom } ?? 0
             Group {
               if props.view == "translation" {
                 TranslationPage(page: p, size: size, width: area.width, zoom: zoom, ctx: ctx, qcf: metrics, qcfSize: qs)

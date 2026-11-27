@@ -428,7 +428,7 @@ function Reader({ display }: { display: Display }) {
   // The page fills the space between the top bar and the player, an equal gap from each. It keeps
   // that place when the controls hide.
   // The status bar is hidden with the page alone; its height still clears the island.
-  const topInset = Math.max(insets.top - 14, 12) + HEAD + PAGE_GAP;
+  const topInset = Math.max(insets.top - 6, 12) + HEAD + PAGE_GAP;
   const bottomInset = Math.max(insets.bottom - 6, 6) + FOOT + PAGE_GAP;
   const capsule = {
     backgroundColor: dark ? "rgba(26, 27, 31, 0.94)" : "rgba(255, 253, 248, 0.94)",
@@ -584,9 +584,9 @@ function Reader({ display }: { display: Display }) {
                     pointerEvents="none"
                     style={{
                       position: "absolute",
-                      top: Math.max(insets.top - 14, 12),
-                      left: t.spacing.xl,
-                      right: t.spacing.xl,
+                      top: Math.max(insets.top - 6, 12),
+                      left: t.spacing.lg,
+                      right: t.spacing.lg,
                       height: HEAD,
                       flexDirection: "row",
                       alignItems: "center",
@@ -596,10 +596,10 @@ function Reader({ display }: { display: Display }) {
                     accessible
                     accessibilityLabel={`${runningHead}, Juz ${juz}, page ${page}`}
                   >
-                    <Text variant="subhead" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ flexShrink: 1 }}>
+                    <Text variant="footnote" color="textTertiary" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ flexShrink: 1, fontWeight: "500" }}>
                       {runningHead}
                     </Text>
-                    <Text variant="subhead" color="textSecondary" maxFontSizeMultiplier={1.2}>
+                    <Text variant="footnote" color="textTertiary" maxFontSizeMultiplier={1.2} style={{ fontWeight: "500" }}>
                       Juz {juz}
                     </Text>
                   </View>
@@ -784,25 +784,29 @@ function Reader({ display }: { display: Display }) {
                       right: 0,
                       bottom: Math.max(insets.bottom - 6, 6),
                       height: FOOT,
-                      alignItems: "center",
+                      alignItems: "flex-end",
                       justifyContent: "center",
+                      paddingHorizontal: t.spacing.lg,
                     }}
                   >
-                    <View
-                      style={{
-                        minWidth: 64,
-                        height: 26,
-                        paddingHorizontal: t.spacing.md,
-                        borderRadius: 13,
-                        borderWidth: 1,
-                        borderColor: t.c.hairline,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text variant="subhead" maxFontSizeMultiplier={1.2} style={{ fontVariant: ["tabular-nums"] }}>
-                        {page}
-                      </Text>
+                    {/* A small double frame, like the printed page's. */}
+                    <View style={{ padding: 2, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: t.c.textTertiary }}>
+                      <View
+                        style={{
+                          minWidth: 46,
+                          height: 20,
+                          paddingHorizontal: t.spacing.sm,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: t.c.textTertiary,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text variant="footnote" maxFontSizeMultiplier={1.2} style={{ fontWeight: "600", fontVariant: ["tabular-nums"] }}>
+                          {page}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 )}
