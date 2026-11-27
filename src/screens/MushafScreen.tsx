@@ -38,6 +38,7 @@ import { MeaningSheet } from "../components/quran/MeaningSheet";
 import { QuranHome } from "../components/quran/QuranHome";
 import { NativeMenu } from "../components/NativeMenu";
 import { PagePlayer } from "../components/quran/PagePlayer";
+import { PageScroller } from "../components/quran/PageScroller";
 import { SurahPickerSheet } from "../components/SurahPickerSheet";
 import { getSurah, SURAHS } from "../data/surahs";
 import { pageForSurah, surahForPage, TOTAL_PAGES } from "../data/surahPages";
@@ -181,6 +182,8 @@ function Reader({ display }: { display: Display }) {
     });
   }, [push, t.reduceMotion]);
 
+  // The page before the last jump (the index, a bookmark, the page strip), for the back button.
+  const [backTo, setBackTo] = useState<number | null>(null);
   const jumpTo = useCallback(
     (p: number) => {
       setPage(p);
@@ -188,6 +191,14 @@ function Reader({ display }: { display: Display }) {
       openReader();
     },
     [openReader],
+  );
+  /** A jump the reader chose: remembered, so the back button can return. */
+  const leapTo = useCallback(
+    (p: number) => {
+      if (readingRef.current && p !== pageRef.current) setBackTo(pageRef.current);
+      jumpTo(p);
+    },
+    [jumpTo],
   );
 
   // Swiping in from the left edge goes back, as on any pushed page.
@@ -449,12 +460,12 @@ function Reader({ display }: { display: Display }) {
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
         currentSurahId={surah.id}
-        onSelect={(id) => jumpTo(pageForSurah(id))}
+        onSelect={(id) => leapTo(pageForSurah(id))}
         onSelectVerse={(key) => {
           const [s, a] = key.split(":").map(Number);
-          jumpTo(pageForAyah(s, a));
+          leapTo(pageForAyah(s, a));
         }}
-        onSelectPage={jumpTo}
+        onSelectPage={leapTo}
         palette={dark ? darkPalette : lightPalette}
       />
       <BookmarkSheet
@@ -462,7 +473,7 @@ function Reader({ display }: { display: Display }) {
         onClose={() => setBookmarksOpen(false)}
         bookmarks={bookmarks}
         onSelect={(b: Bookmark) =>
-          jumpTo(b.page ?? pageForAyah(b.surahId, b.ayah))
+          leapTo(b.page ?? pageForAyah(b.surahId, b.ayah))
         }
         onRemove={removeBookmark}
         palette={dark ? darkPalette : lightPalette}
@@ -671,6 +682,7 @@ function Reader({ display }: { display: Display }) {
                       left: t.spacing.md,
                       right: t.spacing.md,
                       bottom: insets.bottom + t.spacing.sm,
+                      gap: t.spacing.sm,
                     }}
                   >
                     <PagePlayer
@@ -683,6 +695,38 @@ function Reader({ display }: { display: Display }) {
                         })
                       }
                     />
+                    {/* Back to the page before the last jump, every page as a strip, and search. */}
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: t.spacing.sm }}>
+                      <PressableScale
+                        haptic="select"
+                        disabled={backTo == null}
+                        onPress={() => {
+                          if (backTo == null) return;
+                          const from = page;
+                          jumpTo(backTo);
+                          setBackTo(from);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={backTo != null ? `Back to page ${backTo}` : "Back"}
+                      >
+                        <View style={[capsule, { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", opacity: backTo == null ? 0.45 : 1 }]}>
+                          <SymbolView name="arrow.uturn.backward" size={16} tintColor={t.c.text} style={{ width: 20, height: 20 }} />
+                          {backTo != null ? (
+                            <Text variant="caption2" style={{ fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+                              {backTo}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </PressableScale>
+                      <View style={[capsule, { flex: 1, height: 56, borderRadius: 28, overflow: "hidden" }]}>
+                        <PageScroller page={page} onPage={leapTo} />
+                      </View>
+                      <PressableScale haptic="select" onPress={() => setPickerOpen(true)} accessibilityRole="button" accessibilityLabel="Search">
+                        <View style={[capsule, { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" }]}>
+                          <SymbolView name="magnifyingglass" size={19} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
+                        </View>
+                      </PressableScale>
+                    </View>
                   </View>
                 ) : (
                   // Focused: the page almost alone. The reading settings at the left, play at the right.

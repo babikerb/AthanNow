@@ -1,6 +1,7 @@
 import { Button, Picker, Section, Text as SwiftText } from '@expo/ui/swift-ui';
 import { pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { SymbolView } from 'expo-symbols';
+import { AirPlayButton } from 'quran-reader';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import React, { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -43,7 +44,7 @@ export function PagePlayer({ onPlayPage, onMeaning }: { onPlayPage: () => void; 
   const surah = r.surahId ? getSurah(r.surahId) : undefined;
 
   const card = {
-    borderRadius: t.radii.card,
+    borderRadius: 28,
     borderCurve: 'continuous' as const,
     backgroundColor: t.c.surface1,
     borderWidth: 1,
@@ -127,6 +128,11 @@ function Icon({ name, label, onPress, active, disabled, size = 20 }: { name: SFS
   );
 }
 
+/**
+ * The player opened up: AirPlay, the reciter (tap to change) and close along the top, the surah and
+ * ayah under it, the ayah's position between its times, then the controls: Meaning, previous, play,
+ * next and repeat.
+ */
 function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; onMeaning?: () => void; style: object }) {
   const t = useTheme();
   const r = useRecitation();
@@ -135,58 +141,77 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
   const repeatLabel = r.repeat === 'off' ? 'Repeat off' : r.repeat === 'ayah' ? 'Repeating this ayah' : 'Repeating this surah';
 
   return (
-    <View style={[style, { paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.sm, paddingBottom: t.spacing.sm }]}>
+    <View style={[style, { borderRadius: 30, paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md, paddingBottom: t.spacing.md }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
-        <Icon name="chevron.down" label="Hide the player controls" onPress={onCollapse} size={17} />
-        <NativeMenu height={48} colorScheme={t.scheme} items={<ReciterItems />}>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600', flexShrink: 1 }} maxFontSizeMultiplier={1.4}>
-                {r.reciter.name}
-              </Text>
-              <SymbolView name="chevron.up.chevron.down" size={11} tintColor={t.c.textSecondary} />
-            </View>
-            <Text variant="footnote" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1.4}>
-              {surah.transliteration}, Ayah {r.ayahIndex + 1}
+        <AirPlayButton tint={t.c.text} />
+        <NativeMenu height={44} colorScheme={t.scheme} items={<ReciterItems />}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Reciter, ${r.reciter.name}`}>
+            <Text variant="headline" numberOfLines={1} maxFontSizeMultiplier={1.4}>
+              {r.reciter.name}
             </Text>
           </View>
         </NativeMenu>
-        <Icon
-          name="xmark"
-          label="Stop"
-          size={16}
+        <PressableScale
+          haptic="select"
           onPress={() => {
             onCollapse();
             r.stop();
           }}
-        />
+          accessibilityRole="button"
+          accessibilityLabel="Stop"
+        >
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.c.surface2, alignItems: 'center', justifyContent: 'center' }}>
+            <SymbolView name="xmark" size={14} tintColor={t.c.text} style={{ width: 18, height: 18 }} />
+          </View>
+        </PressableScale>
       </View>
+
+      <PressableScale scaleTo={1} onPress={onCollapse} accessibilityRole="button" accessibilityLabel={`${surah.transliteration}, ayah ${r.ayahIndex + 1}`} accessibilityHint="Folds the player away">
+        <Text variant="subhead" color="textSecondary" style={{ textAlign: 'center', marginTop: 2 }}>
+          {surah.transliteration}: {r.ayahIndex + 1}
+        </Text>
+      </PressableScale>
 
       {r.error ? (
         <Text variant="footnote" color="danger" style={{ textAlign: 'center', marginTop: t.spacing.xs }}>
           {r.error}
         </Text>
       ) : null}
-      <View style={{ marginTop: t.spacing.xs }}>
-        <Scrubber progress={p.duration > 0 ? p.currentTime / p.duration : 0} onSeek={p.seekTo} />
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text variant="caption" color="textSecondary" style={{ fontVariant: ['tabular-nums'] }}>
-            {r.loading ? 'Loading' : clock(p.currentTime)}
-          </Text>
-          <Text variant="caption" color="textSecondary" style={{ fontVariant: ['tabular-nums'] }}>
-            -{clock(Math.max(0, p.duration - p.currentTime))}
-          </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, marginTop: t.spacing.sm }}>
+        <Text variant="footnote" color="textSecondary" style={{ fontVariant: ['tabular-nums'], minWidth: 36 }}>
+          {r.loading ? '--:--' : clock(p.currentTime)}
+        </Text>
+        <View style={{ flex: 1 }}>
+          <Scrubber progress={p.duration > 0 ? p.currentTime / p.duration : 0} onSeek={p.seekTo} />
         </View>
+        <Text variant="footnote" color="textSecondary" style={{ fontVariant: ['tabular-nums'], minWidth: 40, textAlign: 'right' }}>
+          -{clock(Math.max(0, p.duration - p.currentTime))}
+        </Text>
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: t.spacing.xl, marginTop: t.spacing.xs }}>
-        <Icon name={r.repeat === 'ayah' ? 'repeat.1' : 'repeat'} label={repeatLabel} active={r.repeat !== 'off'} onPress={r.cycleRepeat} />
-        <Icon name="backward.fill" label="Previous ayah" size={22} onPress={r.previous} disabled={r.ayahIndex === 0} />
-        <PlayButton onPlayPage={() => {}} size={56} filled />
-        <Icon name="forward.fill" label="Next ayah" size={22} onPress={r.next} disabled={r.ayahIndex >= surah.totalVerses - 1} />
-        {/* The meaning of the ayah being recited; it also balances repeat, so play sits in the middle. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.xs }}>
         {onMeaning ? <Icon name="text.book.closed" label="Meaning of this ayah" onPress={onMeaning} /> : <View style={{ width: 44 }} />}
+        <Icon name="backward.fill" label="Previous ayah" size={30} onPress={r.previous} disabled={r.ayahIndex === 0} />
+        <BigPlay />
+        <Icon name="forward.fill" label="Next ayah" size={30} onPress={r.next} disabled={r.ayahIndex >= surah.totalVerses - 1} />
+        <Icon name={r.repeat === 'ayah' ? 'repeat.1' : 'repeat'} label={repeatLabel} active={r.repeat !== 'off'} onPress={r.cycleRepeat} />
       </View>
     </View>
+  );
+}
+
+/** The big play and pause in the open player: the glyph alone, large. */
+function BigPlay() {
+  const t = useTheme();
+  const r = useRecitation();
+  const { buffering } = useRecitationProgress();
+  return (
+    <TapTarget size={64} haptic="light" onPress={r.togglePlay} accessibilityRole="button" accessibilityLabel={r.isPlaying ? 'Pause' : 'Play'}>
+      {r.isPlaying && buffering ? (
+        <ActivityIndicator color={t.c.text} />
+      ) : (
+        <SymbolView name={r.isPlaying ? 'pause.fill' : 'play.fill'} size={40} tintColor={t.c.text} style={{ width: 44, height: 44 }} />
+      )}
+    </TapTarget>
   );
 }

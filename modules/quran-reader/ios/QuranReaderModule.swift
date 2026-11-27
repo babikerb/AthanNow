@@ -22,5 +22,9 @@ public class QuranReaderModule: Module {
     }
 
     View(QuranReaderView.self)
+
+    View(AirPlayView.self) {
+      ViewName("AirPlayView")
+    }
   }
 }

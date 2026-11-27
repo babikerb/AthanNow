@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
-  s.frameworks = 'SwiftUI', 'CoreText'
+  s.frameworks = 'SwiftUI', 'CoreText', 'AVKit'
 
   s.source_files = '**/*.{h,m,mm,swift}'
   # The words of all 604 pages (scripts/build-mushaf-words.py) and the KFGQPC Hafs font, unmodified.

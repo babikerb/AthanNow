@@ -115,3 +115,16 @@ export function QuranReader({ current, from, onPageChange, onTap, onAction, onZo
     </Host>
   );
 }
+
+const NativeAirPlay: React.ComponentType<{ tintHex: string; style?: StyleProp<ViewStyle> }> | null =
+  Platform.OS === 'ios' ? requireNativeView('QuranReader', 'AirPlayView') : null;
+
+/** Apple's AirPlay picker, as a 44 point button. */
+export function AirPlayButton({ tint, style }: { tint: string; style?: StyleProp<ViewStyle> }) {
+  if (!NativeAirPlay) return null;
+  return (
+    <Host style={[{ width: 44, height: 44 }, style]}>
+      <NativeAirPlay tintHex={tint} />
+    </Host>
+  );
+}
