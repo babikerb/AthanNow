@@ -144,11 +144,29 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
     <View style={[style, { borderRadius: 30, paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md, paddingBottom: t.spacing.md }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
         <AirPlayButton tint={t.c.text} />
+        {/* The reciter, as a button that looks like one: tap to choose another. */}
         <NativeMenu height={44} colorScheme={t.scheme} items={<ReciterItems />}>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Reciter, ${r.reciter.name}`}>
-            <Text variant="headline" numberOfLines={1} maxFontSizeMultiplier={1.4}>
-              {r.reciter.name}
-            </Text>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Reciter, ${r.reciter.name}`} accessibilityHint="Choose another reciter">
+            <View
+              style={{
+                maxWidth: '100%',
+                height: 40,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                paddingHorizontal: t.spacing.md,
+                borderRadius: 20,
+                backgroundColor: t.c.surface2,
+                borderWidth: 1,
+                borderColor: t.c.hairline,
+              }}
+            >
+              <SymbolView name="person.wave.2.fill" size={14} tintColor={t.c.accent} style={{ width: 20, height: 20 }} />
+              <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600', flexShrink: 1 }} maxFontSizeMultiplier={1.3}>
+                {r.reciter.name}
+              </Text>
+              <SymbolView name="chevron.up.chevron.down" size={11} tintColor={t.c.textSecondary} />
+            </View>
           </View>
         </NativeMenu>
         <PressableScale
