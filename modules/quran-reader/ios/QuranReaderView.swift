@@ -154,16 +154,18 @@ struct ReaderContext {
 
   func color(_ word: MushafWord, page: Int) -> Color {
     guard playing, page == currentPage else { return theme.ink }
-    // The Bismillah is being recited: nothing of the surah is recited yet.
-    if bismillah > 0 { return theme.ink }
+    // The Bismillah is being recited: the surah's words are all still to come.
+    if bismillah > 0 { return word.surah == bismillah && wordLevel ? theme.quiet : theme.ink }
     if !wordLevel {
       // Timed only by the ayah: the ayah being recited is lit in the recited colour, the rest plain.
       return word.ayahKey == currentAyah ? theme.recited : theme.ink
     }
-    // Only the ayah being recited shows progress: its words already recited turn blue. The rest of
-    // the page stays as it is.
-    guard word.ayahKey == currentAyah else { return theme.ink }
-    return word.order < current ? theme.recited : theme.ink
+    // Words still to come are dimmed. Of the words already recited, only those in the ayah being
+    // recited turn blue; earlier ayahs are back to plain ink.
+    let order = word.order
+    if order == current { return theme.ink }
+    if order > current { return theme.quiet }
+    return word.ayahKey == currentAyah ? theme.recited : theme.ink
   }
 
   func title(_ surah: Int) -> String {
