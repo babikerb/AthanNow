@@ -1,14 +1,16 @@
 import { Button as MenuButton, Divider as MenuDivider, Toggle as MenuToggle } from '@expo/ui/swift-ui';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native';
 import { setStatusBarHidden, setStatusBarStyle } from 'expo-status-bar';
 import { SymbolView } from 'expo-symbols';
 import { QuranReader, type ReaderAction, type WordRef } from 'quran-reader';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, useColorScheme, View } from 'react-native';
+import { Animated, AppState, useColorScheme, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BookmarkSheet } from '../components/BookmarkSheet';
+import { GoalsSheet } from '../components/quran/GoalsSheet';
+import { QuranHome } from '../components/quran/QuranHome';
 import { NativeMenu } from '../components/NativeMenu';
 import { PagePlayer } from '../components/quran/PagePlayer';
 import { SurahPickerSheet } from '../components/SurahPickerSheet';
@@ -21,7 +23,9 @@ import { ThemeProvider, useTheme } from '../design/theme';
 import { Bookmark, BOOKMARK_COLORS, BookmarkColor, useBookmarks } from '../hooks/useBookmarks';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { setImmersive } from '../navigation/immersive';
+import { surahPages, type Goal } from '../quran/goals';
 import { firstAyahOnPage, pageForAyah, type AyahRef } from '../quran/pageLayout';
+import { useQuranProgress } from '../quran/useQuranProgress';
 import { useRecitation, useRecitationProgress } from '../recitation/RecitationProvider';
 import { darkPalette, lightPalette } from '../theme/colors';
 import { juzForPage } from '../utils/mushaf';
@@ -34,6 +38,8 @@ const DARK_KEY = 'athannow.quran.reader.dark.v1';
 const TITLES = SURAHS.map((s) => s.transliteration);
 const TOP_BAR = 52;
 const PLAYER = 64;
+// A page counts as read after this long on it.
+const READ_AFTER_MS = 12000;
 
 /**
  * The Quran tab: the mushaf set word by word (modules/quran-reader), pinch to zoom from the printed
@@ -76,6 +82,10 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   const [lastColor, setLastColor] = useState<BookmarkColor>('red');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [goalsOpen, setGoalsOpen] = useState(false);
+  const progress = useQuranProgress();
+  // The tab opens on its home (Continue, goals); Continue opens the page and the tab stays there.
+  const [reading, setReading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +112,30 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   const jumpTo = useCallback((p: number) => {
     setPage(p);
     setTarget((x) => ({ page: p, nonce: x.nonce + 1 }));
+    setReading(true);
   }, []);
+
+  // Tapping the Quran tab while reading goes back to its home.
+  const navigation = useNavigation();
+  const focused = useIsFocused();
+  useEffect(() => {
+    const off = (navigation as unknown as { addListener: (e: string, f: () => void) => () => void }).addListener('tabPress', () => {
+      if (focused) setReading(false);
+    });
+    return off;
+  }, [navigation, focused]);
+
+  // A page counts towards today once it has been open a little while, with the app in front.
+  const [active, setActive] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => setActive(s === 'active'));
+    return () => sub.remove();
+  }, []);
+  useEffect(() => {
+    if (!reading || !focused || !active) return;
+    const id = setTimeout(() => progress.markRead(page), READ_AFTER_MS);
+    return () => clearTimeout(id);
+  }, [page, reading, focused, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Controls: tap the page to hide them and the tab bar ----
   const [hidden, setHidden] = useState(false);
@@ -141,6 +174,20 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   useEffect(() => {
     if (!r.surahId) setFrom(null);
   }, [r.surahId]);
+  // A surah heard to its last ayah counts as read today.
+  useEffect(() => {
+    const s = r.surahId ? getSurah(r.surahId) : undefined;
+    if (s && r.isPlaying && r.ayahIndex >= s.totalVerses - 1) progress.markHeard(s.id);
+  }, [r.surahId, r.ayahIndex, r.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openGoal = useCallback(
+    (goal: Goal) => {
+      setGoalsOpen(false);
+      if (goal.kind === 'surah') jumpTo(surahPages(goal.surah)[0]);
+      else jumpTo(pageRef.current);
+    },
+    [jumpTo],
+  );
 
   const playFrom = useCallback(
     (ref: AyahRef, onPage: number) => {
@@ -200,6 +247,50 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
     borderColor: dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(29, 27, 38, 0.08)',
   };
 
+  const sheets = (
+    <>
+      <SurahPickerSheet
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        currentSurahId={surah.id}
+        onSelect={(id) => jumpTo(pageForSurah(id))}
+        onSelectVerse={(key) => {
+          const [s, a] = key.split(':').map(Number);
+          jumpTo(pageForAyah(s, a));
+        }}
+        onSelectPage={jumpTo}
+        palette={dark ? darkPalette : lightPalette}
+      />
+      <BookmarkSheet
+        visible={bookmarksOpen}
+        onClose={() => setBookmarksOpen(false)}
+        bookmarks={bookmarks}
+        onSelect={(b: Bookmark) => jumpTo(b.page ?? pageForAyah(b.surahId, b.ayah))}
+        onRemove={removeBookmark}
+        palette={dark ? darkPalette : lightPalette}
+      />
+      <GoalsSheet visible={goalsOpen} onClose={() => setGoalsOpen(false)} progress={progress} dark={dark} onOpenGoal={openGoal} />
+    </>
+  );
+
+  if (!reading) {
+    return (
+      <View style={{ flex: 1 }}>
+        <QuranHome
+          dark={dark}
+          lastPage={page}
+          progress={progress}
+          bookmarks={bookmarks}
+          onContinue={() => jumpTo(page)}
+          onOpenPage={(p) => jumpTo(p === -1 ? (playingPage ?? page) : p)}
+          onOpenGoals={() => setGoalsOpen(true)}
+          onOpenGoal={openGoal}
+        />
+        {sheets}
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: dark ? '#111018' : '#F8F8FC' }}>
       {restored ? (
@@ -223,6 +314,17 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
         pointerEvents={pointer}
         style={{ position: 'absolute', top: insets.top + 4, left: t.spacing.md, right: t.spacing.md, flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, opacity: fade }}
       >
+        <PressableScale
+          haptic="select"
+          onPress={() => setReading(false)}
+          accessibilityRole="button"
+          accessibilityLabel="Quran home"
+          style={[capsule, { width: 44, height: 44, borderRadius: 22 }]}
+        >
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <SymbolView name="chevron.backward" size={16} tintColor={t.c.text} style={{ width: 20, height: 20 }} />
+          </View>
+        </PressableScale>
         <PressableScale
           haptic="select"
           onPress={() => setPickerOpen(true)}
@@ -278,26 +380,7 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
         <PagePlayer onPlayPage={playPage} />
       </Animated.View>
 
-      <SurahPickerSheet
-        visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        currentSurahId={surah.id}
-        onSelect={(id) => jumpTo(pageForSurah(id))}
-        onSelectVerse={(key) => {
-          const [s, a] = key.split(':').map(Number);
-          jumpTo(pageForAyah(s, a));
-        }}
-        onSelectPage={jumpTo}
-        palette={dark ? darkPalette : lightPalette}
-      />
-      <BookmarkSheet
-        visible={bookmarksOpen}
-        onClose={() => setBookmarksOpen(false)}
-        bookmarks={bookmarks}
-        onSelect={(b: Bookmark) => jumpTo(b.page ?? pageForAyah(b.surahId, b.ayah))}
-        onRemove={removeBookmark}
-        palette={dark ? darkPalette : lightPalette}
-      />
+      {sheets}
     </View>
   );
 }

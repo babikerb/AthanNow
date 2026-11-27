@@ -22,6 +22,8 @@ final class QuranReaderProps: ExpoSwiftUI.ViewProps {
   /// English surah names for the menus, Al-Fatihah first.
   @Field var surahTitles: [String] = []
   @Field var bookmarkedPages: [Int] = []
+  /// A still snapshot of the page's opening lines (the home screen's Continue card): no gestures or menus.
+  @Field var preview: Bool = false
   var onPageChange = EventDispatcher()
   var onTap = EventDispatcher()
   var onAction = EventDispatcher()
@@ -58,6 +60,7 @@ struct ReaderContext {
   let ns: Namespace.ID
   let titles: [String]
   let bookmarked: Set<Int>
+  let interactive: Bool
   let act: (String, MushafWord, Int) -> Void
 
   func color(_ word: MushafWord) -> Color {
@@ -103,8 +106,21 @@ struct WordView: View {
   let ctx: ReaderContext
 
   var body: some View {
+    if ctx.interactive {
+      label
+        .contextMenu {
+          WordMenu(word: word, page: page, ctx: ctx)
+        } preview: {
+          AyahPreview(word: word, ctx: ctx)
+        }
+    } else {
+      label
+    }
+  }
+
+  private var label: some View {
     let isCurrent = ctx.playing && word.order == ctx.current
-    Text(word.text)
+    return Text(word.text)
       .font(.custom(MushafFont.name, size: size))
       .foregroundColor(ctx.color(word))
       .fixedSize()
@@ -115,11 +131,6 @@ struct WordView: View {
             .padding(.vertical, size * 0.12)
             .matchedGeometryEffect(id: "glass", in: ctx.ns)
         }
-      }
-      .contextMenu {
-        WordMenu(word: word, page: page, ctx: ctx)
-      } preview: {
-        AyahPreview(word: word, ctx: ctx)
       }
   }
 }
@@ -327,6 +338,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
         theme.background.ignoresSafeArea()
         if !ready {
           ProgressView()
+        } else if props.preview {
+          previewPage(width: geo.size.width - 28, theme: theme)
         } else if zoom <= 1.001 {
           pageMode(area: area, size: base, theme: theme, full: geo.size)
             .scaleEffect(pinch)
@@ -379,10 +392,28 @@ struct QuranReaderView: ExpoSwiftUI.View {
       ns: ns,
       titles: props.surahTitles,
       bookmarked: Set(props.bookmarkedPages),
+      interactive: !props.preview,
       act: { action, word, page in
         props.onAction(["action": action, "surah": word.surah, "ayah": word.ayah, "page": page])
       }
     )
+  }
+
+  // MARK: Preview
+
+  /// The page's opening lines at a comfortable size, from the top.
+  private func previewPage(width: CGFloat, theme: ReaderTheme) -> some View {
+    let size = width / CGFloat(MushafStore.shared.ref)
+    return VStack(spacing: 0) {
+      if let p = MushafStore.shared.page(clampPage(props.page)) {
+        PageView(page: p, size: size, width: width, lineHeight: size * 1.9, ctx: context(theme))
+      }
+      Spacer(minLength: 0)
+    }
+    .padding(.top, 10)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .clipped()
+    .allowsHitTesting(false)
   }
 
   // MARK: Page by page

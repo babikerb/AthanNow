@@ -30,6 +30,8 @@ export interface QuranReaderProps {
   onTap: () => void;
   onAction: (action: ReaderAction, surah: number, ayah: number, page: number) => void;
   onZoomChange?: (zoomed: boolean) => void;
+  /** A still snapshot of the page's opening lines, with no gestures or menus. */
+  preview?: boolean;
 }
 
 type NativeProps = Omit<QuranReaderProps, 'current' | 'from' | 'onPageChange' | 'onTap' | 'onAction' | 'onZoomChange'> & {
