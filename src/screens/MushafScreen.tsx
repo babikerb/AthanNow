@@ -78,13 +78,12 @@ const LAST_COLOR_KEY = "athannow.quran.lastcolor.v1";
 const DARK_KEY = "athannow.quran.reader.dark.v1";
 
 const TITLES = SURAHS.map((s) => s.transliteration);
-// The top bar (44 high, 4 below the status bar) and the player (56 high, 8 above the home
-// indicator); the page sits between them with the same gap above and below. The page strip under
-// the player overlaps the foot of the page on purpose: the page stays as large as it can be, and a
-// tap to focus clears the controls away to show all of it.
+// The page is as large as it can be: from just under the top bar to just over the focused view's
+// buttons (Aa and play, 60 high, 8 above the home indicator), a small gap at each end. The player
+// and page strip lie over its foot until a tap to focus clears them away.
 const TOP_BAR = 4 + 44;
-const PLAYER = 8 + 56;
-const PAGE_GAP = 18;
+const FOOT = 8 + 60;
+const PAGE_GAP = 6;
 // A page counts as read after this long on it.
 const READ_AFTER_MS = 12000;
 
@@ -423,7 +422,7 @@ function Reader({ display }: { display: Display }) {
   // The page fills the space between the top bar and the player, an equal gap from each. It keeps
   // that place when the controls hide.
   const topInset = insets.top + TOP_BAR + PAGE_GAP;
-  const bottomInset = insets.bottom + PLAYER + PAGE_GAP;
+  const bottomInset = insets.bottom + FOOT + PAGE_GAP;
   const capsule = {
     backgroundColor: dark ? "rgba(26, 27, 31, 0.94)" : "rgba(255, 253, 248, 0.94)",
     borderWidth: 1,

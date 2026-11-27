@@ -642,7 +642,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
   @State private var recitedBuilt = false
 
   private let maxZoom: CGFloat = 3.2
-  private let sidePadding: CGFloat = 14
+  private let sidePadding: CGFloat = 8
 
   init(props: QuranReaderProps) {
     self.props = props
