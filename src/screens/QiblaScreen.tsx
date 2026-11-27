@@ -20,9 +20,6 @@ const c = colorTokens.dark;
 
 const KAABA = require('../../assets/kaaba.png');
 const KAABA_SIZE = 22;
-// Facing the Qibla, the marker is this size: a second copy laid out at it, crossfaded in. Never
-// scaled, since iOS draws an image for its laid-out size and scaling it either way softens it.
-const KAABA_LOCKED = 28;
 
 const DIAL = 300;
 const R = DIAL / 2;
@@ -204,7 +201,7 @@ function Compass({
   unavailable: boolean;
 }) {
   // One warm moment: the gold accent appears only when the phone is facing the Qibla, earned with a short native-driver
-  // crossfade (ring, lubber, crosshair, the Kaaba marker growing into its gold copy, readout) instead of an instant swap.
+  // crossfade (ring, lubber, crosshair, the Kaaba marker turning gold, readout) instead of an instant swap.
   const { reduceMotion, motion } = useDesignTheme();
   const lock = useRef(new Animated.Value(isAligned ? 1 : 0)).current;
   useEffect(() => {
@@ -430,9 +427,9 @@ const styles = StyleSheet.create({
   crossH: { position: 'absolute', height: 1, width: DIAL - 8, backgroundColor: c.hairline },
   markLetter: { ...textStyle('headline'), color: c.skyText },
   markNumber: { ...textStyle('caption'), color: c.skyTextSecondary },
-  kaabaBox: { width: KAABA_LOCKED, height: KAABA_LOCKED, alignItems: 'center', justifyContent: 'center' },
+  kaabaBox: { width: KAABA_SIZE, height: KAABA_SIZE },
   kaaba: { width: KAABA_SIZE, height: KAABA_SIZE, resizeMode: 'contain' },
-  kaabaLocked: { position: 'absolute', width: KAABA_LOCKED, height: KAABA_LOCKED, resizeMode: 'contain' },
+  kaabaLocked: { position: 'absolute', top: 0, left: 0, width: KAABA_SIZE, height: KAABA_SIZE, resizeMode: 'contain' },
   // Aligned ring overlay: same circle as the dial, accent, fades in (the base hairline ring never changes width).
   ring: { position: 'absolute', top: -1, left: -1, width: DIAL, height: DIAL, borderRadius: R, borderWidth: 2, borderColor: c.accent },
   // Second copy of an element stacked exactly on the first (crossfaded with opacity).
