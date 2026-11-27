@@ -36,12 +36,17 @@ struct ReaderTheme {
   let ink: Color
   let quiet: Color
   let recited: Color
+  /// The surah band: its lines, its fill, and its ornament.
   let frame: Color
+  let band: Color
+  let ornament: Color
 
   static func make(dark: Bool) -> ReaderTheme {
     dark
-      ? ReaderTheme(dark: true, background: Color(hex: 0x000000), ink: Color(hex: 0xF4F3F8), quiet: Color(hex: 0x6E6A7C), recited: Color(hex: 0xA5A1FF), frame: Color(hex: 0x3A3550))
-      : ReaderTheme(dark: false, background: Color(hex: 0xF8F8FC), ink: Color(hex: 0x1D1B26), quiet: Color(hex: 0xA6A2B4), recited: Color(hex: 0x4338CA), frame: Color(hex: 0xC9C6D6))
+      ? ReaderTheme(dark: true, background: Color(hex: 0x000000), ink: Color(hex: 0xF4F3F8), quiet: Color(hex: 0x6E6A7C), recited: Color(hex: 0xA5A1FF),
+                    frame: Color(hex: 0x6B6779), band: Color(hex: 0x1C1B22), ornament: Color(hex: 0x8C889B))
+      : ReaderTheme(dark: false, background: Color(hex: 0xF8F8FC), ink: Color(hex: 0x1D1B26), quiet: Color(hex: 0xA6A2B4), recited: Color(hex: 0x4338CA),
+                    frame: Color(hex: 0xB3AFC3), band: Color(hex: 0xECEAF3), ornament: Color(hex: 0x8F8AA3))
   }
 }
 
@@ -57,14 +62,16 @@ struct ReaderContext {
   let playing: Bool
   let current: Int
   let from: Int
+  /// The page the recited ayah is on: only that page shows what's recited and what's to come.
+  let currentPage: Int
   let ns: Namespace.ID
   let titles: [String]
   let bookmarked: Set<Int>
   let interactive: Bool
   let act: (String, MushafWord, Int) -> Void
 
-  func color(_ word: MushafWord) -> Color {
-    guard playing else { return theme.ink }
+  func color(_ word: MushafWord, page: Int) -> Color {
+    guard playing, page == currentPage else { return theme.ink }
     let order = word.order
     if order == current { return theme.ink }
     if order > current { return theme.quiet }
@@ -125,7 +132,7 @@ struct WordView: View {
     let isCurrent = ctx.playing && word.order == ctx.current
     return Text(useGlyph ? word.glyph : word.text)
       .font(.custom(font, size: size))
-      .foregroundColor(ctx.color(word))
+      .foregroundColor(ctx.color(word, page: page))
       .fixedSize()
       .background {
         if isCurrent {
@@ -184,35 +191,123 @@ struct AyahPreview: View {
   }
 }
 
+/// The pointed cartouche the surah's name sits in.
+struct Cartouche: Shape {
+  func path(in r: CGRect) -> Path {
+    let tip = r.height * 0.55
+    var p = Path()
+    p.move(to: CGPoint(x: r.minX, y: r.midY))
+    p.addQuadCurve(to: CGPoint(x: r.minX + tip, y: r.minY), control: CGPoint(x: r.minX + tip * 0.2, y: r.minY))
+    p.addLine(to: CGPoint(x: r.maxX - tip, y: r.minY))
+    p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.midY), control: CGPoint(x: r.maxX - tip * 0.2, y: r.minY))
+    p.addQuadCurve(to: CGPoint(x: r.maxX - tip, y: r.maxY), control: CGPoint(x: r.maxX - tip * 0.2, y: r.maxY))
+    p.addLine(to: CGPoint(x: r.minX + tip, y: r.maxY))
+    p.addQuadCurve(to: CGPoint(x: r.minX, y: r.midY), control: CGPoint(x: r.minX + tip * 0.2, y: r.maxY))
+    p.closeSubpath()
+    return p
+  }
+}
+
+/// The band's ornament: a rosette either side of the name, scrolls running out from each, and a
+/// small star near each end. Flat lines in one colour, like the printed frame.
+struct BandOrnament: View {
+  let color: Color
+
+  var body: some View {
+    Canvas { ctx, size in
+      let h = size.height
+      let w = size.width
+      let line = max(0.6, h * 0.022)
+      for side in [-1.0, 1.0] {
+        let cx = w / 2 + CGFloat(side) * w * 0.355
+        let cy = h / 2
+        let r = h * 0.3
+        // Rosette: a ring, eight petals, a centre.
+        ctx.stroke(Path(ellipseIn: CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)), with: .color(color), lineWidth: line)
+        for k in 0..<8 {
+          let a = Double(k) * .pi / 4
+          var petal = Path(ellipseIn: CGRect(x: -r * 0.17, y: -r * 0.86, width: r * 0.34, height: r * 0.72))
+          petal = petal.applying(CGAffineTransform(rotationAngle: CGFloat(a)).concatenating(CGAffineTransform(translationX: cx, y: cy)))
+          ctx.stroke(petal, with: .color(color), lineWidth: line * 0.8)
+        }
+        ctx.fill(Path(ellipseIn: CGRect(x: cx - r * 0.14, y: cy - r * 0.14, width: r * 0.28, height: r * 0.28)), with: .color(color))
+        // Scrolls between the rosette and the name, and out towards the end.
+        for dir in [-1.0, 1.0] {
+          let x0 = cx + CGFloat(dir) * r * 1.15
+          let reach = w * 0.075 * CGFloat(dir)
+          var s = Path()
+          s.move(to: CGPoint(x: x0, y: cy))
+          s.addCurve(to: CGPoint(x: x0 + reach, y: cy),
+                     control1: CGPoint(x: x0 + reach * 0.3, y: cy - h * 0.3),
+                     control2: CGPoint(x: x0 + reach * 0.7, y: cy + h * 0.3))
+          ctx.stroke(s, with: .color(color), lineWidth: line)
+          for t in [0.3, 0.7] {
+            let lx = x0 + reach * CGFloat(t)
+            let ly = cy + (t < 0.5 ? -h * 0.12 : h * 0.12)
+            ctx.fill(Path(ellipseIn: CGRect(x: lx - h * 0.045, y: ly - h * 0.045, width: h * 0.09, height: h * 0.09)), with: .color(color))
+          }
+        }
+        // A four-point star near the end of the band.
+        let sx = w / 2 + CGFloat(side) * w * 0.465
+        let sr = h * 0.17
+        var star = Path()
+        for k in 0..<8 {
+          let a = Double(k) * .pi / 4
+          let rr = k % 2 == 0 ? sr : sr * 0.38
+          let pt = CGPoint(x: sx + CGFloat(cos(a)) * rr, y: cy + CGFloat(sin(a)) * rr)
+          if k == 0 { star.move(to: pt) } else { star.addLine(to: pt) }
+        }
+        star.closeSubpath()
+        ctx.fill(star, with: .color(color))
+      }
+    }
+  }
+}
+
+/// A surah's opening band across the full width: a framed band with its ornament, and the surah's
+/// name in calligraphy (سورة and the name) in a cartouche at its middle.
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
   let theme: ReaderTheme
 
   var body: some View {
-    ZStack {
-      RoundedRectangle(cornerRadius: size * 0.35).stroke(theme.frame, lineWidth: 1)
-      RoundedRectangle(cornerRadius: size * 0.25).stroke(theme.frame, lineWidth: 0.6).padding(3)
-      Text("سورة \(MushafStore.shared.name(surah))")
-        .font(.custom(MushafFont.name, size: size * 0.82))
+    GeometryReader { g in
+      let h = g.size.height
+      ZStack {
+        RoundedRectangle(cornerRadius: h * 0.14).fill(theme.band)
+        RoundedRectangle(cornerRadius: h * 0.14).stroke(theme.frame, lineWidth: 1)
+        RoundedRectangle(cornerRadius: h * 0.1).stroke(theme.frame, lineWidth: 0.6).padding(h * 0.07)
+        BandOrnament(color: theme.ornament).padding(.horizontal, h * 0.12)
+        Cartouche().fill(theme.background).frame(width: g.size.width * 0.46, height: h * 0.74)
+        Cartouche().stroke(theme.frame, lineWidth: 1).frame(width: g.size.width * 0.46, height: h * 0.74)
+        HStack(spacing: h * 0.1) {
+          Text(String(format: "%03d", surah))
+          Text("surah")
+        }
+        .font(.custom(MushafFont.surahNames, size: h * 0.62))
         .foregroundColor(theme.ink)
+        .environment(\.layoutDirection, .leftToRight)
+        .fixedSize()
+      }
     }
-    .frame(height: size * 1.5)
+    .frame(height: size * 1.55)
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("Surah \(surah)")
+    .accessibilityLabel("Surah \(MushafStore.shared.name(surah))")
     .accessibilityAddTraits(.isHeader)
   }
 }
 
+/// The calligraphic Bismillah line that opens each surah (except At-Tawbah).
 struct BismillahLine: View {
   let size: CGFloat
   let theme: ReaderTheme
 
   var body: some View {
-    Text(MushafStore.shared.bismillah)
-      .font(.custom(MushafFont.name, size: size))
-      .foregroundColor(theme.ink)
-      .fixedSize()
+    BismillahShape()
+      .fill(theme.ink, style: FillStyle(eoFill: true))
+      .frame(width: size * 4.9 * 1.1, height: size * 1.1)
+      .accessibilityElement()
       .accessibilityLabel("Bismillah")
   }
 }
@@ -290,12 +385,16 @@ struct PageView: View {
   }
 }
 
-/// A page zoomed in: its words flowing into centred lines, its headers between them.
+/// A page zoomed in: its words flowing into centred lines, its headers between them. In the page's
+/// own QCF V2 font when it's there, larger; otherwise KFGQPC Hafs.
 struct FlowPage: View {
   let page: MushafPage
   let size: CGFloat
   let width: CGFloat
   let ctx: ReaderContext
+  var qcf: PageFonts.Metrics? = nil
+  /// The QCF size for this zoom (the page's own size, times the zoom).
+  var qcfSize: CGFloat = 0
 
   private enum Block {
     case header(Int)
@@ -331,12 +430,21 @@ struct FlowPage: View {
         case .bismillah:
           BismillahLine(size: size * 0.8, theme: ctx.theme)
         case .words(let words):
-          FlowingLines(gap: size * 0.3, lineHeight: size * 2.05) {
-            ForEach(words, id: \.order) { word in
-              WordView(word: word, page: page.number, size: size, ctx: ctx).id(word.order)
+          if let q = qcf, qcfSize > 0 {
+            FlowingLines(gap: qcfSize * 0.12, lineHeight: qcfSize * 1.75) {
+              ForEach(words, id: \.order) { word in
+                WordView(word: word, page: page.number, size: qcfSize, ctx: ctx, font: q.name, useGlyph: true).id(word.order)
+              }
             }
+            .frame(width: width)
+          } else {
+            FlowingLines(gap: size * 0.3, lineHeight: size * 2.05) {
+              ForEach(words, id: \.order) { word in
+                WordView(word: word, page: page.number, size: size, ctx: ctx).id(word.order)
+              }
+            }
+            .frame(width: width)
           }
-          .frame(width: width)
         }
       }
       Text("\(page.number)")
@@ -388,7 +496,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
           pageMode(area: area, size: base, theme: theme, full: geo.size)
             .scaleEffect(pinch)
         } else {
-          flowMode(area: area, size: base * zoom, theme: theme, full: geo.size)
+          flowMode(area: area, size: base * zoom, zoom: zoom, theme: theme, full: geo.size)
             .scaleEffect(pinch)
         }
       }
@@ -442,6 +550,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
       playing: props.highlighting,
       current: currentOrder,
       from: MushafWord.order(props.fromSurah, props.fromAyah, props.fromWord),
+      currentPage: props.highlighting ? (MushafStore.shared.ayahPage[props.curSurah * 1000 + props.curAyah] ?? -1) : -1,
       ns: ns,
       titles: props.surahTitles,
       bookmarked: Set(props.bookmarkedPages),
@@ -518,13 +627,15 @@ struct QuranReaderView: ExpoSwiftUI.View {
     return Array(all[(first - 1)..<last])
   }
 
-  private func flowMode(area: CGSize, size: CGFloat, theme: ReaderTheme, full: CGSize) -> some View {
+  private func flowMode(area: CGSize, size: CGFloat, zoom: CGFloat, theme: ReaderTheme, full: CGSize) -> some View {
     let ctx = context(theme)
+    let lineHeight = area.height / 15
     return ScrollViewReader { proxy in
       ScrollView(.vertical, showsIndicators: false) {
         LazyVStack(spacing: size * 1.2) {
           ForEach(flowPages) { p in
-            FlowPage(page: p, size: size, width: area.width, ctx: ctx)
+            FlowPage(page: p, size: size, width: area.width, ctx: ctx, qcf: fonts.metrics(p.number),
+                     qcfSize: fonts.metrics(p.number).map { min(area.width * 0.985 / max($0.widest, 1) * 100, lineHeight * 0.72) * zoom } ?? 0)
               .id(-p.number)
               .onAppear {
                 // Near the end of what's laid out: lay out more.
@@ -554,6 +665,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
         if let reading = offsets.filter({ $0.value <= line }).max(by: { $0.value < $1.value })?.key, reading != page {
           page = reading
           props.onPageChange(["page": reading])
+          PageFonts.shared.prepare(around: reading)
         }
       }
       .onAppear {
