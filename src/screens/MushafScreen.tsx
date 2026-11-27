@@ -44,9 +44,9 @@ import { pageForSurah, surahForPage, TOTAL_PAGES } from "../data/surahPages";
 import { haptic } from "../design/haptics";
 import { PressableScale } from "../design/PressableScale";
 import { Text } from "../design/Text";
-import { ThemeProvider, useTheme, type Theme } from "../design/theme";
+import { useTheme } from "../design/theme";
 import { useDisplaySettings, type Display } from "../quran/display";
-import { DisplayPanel } from "../components/quran/DisplayPanel";
+import { ReaderSettingsSheet } from "../components/quran/ReaderSettingsSheet";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import {
   Bookmark,
@@ -95,11 +95,11 @@ export default function MushafScreen() {
 }
 
 function Reader({ display }: { display: Display }) {
-  // The page colour's light or dark: the mushaf page and its controls only. The home follows the app.
-  const dark = display.dark;
   const [displayOpen, setDisplayOpen] = useState(false);
   const t = useTheme();
+  // The mushaf follows the app's appearance and accent, like every other tab.
   const appDark = t.scheme === "dark";
+  const dark = appDark;
   const r = useRecitation();
   const insets = useSafeAreaInsets();
   const { bookmarks, bookmarkForPage, setPageBookmark, removeBookmark } =
@@ -290,7 +290,8 @@ function Reader({ display }: { display: Display }) {
     )
       return;
     jumpTo(playingPage);
-  }, [playingPage, r.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Every new ayah, not only a new page: reading elsewhere, the next ayah brings you back.
+  }, [r.surahId, r.ayahIndex, r.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!r.surahId) setFrom(null);
   }, [r.surahId]);
@@ -408,7 +409,7 @@ function Reader({ display }: { display: Display }) {
   const pageMenu = (
     <>
       <MenuButton
-        label="Display"
+        label="Reading settings"
         systemImage="textformat.size"
         onPress={() => setDisplayOpen(true)}
       />
@@ -488,23 +489,15 @@ function Reader({ display }: { display: Display }) {
         onContinue={() => jumpTo(page)}
         onOpenPage={jumpTo}
         onOpenGoals={() => setGoalsOpen(true)}
-        pageColor={display.pageColor}
-        textTone={display.textTone}
       />
       {reading ? (
-        <ThemeProvider preference={dark ? "dark" : "light"}>
-          <ThemeScope>
-            {(t) => (
+        <>
+          {(
               <Animated.View
                 style={[
                   StyleSheet.absoluteFill,
                   {
-                    backgroundColor: {
-                      night: "#000000",
-                      charcoal: "#1C1C1F",
-                      sepia: "#F4ECD8",
-                      paper: "#F8F8FC",
-                    }[display.pageColor],
+                    backgroundColor: t.c.bg,
                     transform: [
                       {
                         translateX: push.interpolate({
@@ -528,6 +521,7 @@ function Reader({ display }: { display: Display }) {
                     bookmarkedPages={bookmarkedPages}
                     focus={focus}
                     display={display}
+                    colors={{ bg: t.c.bg, text: t.c.text, accent: t.c.accent }}
                     onPageChange={setPage}
                     onTap={() => {
                       LayoutAnimation.configureNext(
@@ -693,115 +687,41 @@ function Reader({ display }: { display: Display }) {
                     />
                   </View>
                 ) : (
+                  // Focused: the page almost alone. The reading settings at the left, play at the right.
                   <View
                     pointerEvents="box-none"
                     style={{
                       position: "absolute",
-                      left: 0,
-                      right: 0,
+                      left: t.spacing.lg,
+                      right: t.spacing.lg,
                       bottom: insets.bottom + t.spacing.sm,
+                      flexDirection: "row",
                       alignItems: "center",
+                      justifyContent: "space-between",
                     }}
                   >
-                    <View
-                      style={[
-                        capsule,
-                        {
-                          height: 56,
-                          borderRadius: 28,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          paddingHorizontal: t.spacing.sm,
-                          gap: t.spacing.xs,
-                        },
-                      ]}
+                    <PressableScale haptic="select" onPress={() => setDisplayOpen(true)} accessibilityRole="button" accessibilityLabel="Reading settings">
+                      <View style={[capsule, { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" }]}>
+                        <SymbolView name="textformat.size" size={19} tintColor={t.c.text} style={{ width: 26, height: 26 }} />
+                      </View>
+                    </PressableScale>
+                    <PressableScale
+                      haptic="light"
+                      onPress={() => (r.surahId ? r.togglePlay() : playPage())}
+                      accessibilityRole="button"
+                      accessibilityLabel={r.isPlaying ? "Pause" : "Play from this page"}
                     >
-                      <PressableScale
-                        haptic="select"
-                        onPress={() => setPickerOpen(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Search"
-                      >
-                        <View
-                          style={{
-                            width: 52,
-                            height: 48,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <SymbolView
-                            name="magnifyingglass"
-                            size={19}
-                            tintColor={t.c.text}
-                            style={{ width: 24, height: 24 }}
-                          />
-                        </View>
-                      </PressableScale>
-                      <PressableScale
-                        haptic="select"
-                        onPress={() => setDisplayOpen(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Display"
-                      >
-                        <View
-                          style={{
-                            width: 52,
-                            height: 48,
-                            borderRadius: 24,
-                            alignItems: "center",
-                            justifyContent: "center",
-                            backgroundColor: displayOpen
-                              ? t.c.surface2
-                              : "transparent",
-                          }}
-                        >
-                          <SymbolView
-                            name="slider.horizontal.3"
-                            size={19}
-                            tintColor={t.c.text}
-                            style={{ width: 24, height: 24 }}
-                          />
-                        </View>
-                      </PressableScale>
-                      <PressableScale
-                        haptic="light"
-                        onPress={() =>
-                          r.surahId ? r.togglePlay() : playPage()
-                        }
-                        accessibilityRole="button"
-                        accessibilityLabel={r.isPlaying ? "Pause" : "Listen"}
-                      >
-                        <View
-                          style={{
-                            height: 48,
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 8,
-                            paddingHorizontal: t.spacing.md,
-                          }}
-                        >
-                          <SymbolView
-                            name={r.isPlaying ? "pause.fill" : "play.fill"}
-                            size={17}
-                            tintColor={t.c.text}
-                            style={{ width: 22, height: 22 }}
-                          />
-                          <Text variant="body" style={{ fontWeight: "600" }}>
-                            {r.isPlaying ? "Pause" : "Listen"}
-                          </Text>
-                        </View>
-                      </PressableScale>
-                    </View>
+                      <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: t.c.accent, alignItems: "center", justifyContent: "center" }}>
+                        <SymbolView
+                          name={r.isPlaying ? "pause.fill" : "play.fill"}
+                          size={22}
+                          tintColor={t.c.onAccent}
+                          style={{ width: 26, height: 26, marginLeft: r.isPlaying ? 0 : 3 }}
+                        />
+                      </View>
+                    </PressableScale>
                   </View>
                 )}
-
-                {displayOpen ? (
-                  <DisplayPanel
-                    display={display}
-                    onClose={() => setDisplayOpen(false)}
-                  />
-                ) : null}
 
                 {/* The left edge: swipe in to go back. */}
                 <View
@@ -815,30 +735,22 @@ function Reader({ display }: { display: Display }) {
                   {...edge.panHandlers}
                 />
               </Animated.View>
-            )}
-          </ThemeScope>
-        </ThemeProvider>
+          )}
+        </>
       ) : null}
       {sheets}
-      <ThemeProvider preference={dark ? "dark" : "light"}>
-        <MeaningSheet
-          ayah={meaningAyah}
-          onClose={closeMeaning}
-          onPassage={onPassage}
-          onPlay={(from) => {
-            if (r.repeat === "ayah") r.setRepeat("off");
-            playFrom(from, pageForAyah(from.surah, from.ayah));
-          }}
-        />
-      </ThemeProvider>
+      <MeaningSheet
+        ayah={meaningAyah}
+        onClose={closeMeaning}
+        onPassage={onPassage}
+        onPlay={(from) => {
+          if (r.repeat === "ayah") r.setRepeat("off");
+          playFrom(from, pageForAyah(from.surah, from.ayah));
+        }}
+      />
+      <ReaderSettingsSheet open={displayOpen} onClose={() => setDisplayOpen(false)} display={display} />
     </View>
   );
-}
-
-/** Hands its children the theme in force where it sits (inside a nested ThemeProvider). */
-function ThemeScope({ children }: { children: (t: Theme) => React.ReactNode }) {
-  const t = useTheme();
-  return <>{children(t)}</>;
 }
 
 /** The native reader, kept apart so the word-by-word progress re-renders only it. */
@@ -853,6 +765,7 @@ function ReaderSurface(props: {
   bookmarkedPages: number[];
   focus: { from: number; to: number } | null;
   display: Display;
+  colors: { bg: string; text: string; accent: string };
   onPageChange: (page: number) => void;
   onTap: () => void;
   onAction: (
@@ -900,8 +813,9 @@ function ReaderSurface(props: {
       focusFrom={props.focus?.from ?? 0}
       focusTo={props.focus?.to ?? 0}
       view={props.display.view}
-      pageColor={props.display.pageColor}
-      textTone={props.display.textTone}
+      backgroundHex={props.colors.bg}
+      inkHex={props.colors.text}
+      accentHex={props.colors.accent}
       textScale={props.display.textScale}
       showTranslit={props.display.translit}
       onTextScale={(scale) => props.display.set({ textScale: scale })}

@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import { QuranReader, type PageColor, type TextTone } from "quran-reader";
+import { QuranReader } from "quran-reader";
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, ScrollView, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -51,12 +51,8 @@ export function QuranHome({
   onContinue,
   onOpenPage,
   onOpenGoals,
-  pageColor,
-  textTone,
 }: {
   dark: boolean;
-  pageColor: PageColor;
-  textTone: TextTone;
   lastPage: number;
   progress: QuranProgress;
   bookmarks: Bookmark[];
@@ -188,19 +184,15 @@ export function QuranHome({
                 borderRadius: t.radii.card,
                 borderCurve: "continuous",
                 overflow: "hidden",
-                backgroundColor: {
-                  night: "#000000",
-                  charcoal: "#1C1C1F",
-                  sepia: "#F4ECD8",
-                  paper: "#F8F8FC",
-                }[pageColor],
+                backgroundColor: t.c.bg,
               }}
             >
               <QuranReader
                 style={{ flex: 1 }}
                 preview
-                pageColor={pageColor}
-                textTone={textTone}
+                backgroundHex={t.c.bg}
+                inkHex={t.c.text}
+                accentHex={t.c.accent}
                 page={lastPage}
                 pageNonce={lastPage}
                 dark={dark}

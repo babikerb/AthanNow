@@ -37,6 +37,11 @@ final class QuranReaderProps: ExpoSwiftUI.ViewProps {
   /// The flowing text's size (zoomed in, translation, words), 1 being the page's own.
   @Field var textScale: Double = 1.6
   @Field var showTranslit: Bool = false
+  /// The app's own colours, as #RRGGBB: the page follows the app's appearance and its accent.
+  /// When set, they take the place of `pageColor`.
+  @Field var backgroundHex: String = ""
+  @Field var inkHex: String = ""
+  @Field var accentHex: String = ""
   var onTextScale = EventDispatcher()
   var onPageChange = EventDispatcher()
   var onTap = EventDispatcher()
@@ -57,6 +62,14 @@ struct ReaderTheme {
 
   static func make(dark: Bool) -> ReaderTheme {
     make(color: dark ? "night" : "paper", tone: "standard")
+  }
+
+  /// The app's own colours: its background and text, and its accent for what's recited. The surah band
+  /// and quieter text are drawn from the text colour.
+  static func app(background: String, ink: String, accent: String, dark: Bool) -> ReaderTheme {
+    let inkColor = Color(hexString: ink)
+    return ReaderTheme(dark: dark, background: Color(hexString: background), ink: inkColor, quiet: inkColor.opacity(0.38), recited: Color(hexString: accent),
+                       frame: inkColor.opacity(0.3), band: inkColor.opacity(dark ? 0.07 : 0.05), ornament: inkColor.opacity(0.45))
   }
 
   /// A page colour and a text tone. Night and Charcoal are dark; Sepia and Paper are light.
@@ -80,6 +93,18 @@ struct ReaderTheme {
 }
 
 extension Color {
+  /// "#RRGGBB" or "#RRGGBBAA"; clear if it can't be read.
+  init(hexString: String) {
+    var text = hexString.trimmingCharacters(in: .whitespaces)
+    if text.hasPrefix("#") { text.removeFirst() }
+    let value = UInt64(text, radix: 16) ?? 0
+    if text.count == 8 {
+      self.init(.sRGB, red: Double((value >> 24) & 0xFF) / 255, green: Double((value >> 16) & 0xFF) / 255, blue: Double((value >> 8) & 0xFF) / 255, opacity: Double(value & 0xFF) / 255)
+    } else {
+      self.init(.sRGB, red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255, opacity: text.count == 6 ? 1 : 0)
+    }
+  }
+
   init(hex: UInt32) {
     self.init(red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
   }
@@ -187,7 +212,7 @@ struct WordView: View {
         if isCurrent {
           // A soft pill of the recited colour behind the word: rounded all round, no outline.
           Capsule(style: .continuous)
-            .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.3 : 0.15))
+            .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.26 : 0.2))
             .padding(.horizontal, -size * 0.2)
             .padding(.vertical, size * 0.16)
             .matchedGeometryEffect(id: "highlight", in: ctx.ns)
@@ -662,7 +687,9 @@ struct QuranReaderView: ExpoSwiftUI.View {
   }
 
   var body: some View {
-    let theme = props.pageColor.isEmpty ? ReaderTheme.make(dark: props.dark) : ReaderTheme.make(color: props.pageColor, tone: props.textTone)
+    let theme = !props.backgroundHex.isEmpty
+      ? ReaderTheme.app(background: props.backgroundHex, ink: props.inkHex, accent: props.accentHex, dark: props.dark)
+      : props.pageColor.isEmpty ? ReaderTheme.make(dark: props.dark) : ReaderTheme.make(color: props.pageColor, tone: props.textTone)
     let flowing = props.view != "mushaf"
     GeometryReader { geo in
       let area = CGSize(

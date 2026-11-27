@@ -44,6 +44,10 @@ export interface QuranReaderProps {
   /** The flowing text's size, 1 being the page's own. */
   textScale?: number;
   showTranslit?: boolean;
+  /** The app's colours (#RRGGBB): the page's background, its text, and the accent for what's recited. */
+  backgroundHex?: string;
+  inkHex?: string;
+  accentHex?: string;
   /** Pinching in the flowing views asks for a new text size. */
   onTextScale?: (scale: number) => void;
 }
