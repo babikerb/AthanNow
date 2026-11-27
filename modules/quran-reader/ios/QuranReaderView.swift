@@ -40,7 +40,7 @@ struct ReaderTheme {
 
   static func make(dark: Bool) -> ReaderTheme {
     dark
-      ? ReaderTheme(dark: true, background: Color(hex: 0x111018), ink: Color(hex: 0xECE9F3), quiet: Color(hex: 0x6F6A80), recited: Color(hex: 0xA5A1FF), frame: Color(hex: 0x3A3550))
+      ? ReaderTheme(dark: true, background: Color(hex: 0x000000), ink: Color(hex: 0xF4F3F8), quiet: Color(hex: 0x6E6A7C), recited: Color(hex: 0xA5A1FF), frame: Color(hex: 0x3A3550))
       : ReaderTheme(dark: false, background: Color(hex: 0xF8F8FC), ink: Color(hex: 0x1D1B26), quiet: Color(hex: 0xA6A2B4), recited: Color(hex: 0x4338CA), frame: Color(hex: 0xC9C6D6))
   }
 }

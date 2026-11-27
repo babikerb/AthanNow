@@ -21,7 +21,6 @@ import { PressableScale } from '../design/PressableScale';
 import { Text } from '../design/Text';
 import { ThemeProvider, useTheme } from '../design/theme';
 import { Bookmark, BOOKMARK_COLORS, BookmarkColor, useBookmarks } from '../hooks/useBookmarks';
-import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { setImmersive } from '../navigation/immersive';
 import { surahPages, type Goal } from '../quran/goals';
 import { firstAyahOnPage, pageForAyah, type AyahRef } from '../quran/pageLayout';
@@ -36,8 +35,10 @@ const LAST_COLOR_KEY = 'athannow.quran.lastcolor.v1';
 const DARK_KEY = 'athannow.quran.reader.dark.v1';
 
 const TITLES = SURAHS.map((s) => s.transliteration);
-const TOP_BAR = 52;
-const PLAYER = 64;
+const TOP_BAR = 60;
+// The native tab bar's height above the home indicator. Fixed here rather than measured, so the page
+// keeps its place when the tab bar slides away.
+const TAB_BAR = 49;
 // A page counts as read after this long on it.
 const READ_AFTER_MS = 12000;
 
@@ -73,7 +74,6 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   const t = useTheme();
   const r = useRecitation();
   const insets = useSafeAreaInsets();
-  const tabBar = useTabBarHeight();
   const { bookmarks, bookmarkForPage, setPageBookmark, removeBookmark } = useBookmarks();
 
   const [page, setPage] = useState(1);
@@ -138,21 +138,21 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   }, [page, reading, focused, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Controls: tap the page to hide them and the tab bar ----
+  // Tapping the page slides the tab bar away (and back). The page stays put; the player moves down
+  // into the tab bar's place.
   const [hidden, setHidden] = useState(false);
-  const fade = useRef(new Animated.Value(1)).current;
+  const drop = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(fade, { toValue: hidden ? 0 : 1, duration: t.reduceMotion ? 0 : 220, useNativeDriver: true }).start();
+    Animated.spring(drop, { toValue: hidden ? 1 : 0, useNativeDriver: true, speed: 18, bounciness: 0 }).start();
     setImmersive(hidden);
-    setStatusBarHidden(hidden, t.reduceMotion ? 'none' : 'fade');
-  }, [hidden, fade, t.reduceMotion]);
+  }, [hidden, drop]);
   useFocusEffect(
     useCallback(() => {
       setStatusBarStyle(dark ? 'light' : 'dark', true);
       setImmersive(hidden);
-      setStatusBarHidden(hidden, 'none');
+      setStatusBarHidden(false, 'none');
       return () => {
         setImmersive(false);
-        setStatusBarHidden(false, 'none');
       };
     }, [hidden, dark]),
   );
@@ -236,9 +236,11 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
 
   const surah = getSurah(surahForPage(page))!;
   const juz = juzForPage(page);
+  // The page runs from under the top bar to just above the tab bar; the player floats over its foot.
   const topInset = insets.top + TOP_BAR;
-  const bottomInset = tabBar + PLAYER + t.spacing.sm;
-  const pointer = hidden ? 'none' : 'box-none';
+  const bottomInset = insets.bottom + TAB_BAR + t.spacing.lg;
+  const playerLift = insets.bottom + TAB_BAR + t.spacing.sm;
+  const playerDrop = drop.interpolate({ inputRange: [0, 1], outputRange: [0, TAB_BAR] });
   const capsule = {
     backgroundColor: dark ? 'rgba(30, 28, 42, 0.92)' : 'rgba(255, 255, 255, 0.92)',
     borderWidth: 1,
@@ -290,7 +292,7 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: dark ? '#111018' : '#F8F8FC' }}>
+    <View style={{ flex: 1, backgroundColor: dark ? '#000000' : '#F8F8FC' }}>
       {restored ? (
         <ReaderSurface
           dark={dark}
@@ -308,9 +310,9 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
       ) : null}
 
       {/* Surah, juz and page; tap for the index and search. The menu holds the page's options. */}
-      <Animated.View
-        pointerEvents={pointer}
-        style={{ position: 'absolute', top: insets.top + 4, left: t.spacing.md, right: t.spacing.md, flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, opacity: fade }}
+      <View
+        pointerEvents="box-none"
+        style={{ position: 'absolute', top: insets.top + 4, left: t.spacing.md, right: t.spacing.md, flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}
       >
         <PressableScale
           haptic="select"
@@ -373,10 +375,10 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
             <SymbolView name="ellipsis" size={17} tintColor={t.c.text} style={{ width: 22, height: 22 }} />
           </View>
         </NativeMenu>
-      </Animated.View>
+      </View>
 
       {/* The player, just above the tab bar. */}
-      <Animated.View pointerEvents={pointer} style={{ position: 'absolute', left: t.spacing.md, right: t.spacing.md, bottom: tabBar + t.spacing.sm, opacity: fade }}>
+      <Animated.View pointerEvents="box-none" style={{ position: 'absolute', left: t.spacing.md, right: t.spacing.md, bottom: playerLift, transform: [{ translateY: playerDrop }] }}>
         <PagePlayer onPlayPage={playPage} />
       </Animated.View>
 

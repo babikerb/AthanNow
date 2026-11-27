@@ -107,7 +107,7 @@ export function QuranHome({
                 borderRadius: t.radii.card,
                 borderCurve: "continuous",
                 overflow: "hidden",
-                backgroundColor: dark ? "#111018" : "#F8F8FC",
+                backgroundColor: dark ? "#000000" : "#F8F8FC",
               }}
             >
               <QuranReader
