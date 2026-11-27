@@ -315,50 +315,170 @@ struct AyahPreview: View {
   }
 }
 
-/// A surah's opening line: its name (سورة and the name), centred, with no band around it. It keeps
-/// the band's height so the printed page's lines stay where they were.
+/// The panel the surah's name sits in: a long shape with pointed ends.
+struct NamePanel: Shape {
+  func path(in r: CGRect) -> Path {
+    let tip = r.height * 0.5
+    var p = Path()
+    p.move(to: CGPoint(x: r.minX, y: r.midY))
+    p.addQuadCurve(to: CGPoint(x: r.minX + tip, y: r.minY), control: CGPoint(x: r.minX + tip * 0.35, y: r.minY))
+    p.addLine(to: CGPoint(x: r.maxX - tip, y: r.minY))
+    p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.midY), control: CGPoint(x: r.maxX - tip * 0.35, y: r.minY))
+    p.addQuadCurve(to: CGPoint(x: r.maxX - tip, y: r.maxY), control: CGPoint(x: r.maxX - tip * 0.35, y: r.maxY))
+    p.addLine(to: CGPoint(x: r.minX + tip, y: r.maxY))
+    p.addQuadCurve(to: CGPoint(x: r.minX, y: r.midY), control: CGPoint(x: r.minX + tip * 0.35, y: r.maxY))
+    p.closeSubpath()
+    return p
+  }
+}
+
+/// Either side of the name: a fine line of small diamonds running out to an eight-pointed star.
+/// Flat, in one colour, like the printed frame.
+struct BandOrnament: View {
+  let color: Color
+  /// The width of the name's panel in the middle, kept clear.
+  let gap: CGFloat
+
+  var body: some View {
+    Canvas { ctx, size in
+      let h = size.height
+      let w = size.width
+      let cy = h / 2
+      let line = max(0.6, h * 0.02)
+      for side in [-1.0, 1.0] {
+        let inner = w / 2 + CGFloat(side) * (gap / 2 + h * 0.16)
+        let starX = w / 2 + CGFloat(side) * (w / 2 - h * 0.42)
+        // The line between the panel and the star.
+        var rule = Path()
+        rule.move(to: CGPoint(x: inner, y: cy))
+        rule.addLine(to: CGPoint(x: starX - CGFloat(side) * h * 0.26, y: cy))
+        ctx.stroke(rule, with: .color(color.opacity(0.7)), lineWidth: line)
+        // Small diamonds along it.
+        let span = abs(starX - inner) - h * 0.5
+        let count = max(1, Int(span / (h * 0.42)))
+        for i in 0..<count {
+          let x = inner + CGFloat(side) * (h * 0.3 + CGFloat(i) * span / CGFloat(count))
+          let d = h * (i % 2 == 0 ? 0.075 : 0.05)
+          var diamond = Path()
+          diamond.move(to: CGPoint(x: x, y: cy - d))
+          diamond.addLine(to: CGPoint(x: x + d, y: cy))
+          diamond.addLine(to: CGPoint(x: x, y: cy + d))
+          diamond.addLine(to: CGPoint(x: x - d, y: cy))
+          diamond.closeSubpath()
+          ctx.fill(diamond, with: .color(color))
+        }
+        // The star.
+        let r = h * 0.2
+        var star = Path()
+        for k in 0..<16 {
+          let a = Double(k) * .pi / 8 - .pi / 2
+          let rr = k % 2 == 0 ? r : r * 0.55
+          let pt = CGPoint(x: starX + CGFloat(cos(a)) * rr, y: cy + CGFloat(sin(a)) * rr)
+          if k == 0 { star.move(to: pt) } else { star.addLine(to: pt) }
+        }
+        star.closeSubpath()
+        ctx.stroke(star, with: .color(color), lineWidth: line)
+        ctx.fill(Path(ellipseIn: CGRect(x: starX - r * 0.18, y: cy - r * 0.18, width: r * 0.36, height: r * 0.36)), with: .color(color))
+      }
+    }
+  }
+}
+
+/// A surah's opening band across the full width: a softly filled band in a fine double frame, a
+/// line of small diamonds to a star either side, and the surah's name in a pointed panel at its
+/// middle.
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
   let theme: ReaderTheme
 
   var body: some View {
-    Text("سورة \(MushafStore.shared.name(surah))")
-      .font(.custom(MushafFont.name, size: size * 0.95))
-      .foregroundColor(theme.ink)
-      .lineLimit(1)
-      .minimumScaleFactor(0.6)
-      .frame(maxWidth: .infinity)
-      .frame(height: size * 1.55)
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Surah \(MushafStore.shared.name(surah))")
-      .accessibilityAddTraits(.isHeader)
+    GeometryReader { g in
+      let h = g.size.height
+      let panel = min(g.size.width * 0.5, max(h * 4.2, g.size.width * 0.38))
+      ZStack {
+        RoundedRectangle(cornerRadius: h * 0.18, style: .continuous).fill(theme.band)
+        RoundedRectangle(cornerRadius: h * 0.18, style: .continuous).stroke(theme.frame, lineWidth: 0.8)
+        RoundedRectangle(cornerRadius: h * 0.12, style: .continuous).stroke(theme.frame.opacity(0.7), lineWidth: 0.5).padding(h * 0.08)
+        BandOrnament(color: theme.ornament, gap: panel).padding(.horizontal, h * 0.1)
+        NamePanel().fill(theme.background).frame(width: panel, height: h * 0.7)
+        NamePanel().stroke(theme.frame, lineWidth: 0.8).frame(width: panel, height: h * 0.7)
+        Text("سُورَةُ \(MushafStore.shared.name(surah))")
+          .font(.custom(MushafFont.name, size: h * 0.42))
+          .foregroundColor(theme.ink)
+          .lineLimit(1)
+          .minimumScaleFactor(0.5)
+          .frame(width: panel * 0.82)
+          .offset(y: h * 0.03)
+      }
+    }
+    .frame(height: size * 1.6)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Surah \(MushafStore.shared.name(surah))")
+    .accessibilityAddTraits(.isHeader)
   }
 }
 
-/// A surah's Bismillah. While it's being recited it carries the recitation's highlight: the same
-/// soft pill as the current word where the timing goes by the word, the recited colour otherwise.
+/// A surah's Bismillah, in the calligraphy of the printed page: Al-Fatihah's first ayah in page 1's
+/// QCF font, without its end marker (KFGQPC Hafs until that font is there). While it's recited it
+/// carries the recitation's highlight, over the whole line: the soft pill where the timing goes by
+/// the word, the recited colour otherwise.
 struct BismillahLine: View {
   let surah: Int
   let size: CGFloat
   let ctx: ReaderContext
+  /// The size the page's own words are drawn at in their QCF font, so the Bismillah matches them.
+  let glyphSize: CGFloat?
+  @ObservedObject private var fonts = PageFonts.shared
+
+  init(surah: Int, size: CGFloat, ctx: ReaderContext, glyphSize: CGFloat? = nil) {
+    self.surah = surah
+    self.size = size
+    self.ctx = ctx
+    self.glyphSize = glyphSize
+  }
+
+  /// Al-Fatihah 1:1's words as page 1's glyphs.
+  static let glyphs: [String] = {
+    guard let page = MushafStore.shared.page(1) else { return [] }
+    var out: [String] = []
+    for line in page.lines {
+      if case .words(let words, _) = line {
+        out += words.filter { $0.surah == 1 && $0.ayah == 1 && $0.word > 0 }.map(\.glyph)
+      }
+    }
+    return out
+  }()
 
   var body: some View {
     let reciting = ctx.playing && ctx.bismillah == surah
-    Text(MushafStore.shared.bismillah)
-      .font(.custom(MushafFont.name, size: size))
-      .foregroundColor(reciting && !ctx.wordLevel ? ctx.theme.recited : ctx.theme.ink)
-      .fixedSize()
-      .background {
-        if reciting && ctx.wordLevel {
-          Capsule(style: .continuous)
-            .fill(ctx.theme.highlight.opacity(ctx.theme.dark ? 0.26 : 0.16))
-            .padding(.horizontal, -size * 0.3)
-            .padding(.vertical, size * 0.16)
-            .matchedGeometryEffect(id: "highlight", in: ctx.ns)
+    let color = reciting && !ctx.wordLevel ? ctx.theme.recited : ctx.theme.ink
+    Group {
+      if let font = fonts.metrics(1)?.name, !BismillahLine.glyphs.isEmpty {
+        HStack(spacing: size * 0.12) {
+          ForEach(Array(BismillahLine.glyphs.enumerated()), id: \.offset) { _, glyph in
+            Text(glyph).font(.custom(font, size: glyphSize ?? size * 1.08))
+          }
         }
+        .environment(\.layoutDirection, .rightToLeft)
+      } else {
+        Text(MushafStore.shared.bismillah).font(.custom(MushafFont.name, size: size))
       }
-      .accessibilityLabel("Bismillah")
+    }
+    .foregroundColor(color)
+    .fixedSize()
+    .background {
+      if reciting && ctx.wordLevel {
+        Capsule(style: .continuous)
+          .fill(ctx.theme.highlight.opacity(ctx.theme.dark ? 0.26 : 0.16))
+          .padding(.horizontal, -size * 0.3)
+          .padding(.vertical, size * 0.12)
+          .matchedGeometryEffect(id: "highlight", in: ctx.ns)
+      }
+    }
+    .onAppear { PageFonts.shared.ensure(1) }
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Bismillah")
   }
 }
 
@@ -405,7 +525,7 @@ struct PageView: View {
     case .header(let surah):
       SurahHeader(surah: surah, size: size, theme: ctx.theme).frame(width: width)
     case .bismillah(let s):
-      BismillahLine(surah: s, size: size, ctx: ctx)
+      BismillahLine(surah: s, size: size, ctx: ctx, glyphSize: qcf != nil ? qcfSize * 0.92 : nil)
     case .words(let words, let em):
       if let q = qcf, index >= 0, index < q.lines.count {
         // The printed page: each line's glyphs nearly fill it; the rest is shared between words.
@@ -478,7 +598,7 @@ struct FlowPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.85 : nil)
         case .words(let words):
           if let q = qcf, qcfSize > 0 {
             FlowingLines(gap: qcfSize * 0.12, lineHeight: qcfSize * 1.75) {
@@ -524,7 +644,7 @@ struct TranslationPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.85 : nil)
         case .ayah(let key, let words):
           VStack(spacing: 10) {
             if let q = qcf, qcfSize > 0 {
@@ -588,7 +708,7 @@ struct WordsPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.85 : nil)
         case .ayah(_, let words):
           FlowingRows(gap: glyphSize * 0.45, rowSpacing: gloss * 0.9) {
             ForEach(words, id: \.order) { word in
