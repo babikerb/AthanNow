@@ -315,78 +315,108 @@ struct AyahPreview: View {
   }
 }
 
-/// The panel the surah's name sits in: a long shape with pointed ends.
+/// The cartouche the surah's name sits in: a rectangle with its corners cut, like the printed
+/// mushaf's name panel.
 struct NamePanel: Shape {
   func path(in r: CGRect) -> Path {
-    let tip = r.height * 0.5
+    let c = r.height * 0.22
     var p = Path()
-    p.move(to: CGPoint(x: r.minX, y: r.midY))
-    p.addQuadCurve(to: CGPoint(x: r.minX + tip, y: r.minY), control: CGPoint(x: r.minX + tip * 0.35, y: r.minY))
-    p.addLine(to: CGPoint(x: r.maxX - tip, y: r.minY))
-    p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.midY), control: CGPoint(x: r.maxX - tip * 0.35, y: r.minY))
-    p.addQuadCurve(to: CGPoint(x: r.maxX - tip, y: r.maxY), control: CGPoint(x: r.maxX - tip * 0.35, y: r.maxY))
-    p.addLine(to: CGPoint(x: r.minX + tip, y: r.maxY))
-    p.addQuadCurve(to: CGPoint(x: r.minX, y: r.midY), control: CGPoint(x: r.minX + tip * 0.35, y: r.maxY))
+    p.move(to: CGPoint(x: r.minX + c, y: r.minY))
+    p.addLine(to: CGPoint(x: r.maxX - c, y: r.minY))
+    p.addLine(to: CGPoint(x: r.maxX, y: r.minY + c))
+    p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - c))
+    p.addLine(to: CGPoint(x: r.maxX - c, y: r.maxY))
+    p.addLine(to: CGPoint(x: r.minX + c, y: r.maxY))
+    p.addLine(to: CGPoint(x: r.minX, y: r.maxY - c))
+    p.addLine(to: CGPoint(x: r.minX, y: r.minY + c))
     p.closeSubpath()
     return p
   }
 }
 
-/// Either side of the name: a fine line of small diamonds running out to an eight-pointed star.
-/// Flat, in one colour, like the printed frame.
+/// The band's ornament, drawn flat in one colour: a patterned border between two fine rules, and a
+/// lattice of small stars filling the panels either side of the name.
 struct BandOrnament: View {
   let color: Color
-  /// The width of the name's panel in the middle, kept clear.
+  /// The name panel's width, kept clear of the lattice.
   let gap: CGFloat
 
   var body: some View {
     Canvas { ctx, size in
-      let h = size.height
       let w = size.width
-      let cy = h / 2
-      let line = max(0.6, h * 0.02)
-      for side in [-1.0, 1.0] {
-        let inner = w / 2 + CGFloat(side) * (gap / 2 + h * 0.16)
-        let starX = w / 2 + CGFloat(side) * (w / 2 - h * 0.42)
-        // The line between the panel and the star.
-        var rule = Path()
-        rule.move(to: CGPoint(x: inner, y: cy))
-        rule.addLine(to: CGPoint(x: starX - CGFloat(side) * h * 0.26, y: cy))
-        ctx.stroke(rule, with: .color(color.opacity(0.7)), lineWidth: line)
-        // Small diamonds along it.
-        let span = abs(starX - inner) - h * 0.5
-        let count = max(1, Int(span / (h * 0.42)))
-        for i in 0..<count {
-          let x = inner + CGFloat(side) * (h * 0.3 + CGFloat(i) * span / CGFloat(count))
-          let d = h * (i % 2 == 0 ? 0.075 : 0.05)
-          var diamond = Path()
-          diamond.move(to: CGPoint(x: x, y: cy - d))
-          diamond.addLine(to: CGPoint(x: x + d, y: cy))
-          diamond.addLine(to: CGPoint(x: x, y: cy + d))
-          diamond.addLine(to: CGPoint(x: x - d, y: cy))
-          diamond.closeSubpath()
-          ctx.fill(diamond, with: .color(color))
+      let h = size.height
+      let line = max(0.6, h * 0.018)
+      let border = h * 0.15
+      let outer = CGRect(x: line, y: line, width: w - line * 2, height: h - line * 2)
+      let inner = outer.insetBy(dx: border, dy: border)
+
+      // The two rules either side of the border.
+      ctx.stroke(Path(roundedRect: outer, cornerRadius: h * 0.06), with: .color(color), lineWidth: line * 1.3)
+      ctx.stroke(Path(roundedRect: inner, cornerRadius: h * 0.04), with: .color(color), lineWidth: line)
+
+      // The border: small diamonds linked by a fine line, all the way round.
+      let mid = outer.insetBy(dx: border / 2, dy: border / 2)
+      let step = border * 1.1
+      let d = border * 0.26
+      func diamond(_ x: CGFloat, _ y: CGFloat) {
+        var p = Path()
+        p.move(to: CGPoint(x: x, y: y - d))
+        p.addLine(to: CGPoint(x: x + d, y: y))
+        p.addLine(to: CGPoint(x: x, y: y + d))
+        p.addLine(to: CGPoint(x: x - d, y: y))
+        p.closeSubpath()
+        ctx.fill(p, with: .color(color.opacity(0.85)))
+      }
+      var chain = Path()
+      chain.addRect(mid)
+      ctx.stroke(chain, with: .color(color.opacity(0.35)), lineWidth: line * 0.7)
+      let across = max(1, Int(mid.width / step))
+      for i in 0...across {
+        let x = mid.minX + mid.width * CGFloat(i) / CGFloat(across)
+        diamond(x, mid.minY)
+        diamond(x, mid.maxY)
+      }
+      let down = max(1, Int(mid.height / step))
+      for i in 1..<down {
+        let y = mid.minY + mid.height * CGFloat(i) / CGFloat(down)
+        diamond(mid.minX, y)
+        diamond(mid.maxX, y)
+      }
+
+      // The lattice: four-pointed stars on a grid, either side of the name.
+      let field = inner.insetBy(dx: line * 2, dy: line * 2)
+      let cell = field.height / 3
+      let r = cell * 0.32
+      let clearLeft = w / 2 - gap / 2 - cell * 0.4
+      let clearRight = w / 2 + gap / 2 + cell * 0.4
+      var y = field.minY + cell / 2
+      var row = 0
+      while y < field.maxY {
+        var x = field.minX + cell / 2 + (row % 2 == 0 ? 0 : cell / 2)
+        while x < field.maxX {
+          if x + r < clearLeft || x - r > clearRight {
+            var star = Path()
+            for k in 0..<8 {
+              let a = Double(k) * .pi / 4
+              let rr = k % 2 == 0 ? r : r * 0.32
+              let pt = CGPoint(x: x + CGFloat(cos(a)) * rr, y: y + CGFloat(sin(a)) * rr)
+              if k == 0 { star.move(to: pt) } else { star.addLine(to: pt) }
+            }
+            star.closeSubpath()
+            ctx.fill(star, with: .color(color.opacity(0.55)))
+          }
+          x += cell
         }
-        // The star.
-        let r = h * 0.2
-        var star = Path()
-        for k in 0..<16 {
-          let a = Double(k) * .pi / 8 - .pi / 2
-          let rr = k % 2 == 0 ? r : r * 0.55
-          let pt = CGPoint(x: starX + CGFloat(cos(a)) * rr, y: cy + CGFloat(sin(a)) * rr)
-          if k == 0 { star.move(to: pt) } else { star.addLine(to: pt) }
-        }
-        star.closeSubpath()
-        ctx.stroke(star, with: .color(color), lineWidth: line)
-        ctx.fill(Path(ellipseIn: CGRect(x: starX - r * 0.18, y: cy - r * 0.18, width: r * 0.36, height: r * 0.36)), with: .color(color))
+        y += cell
+        row += 1
       }
     }
   }
 }
 
-/// A surah's opening band across the full width: a softly filled band in a fine double frame, a
-/// line of small diamonds to a star either side, and the surah's name in a pointed panel at its
-/// middle.
+/// A surah's opening band across the full width, after the printed mushaf's: a patterned border,
+/// a lattice in the panels either side, and the surah's name in a cut-cornered cartouche at its
+/// middle. Flat lines in the accent, softened.
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
@@ -395,20 +425,20 @@ struct SurahHeader: View {
   var body: some View {
     GeometryReader { g in
       let h = g.size.height
-      let panel = min(g.size.width * 0.5, max(h * 4.2, g.size.width * 0.38))
+      let panel = min(g.size.width * 0.46, max(h * 3.8, g.size.width * 0.34))
+      let ink = theme.highlight.opacity(theme.dark ? 0.75 : 0.85)
       ZStack {
-        RoundedRectangle(cornerRadius: h * 0.18, style: .continuous).fill(theme.band)
-        RoundedRectangle(cornerRadius: h * 0.18, style: .continuous).stroke(theme.frame, lineWidth: 0.8)
-        RoundedRectangle(cornerRadius: h * 0.12, style: .continuous).stroke(theme.frame.opacity(0.7), lineWidth: 0.5).padding(h * 0.08)
-        BandOrnament(color: theme.ornament, gap: panel).padding(.horizontal, h * 0.1)
-        NamePanel().fill(theme.background).frame(width: panel, height: h * 0.7)
-        NamePanel().stroke(theme.frame, lineWidth: 0.8).frame(width: panel, height: h * 0.7)
+        RoundedRectangle(cornerRadius: h * 0.06, style: .continuous).fill(theme.band)
+        BandOrnament(color: ink, gap: panel)
+        NamePanel().fill(theme.background).frame(width: panel, height: h * 0.66)
+        NamePanel().stroke(ink, lineWidth: max(0.8, h * 0.022)).frame(width: panel, height: h * 0.66)
+        NamePanel().stroke(ink.opacity(0.6), lineWidth: 0.6).frame(width: panel - h * 0.14, height: h * 0.52)
         Text("سُورَةُ \(MushafStore.shared.name(surah))")
-          .font(.custom(MushafFont.name, size: h * 0.42))
+          .font(.custom(MushafFont.name, size: h * 0.36))
           .foregroundColor(theme.ink)
           .lineLimit(1)
           .minimumScaleFactor(0.5)
-          .frame(width: panel * 0.82)
+          .frame(width: panel * 0.78)
           .offset(y: h * 0.03)
       }
     }
@@ -455,14 +485,14 @@ struct BismillahLine: View {
     let color = reciting && !ctx.wordLevel ? ctx.theme.recited : ctx.theme.ink
     Group {
       if let font = fonts.metrics(1)?.name, !BismillahLine.glyphs.isEmpty {
-        HStack(spacing: size * 0.12) {
+        HStack(spacing: size * 0.06) {
           ForEach(Array(BismillahLine.glyphs.enumerated()), id: \.offset) { _, glyph in
-            Text(glyph).font(.custom(font, size: glyphSize ?? size * 1.08))
+            Text(glyph).font(.custom(font, size: glyphSize ?? size * 0.8))
           }
         }
         .environment(\.layoutDirection, .rightToLeft)
       } else {
-        Text(MushafStore.shared.bismillah).font(.custom(MushafFont.name, size: size))
+        Text(MushafStore.shared.bismillah).font(.custom(MushafFont.name, size: size * 0.85))
       }
     }
     .foregroundColor(color)
@@ -525,7 +555,7 @@ struct PageView: View {
     case .header(let surah):
       SurahHeader(surah: surah, size: size, theme: ctx.theme).frame(width: width)
     case .bismillah(let s):
-      BismillahLine(surah: s, size: size, ctx: ctx, glyphSize: qcf != nil ? qcfSize * 0.92 : nil)
+      BismillahLine(surah: s, size: size, ctx: ctx, glyphSize: qcf != nil ? qcfSize * 0.7 : nil)
     case .words(let words, let em):
       if let q = qcf, index >= 0, index < q.lines.count {
         // The printed page: each line's glyphs nearly fill it; the rest is shared between words.
@@ -598,7 +628,7 @@ struct FlowPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.85 : nil)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.66 : nil)
         case .words(let words):
           if let q = qcf, qcfSize > 0 {
             FlowingLines(gap: qcfSize * 0.12, lineHeight: qcfSize * 1.75) {
@@ -644,7 +674,7 @@ struct TranslationPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.85 : nil)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.66 : nil)
         case .ayah(let key, let words):
           VStack(spacing: 10) {
             if let q = qcf, qcfSize > 0 {
@@ -708,7 +738,7 @@ struct WordsPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.85 : nil)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, glyphSize: qcf != nil && qcfSize > 0 ? qcfSize * 0.66 : nil)
         case .ayah(_, let words):
           FlowingRows(gap: glyphSize * 0.45, rowSpacing: gloss * 0.9) {
             ForEach(words, id: \.order) { word in
