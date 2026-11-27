@@ -153,17 +153,17 @@ export function QuranHome({
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: gutter,
-          paddingTop: t.spacing.sm,
-          paddingBottom: tabBar + t.spacing.xxxl,
+          paddingTop: t.spacing.xs,
+          paddingBottom: tabBar + t.spacing.lg,
         }}
         contentInsetAdjustmentBehavior="never"
       >
         <HadithCard />
 
         <Text
-          variant="title2"
+          variant="headline"
           header
-          style={{ marginTop: t.spacing.xxl, marginBottom: t.spacing.sm }}
+          style={{ marginTop: t.spacing.lg, marginBottom: t.spacing.sm }}
         >
           Continue where you left off
         </Text>
@@ -172,7 +172,7 @@ export function QuranHome({
             borderRadius: t.radii.feature,
             borderCurve: "continuous",
             backgroundColor: t.c.surface1,
-            padding: t.spacing.md,
+            padding: t.spacing.sm,
           }}
         >
           <PressableScale
@@ -184,7 +184,7 @@ export function QuranHome({
             <View
               pointerEvents="none"
               style={{
-                height: 150,
+                height: 112,
                 borderRadius: t.radii.card,
                 borderCurve: "continuous",
                 overflow: "hidden",
@@ -222,11 +222,11 @@ export function QuranHome({
               justifyContent: "space-between",
               gap: t.spacing.md,
               paddingHorizontal: t.spacing.xs,
-              marginTop: t.spacing.md,
+              marginTop: t.spacing.xs,
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text variant="title3" numberOfLines={1}>
+              <Text variant="headline" numberOfLines={1}>
                 {surah.transliteration}
               </Text>
               <Text variant="footnote" color="textSecondary">
@@ -236,8 +236,8 @@ export function QuranHome({
             <Text
               style={{
                 fontFamily: QURAN_FONT,
-                fontSize: 26,
-                lineHeight: 48,
+                fontSize: 22,
+                lineHeight: 40,
                 color: t.c.text,
               }}
             >
@@ -249,12 +249,12 @@ export function QuranHome({
             onPress={onContinue}
             accessibilityRole="button"
             accessibilityLabel="Continue"
-            style={{ marginTop: t.spacing.sm }}
+            style={{ marginTop: t.spacing.xs }}
           >
             <View
               style={{
-                height: 50,
-                borderRadius: 25,
+                height: 44,
+                borderRadius: 22,
                 backgroundColor: pill.bg,
                 alignItems: "center",
                 justifyContent: "center",
@@ -276,7 +276,7 @@ export function QuranHome({
             onPress={() => onOpenPage(293)}
             accessibilityRole="button"
             accessibilityLabel="It's Friday. Read Al-Kahf"
-            style={{ marginTop: t.spacing.xxl }}
+            style={{ marginTop: t.spacing.md }}
           >
             <View
               style={{
@@ -286,7 +286,8 @@ export function QuranHome({
                 borderRadius: t.radii.card,
                 borderCurve: "continuous",
                 backgroundColor: t.c.surface1,
-                padding: t.spacing.lg,
+                paddingHorizontal: t.spacing.lg,
+                paddingVertical: t.spacing.sm,
               }}
             >
               <View style={{ flex: 1 }}>
@@ -321,9 +322,9 @@ export function QuranHome({
         {bookmarks.length ? (
           <>
             <Text
-              variant="title2"
+              variant="headline"
               header
-              style={{ marginTop: t.spacing.xxl, marginBottom: t.spacing.sm }}
+              style={{ marginTop: t.spacing.lg, marginBottom: t.spacing.sm }}
             >
               Bookmarks
             </Text>
@@ -346,11 +347,12 @@ export function QuranHome({
                 >
                   <View
                     style={{
-                      minWidth: 120,
+                      minWidth: 112,
                       borderRadius: t.radii.card,
                       borderCurve: "continuous",
                       backgroundColor: t.c.surface1,
-                      padding: t.spacing.md,
+                      paddingHorizontal: t.spacing.md,
+                      paddingVertical: t.spacing.sm,
                       gap: 4,
                     }}
                   >
@@ -383,93 +385,48 @@ export function QuranHome({
   );
 }
 
-/** One hadith at a time, fading to the next every few seconds; tap for the next. Still under Reduce Motion. */
+/** One hadith at a time, fading to the next every few seconds. Still under Reduce Motion. */
 function HadithCard() {
   const t = useTheme();
   const [index, setIndex] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
 
-  const go = (next: number) => {
-    if (t.reduceMotion) {
-      setIndex(next);
-      return;
-    }
-    Animated.timing(fade, {
-      toValue: 0,
-      duration: 220,
-      useNativeDriver: true,
-    }).start(() => {
-      setIndex(next);
-      Animated.timing(fade, {
-        toValue: 1,
-        duration: 320,
-        useNativeDriver: true,
-      }).start();
-    });
-  };
-
   useEffect(() => {
     if (t.reduceMotion) return;
-    const id = setInterval(() => go((index + 1) % HADITH.length), HADITH_MS);
+    const id = setInterval(() => {
+      Animated.timing(fade, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
+        setIndex((n) => (n + 1) % HADITH.length);
+        Animated.timing(fade, { toValue: 1, duration: 320, useNativeDriver: true }).start();
+      });
+    }, HADITH_MS);
     return () => clearInterval(id);
-  }, [index, t.reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [t.reduceMotion, fade]);
 
   const h = HADITH[index];
   return (
-    <PressableScale
-      scaleTo={0.99}
-      onPress={() => go((index + 1) % HADITH.length)}
-      accessibilityRole="button"
-      accessibilityLabel={`${h.text} ${h.source}`}
-      accessibilityHint="Shows the next hadith"
+    <View
+      accessible
+      accessibilityLabel={`The Prophet said: ${h.text} ${h.source}`}
+      style={{
+        borderRadius: t.radii.feature,
+        borderCurve: "continuous",
+        backgroundColor: t.c.surface1,
+        paddingHorizontal: t.spacing.lg,
+        paddingVertical: t.spacing.md,
+        minHeight: 118,
+      }}
     >
-      <View
-        style={{
-          borderRadius: t.radii.feature,
-          borderCurve: "continuous",
-          backgroundColor: t.c.surface1,
-          padding: t.spacing.lg,
-          minHeight: 150,
-        }}
-      >
-        <Text
-          variant="caption"
-          color="textSecondary"
-          style={{ textTransform: "uppercase", letterSpacing: 0.8 }}
-        >
-          The Prophet ﷺ said
+      <Text variant="caption" color="textSecondary" style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+        The Prophet ﷺ said
+      </Text>
+      <Animated.View style={{ opacity: fade, flex: 1, justifyContent: "space-between" }}>
+        <Text variant="body" style={{ marginTop: t.spacing.xs, lineHeight: 22, fontWeight: "600" }}>
+          “{h.text}”
         </Text>
-        <Animated.View
-          style={{ opacity: fade, flex: 1, justifyContent: "space-between" }}
-        >
-          <Text
-            variant="headline"
-            style={{ marginTop: t.spacing.sm, lineHeight: 26 }}
-          >
-            “{h.text}”
-          </Text>
-          <Text
-            variant="footnote"
-            color="textSecondary"
-            style={{ marginTop: t.spacing.md }}
-          >
-            {h.source}
-          </Text>
-        </Animated.View>
-        <View style={{ flexDirection: "row", gap: 6, marginTop: t.spacing.md }}>
-          {HADITH.map((_, i) => (
-            <View
-              key={i}
-              style={{
-                width: i === index ? 16 : 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: i === index ? t.c.text : t.c.hairline,
-              }}
-            />
-          ))}
-        </View>
-      </View>
-    </PressableScale>
+        <Text variant="footnote" color="textSecondary" style={{ marginTop: t.spacing.xs }}>
+          {h.source}
+        </Text>
+      </Animated.View>
+    </View>
   );
 }
