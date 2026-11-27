@@ -290,13 +290,14 @@ function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolea
 
   return (
     <>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: t.spacing.lg, marginBottom: t.spacing.sm }}>
-        {listening ? <SymbolView name="waveform" size={15} tintColor={t.c.accent} /> : null}
-        <Text variant="headline" header>
-          {listening ? "Listening now" : "Continue where you left off"}
-        </Text>
-      </View>
-      <View style={{ borderRadius: t.radii.feature, borderCurve: "continuous", backgroundColor: t.c.surface1, padding: t.spacing.sm }}>
+      <View style={{ marginTop: t.spacing.md, borderRadius: t.radii.feature, borderCurve: "continuous", backgroundColor: t.c.surface1, padding: t.spacing.sm }}>
+        {/* Headed like the other cards on this page: a small caption inside the card. */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: t.spacing.sm, paddingTop: t.spacing.xs, paddingBottom: t.spacing.sm }}>
+          {listening ? <SymbolView name="waveform" size={11} tintColor={t.c.accent} /> : null}
+          <Text variant="caption" color="textSecondary" header style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+            {listening ? "Listening now" : "Continue where you left off"}
+          </Text>
+        </View>
         <PressableScale scaleTo={0.99} onPress={open} accessibilityRole="button" accessibilityLabel={listening ? `Back to the recitation, ${surah.transliteration}, ayah ${ayah}` : `Continue reading ${surah.transliteration}, page ${page}`}>
           <View pointerEvents="none" style={{ height: 112, borderRadius: t.radii.card, borderCurve: "continuous", overflow: "hidden", backgroundColor: t.c.bg }}>
             <QuranReader
