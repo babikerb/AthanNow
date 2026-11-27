@@ -472,13 +472,17 @@ function Reader({ display }: { display: Display }) {
       />
     </>
   );
-  // Every surah on the page, as the mushaf's running head names them: "An-Nur and Al-Furqan".
-  const pageTitle = surah.transliteration;
-  // The running head, as the mushaf prints it: every surah on the page.
-  const runningHead = surahsOnPage(page)
+  // Every surah on the page, as the mushaf's running head names them: "Al-Isra' and Al-Kahf", or
+  // "Al-Ikhlas, Al-Falaq and An-Nas". Shown at the top whether the page is alone or not.
+  const names = surahsOnPage(page)
     .map((id) => getSurah(id)?.transliteration)
-    .filter(Boolean)
-    .join(" and ") || pageTitle;
+    .filter((n): n is string => !!n);
+  const runningHead = !names.length
+    ? surah.transliteration
+    : names.length === 1
+      ? names[0]
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  const pageTitle = runningHead;
 
   const sheets = (
     <>
@@ -674,6 +678,8 @@ function Reader({ display }: { display: Display }) {
                           <Text
                             variant="subhead"
                             numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.8}
                             style={{ fontWeight: "600", flexShrink: 1 }}
                             maxFontSizeMultiplier={1.3}
                           >
