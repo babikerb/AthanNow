@@ -6,7 +6,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 import { getSurah } from '../data/surahs';
 import { getReciter, type Reciter } from './reciters';
-import { ayahIndexAt, loadSurahAudio, wordAt, type SurahAudio } from './surahAudio';
+import { ayahIndexAt, loadSurahAudio, opensWithBismillah, wordAt, type SurahAudio } from './surahAudio';
 
 export type RepeatMode = 'off' | 'ayah' | 'surah';
 export const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5] as const;
@@ -29,7 +29,7 @@ export interface Recitation {
   surahId: number | null;
   /** The ayah being recited, by index in its surah. */
   ayahIndex: number;
-  /** Always false: each recording carries its own Bismillah inside ayah 1. Kept for the screens. */
+  /** True while a surah's Bismillah is recited, before its first ayah. */
   inBismillah: boolean;
   /** Always null: recordings stream, nothing is downloaded first. Kept for the screens. */
   preparing: { done: number; total: number } | null;
@@ -115,7 +115,9 @@ async function startPlayback(player: AudioPlayer, aborted: () => boolean) {
 }
 
 /**
- * The recitation. Each surah is one continuous recording, so it runs from ayah to ayah exactly as the
+ * The recitation. A surah played from its start opens with the Bismillah: from the reciter's own
+ * Al-Fatihah where their surah recordings begin at ayah 1 (quran.com's), or from the recording itself
+ * where it's there before ayah 1 (mp3quran.net's). Each surah is one continuous recording, so it runs from ayah to ayah exactly as the
  * reciter recorded it, with nothing joined, faded or cut. Its ayah timings say which ayah is playing,
  * where to jump for an ayah, and where a repeated ayah loops.
  */
@@ -153,13 +155,21 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   const player = useAudioPlayer(null, { updateInterval: 100, keepAudioSessionActive: true });
   const status = useAudioPlayerStatus(player);
 
-  // The recording on the player, and a position waiting for it to be ready.
-  const loaded = useRef<{ key: string; audio: SurahAudio } | null>(null);
+  // The recording on the player, and a position waiting for it to be ready. `then` marks the
+  // Bismillah taken from Al-Fatihah: when it ends, the surah it opens starts at ayah 1.
+  const loaded = useRef<{ key: string; audio: SurahAudio; then?: { surah: number; who: Reciter; handed?: boolean } } | null>(null);
   const pendingSeek = useRef<{ seconds: number; since: number } | null>(null);
   const request = useRef(0);
   const playingRef = useRef(isPlaying);
   playingRef.current = isPlaying;
   const [loadedTick, setLoadedTick] = useState(0);
+  const [inBismillah, setInBismillahState] = useState(false);
+  const bismillahRef = useRef(false);
+  const setInBismillah = useCallback((on: boolean) => {
+    if (bismillahRef.current === on) return;
+    bismillahRef.current = on;
+    setInBismillahState(on);
+  }, []);
   const rateRef = useRef(rate);
   rateRef.current = rate;
   // When a repeated ayah last looped, so the statuses that arrive mid-seek don't loop it again.
@@ -182,29 +192,40 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     [player],
   );
 
-  /** Plays `surah` from ayah `index`: a seek if its recording is already on the player, else it loads. */
+  /**
+   * Plays `surah` from ayah `index`: a seek if its recording is already on the player, else it loads.
+   * From the start of a surah whose recordings begin at ayah 1, the Bismillah plays first.
+   */
   const start = useCallback(
-    (surah: number, index: number, who: Reciter = reciter) => {
+    (surah: number, index: number, who: Reciter = reciter, afterBismillah = false) => {
       const n = ++request.current;
       const aborted = () => request.current !== n;
       setError(null);
       setIsPlaying(true);
       patch({ surahId: surah, ayahIndex: index });
-      const key = `${who.id}:${surah}`;
+      const bismillahFirst = index === 0 && !afterBismillah && !who.mp3quran && opensWithBismillah(surah);
+      // Straight from the Bismillah into ayah 1, the line stays lit until the surah is playing.
+      if (!afterBismillah) setInBismillah(bismillahFirst);
+      const source = bismillahFirst ? 1 : surah;
+      const key = bismillahFirst ? `${who.id}:1:bismillah` : `${who.id}:${surah}`;
+      const then = bismillahFirst ? { surah, who } : undefined;
+      // The surah's timings, ready for when the Bismillah ends.
+      if (bismillahFirst) loadSurahAudio(who, surah).catch(() => {});
       const have = loaded.current;
       if (have && have.key === key && !pendingSeek.current) {
-        const from = (have.audio.ayahs[index]?.[0] ?? 0) / 1000;
+        have.then = then;
+        const from = (have.audio.ayahs[bismillahFirst ? 0 : index]?.[0] ?? 0) / 1000;
         seek(from).then((ok) => {
           if (ok) startPlayback(player, aborted);
         });
         return;
       }
       setLoading(true);
-      loadSurahAudio(who, surah)
+      loadSurahAudio(who, source)
         .then((audio) => {
           if (aborted()) return;
-          loaded.current = { key, audio };
-          pendingSeek.current = { seconds: (audio.ayahs[index]?.[0] ?? 0) / 1000, since: Date.now() };
+          loaded.current = { key, audio, then };
+          pendingSeek.current = { seconds: (audio.ayahs[bismillahFirst ? 0 : index]?.[0] ?? 0) / 1000, since: Date.now() };
           return retry(() => player.replace({ uri: audio.url }), aborted).then((ok) => {
             if (!ok) throw new Error('replace');
             player.setPlaybackRate(rateRef.current);
@@ -215,12 +236,13 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
           if (aborted()) return;
           loaded.current = null;
           pendingSeek.current = null;
+          setInBismillah(false);
           setError('Could not load this recitation. Check your connection and try again.');
           setIsPlaying(false);
           setLoading(false);
         });
     },
-    [reciter, patch, seek, player],
+    [reciter, patch, seek, player, setInBismillah],
   );
   const startRef = useRef(start);
   startRef.current = start;
@@ -240,6 +262,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
         if (!ours && Date.now() - pending.since < 4000) return;
         pendingSeek.current = null;
         const n = request.current;
+        if (!have.then) setInBismillah(false);
         seek(pending.seconds).then((ok) => {
           setLoading(false);
           if (ok && playingRef.current) startPlayback(player, () => request.current !== n);
@@ -248,16 +271,26 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       }
 
       const ms = st.currentTime * 1000;
+      // The Bismillah from Al-Fatihah: at its end, on into the surah it opens.
+      if (have.then) {
+        if (have.then.handed) return;
+        if (st.didJustFinish || (st.playing && ms >= have.audio.ayahs[0][1] - 40)) {
+          have.then.handed = true;
+          startRef.current(have.then.surah, 0, have.then.who, true);
+        }
+        return;
+      }
+      // A recording with the Bismillah inside ayah 1: lit until ayah 1 itself begins.
+      const intro = have.audio.intro;
+      setInBismillah(!!L.surahId && opensWithBismillah(L.surahId) && intro != null && L.ayahIndex === 0 && ms < intro);
       if (st.didJustFinish) {
         if (L.repeat === 'ayah') {
           seek(have.audio.ayahs[L.ayahIndex][0] / 1000).then((ok) => {
           if (ok) startPlayback(player, () => false);
         });
-        } else if (L.repeat === 'surah') {
-          seek(0).then((ok) => {
-          if (ok) startPlayback(player, () => false);
-        });
-          patch({ ayahIndex: 0 });
+        } else if (L.repeat === 'surah' && L.surahId) {
+          // From the top again, Bismillah and all.
+          startRef.current(L.surahId, 0);
         } else if (L.autoplay && L.surahId && L.surahId < 114) {
           startRef.current(L.surahId + 1, 0);
         } else {
@@ -285,7 +318,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       if (index !== L.ayahIndex) patch({ ayahIndex: index });
     });
     return () => sub.remove();
-  }, [player, patch, seek]);
+  }, [player, patch, seek, setInBismillah]);
 
   // A new reciter picks up the same ayah in their recording.
   const lastReciter = useRef(reciter.id);
@@ -393,15 +426,16 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     lockScreenOn.current = false;
     pendingSeek.current = null;
     setLoading(false);
+    setInBismillah(false);
     patch({ surahId: null, ayahIndex: 0 });
-  }, [player, patch]);
+  }, [player, patch, setInBismillah]);
 
   const value = useMemo<Recitation>(
     () => ({
       ready,
       surahId,
       ayahIndex,
-      inBismillah: false,
+      inBismillah,
       preparing: null,
       loading,
       error,
@@ -431,7 +465,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       setAutoplay: (on) => patch({ autoplay: on }),
       setRate: (r) => patch({ rate: r }),
     }),
-    [ready, surahId, ayahIndex, loading, error, isPlaying, reciter, repeat, autoplay, rate, start, goToAyah, next, previous, pause, stop, patch],
+    [ready, surahId, ayahIndex, inBismillah, loading, error, isPlaying, reciter, repeat, autoplay, rate, start, goToAyah, next, previous, pause, stop, patch],
   );
 
   const audioNow = loaded.current?.audio;
@@ -443,12 +477,12 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       currentTime: span ? Math.min(seconds, Math.max(0, status.currentTime - from)) : 0,
       duration: seconds,
       buffering: loading || status.isBuffering,
-      word: audioNow && span ? wordAt(audioNow, ayahIndex, status.currentTime * 1000) : 0,
+      word: audioNow && span && !inBismillah ? wordAt(audioNow, ayahIndex, status.currentTime * 1000) : 0,
       seekTo: (fraction) => {
         if (span) seek(from + fraction * seconds).then(() => setSeekTick((x) => x + 1));
       },
     };
-  }, [status.currentTime, status.isBuffering, loading, span, seek, audioNow, ayahIndex]);
+  }, [status.currentTime, status.isBuffering, loading, span, seek, audioNow, ayahIndex, inBismillah]);
 
   return (
     <Ctx.Provider value={value}>

@@ -306,6 +306,7 @@ function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolea
               pageNonce={page}
               dark={dark}
               current={current}
+              bismillahSurah={listening && r.inBismillah ? r.surahId! : 0}
               follow={false}
               topInset={0}
               bottomInset={0}

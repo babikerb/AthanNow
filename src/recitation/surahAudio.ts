@@ -7,11 +7,13 @@ export interface SurahAudio {
   url: string;
   /** [from, to] per ayah, in order. The Bismillah, where recited, is part of ayah 1. */
   ayahs: [number, number][];
+  /** Where ayah 1 itself begins (ms), when the recording opens with the Bismillah inside ayah 1. */
+  intro?: number;
   /** Per ayah, when each word starts (ms), by word number from 1. Empty where the timing has none. */
   words: number[][];
 }
 
-const KEY = 'athannow.recitation.surah.v2.';
+const KEY = 'athannow.recitation.surah.v3.';
 const memory = new Map<string, SurahAudio>();
 
 async function fetchWithTimeout(url: string, ms = 15000): Promise<Response> {
@@ -84,7 +86,12 @@ async function loadMp3Quran(source: { read: number; folder: string }, surahId: n
   const rows = ((await res.json()) as { ayah: number; start_time: number; end_time: number }[]).filter((r) => r.ayah >= 1).sort((a, b) => a.ayah - b.ayah);
   if (!rows.length) throw new Error('no timing');
   const ayahs = rows.map((r, i) => [i === 0 ? 0 : r.start_time, r.end_time] as [number, number]);
-  return { url: `${source.folder}${String(surahId).padStart(3, '0')}.mp3`, ayahs, words: rows.map(() => []) };
+  return { url: `${source.folder}${String(surahId).padStart(3, '0')}.mp3`, ayahs, intro: rows[0].start_time, words: rows.map(() => []) };
+}
+
+/** Surahs recited with a Bismillah of their own before ayah 1 (Al-Fatihah's is its first ayah; At-Tawbah has none). */
+export function opensWithBismillah(surahId: number): boolean {
+  return surahId !== 1 && surahId !== 9;
 }
 
 /** The ayah index playing at `ms`. */

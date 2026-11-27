@@ -835,6 +835,7 @@ function ReaderSurface(props: {
       dark={props.dark}
       current={current}
       from={from}
+      bismillahSurah={r.inBismillah && r.surahId ? r.surahId : 0}
       follow={props.follow}
       topInset={props.topInset}
       bottomInset={props.bottomInset}

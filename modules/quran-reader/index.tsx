@@ -22,6 +22,8 @@ export interface QuranReaderProps {
   /** While audio plays: the word being recited (under the glass) and where the recitation began. */
   current?: WordRef | null;
   from?: WordRef | null;
+  /** While a surah's Bismillah is recited, before its first ayah: that surah, its Bismillah lit whole. */
+  bismillahSurah?: number;
   /** Zoomed in, keep the recited word in view. */
   follow: boolean;
   topInset: number;

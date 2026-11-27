@@ -27,7 +27,8 @@ struct MushafWord: Hashable {
 
 enum MushafLine {
   case header(Int)
-  case bismillah
+  /// The Bismillah opening a surah (by number).
+  case bismillah(Int)
   /// The words on the line, and their width in ems in the bundled font.
   case words([MushafWord], Double)
 }
@@ -43,7 +44,7 @@ struct MushafPage: Identifiable {
     for line in lines {
       switch line {
       case .header(let s): out.append(.header(s))
-      case .bismillah: out.append(.bismillah)
+      case .bismillah(let s): out.append(.bismillah(s))
       case .words(let words, _):
         for word in words {
           if case .ayah(let key, let list) = out.last, key == word.ayahKey {
@@ -60,7 +61,7 @@ struct MushafPage: Identifiable {
 
 enum PageBlock {
   case header(Int)
-  case bismillah
+  case bismillah(Int)
   case ayah(Int, [MushafWord])
 }
 
@@ -140,11 +141,13 @@ final class MushafStore {
     let raw = root["pages"] as? [[[String: Any]]] ?? []
     for (index, lines) in raw.enumerated() {
       var parsed: [MushafLine] = []
+      var opening = 0
       for line in lines {
         if let surah = line["h"] as? NSNumber {
+          opening = surah.intValue
           parsed.append(.header(surah.intValue))
         } else if line["b"] != nil {
-          parsed.append(.bismillah)
+          parsed.append(.bismillah(opening))
         } else {
           let list = (line["w"] as? [[Any]]) ?? []
           var lineWords: [MushafWord] = []

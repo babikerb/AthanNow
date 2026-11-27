@@ -12,6 +12,8 @@ final class QuranReaderProps: ExpoSwiftUI.ViewProps {
   @Field var curSurah: Int = 0
   @Field var curAyah: Int = 0
   @Field var curWord: Int = 0
+  /// The surah whose Bismillah is being recited, before its first ayah; 0 otherwise.
+  @Field var bismillahSurah: Int = 0
   @Field var fromSurah: Int = 0
   @Field var fromAyah: Int = 0
   @Field var fromWord: Int = 0
@@ -130,6 +132,8 @@ struct ReaderContext {
   /// it the whole ayah is lit while it's recited.
   let currentAyah: Int
   let wordLevel: Bool
+  /// The surah whose Bismillah is being recited (before ayah 1); 0 otherwise.
+  let bismillah: Int
   /// Ayahs being explained, as `ayahKey`s; 0 for none.
   let focusFrom: Int
   let focusTo: Int
@@ -145,11 +149,13 @@ struct ReaderContext {
 
   /// Whether this word is the one being recited (or, without word timing, in the ayah being recited).
   func isCurrent(_ word: MushafWord) -> Bool {
-    playing && wordLevel && word.order == current
+    playing && bismillah == 0 && wordLevel && word.order == current
   }
 
   func color(_ word: MushafWord, page: Int) -> Color {
     guard playing, page == currentPage else { return theme.ink }
+    // The Bismillah is being recited: the surah's words are all still to come.
+    if bismillah > 0 { return word.surah == bismillah && wordLevel ? theme.quiet : theme.ink }
     if !wordLevel {
       // Timed only by the ayah: the ayah being recited is lit in the recited colour, the rest plain.
       return word.ayahKey == currentAyah ? theme.recited : theme.ink
@@ -322,15 +328,28 @@ struct SurahHeader: View {
   }
 }
 
+/// A surah's Bismillah. While it's being recited it carries the recitation's highlight: the same
+/// soft pill as the current word where the timing goes by the word, the recited colour otherwise.
 struct BismillahLine: View {
+  let surah: Int
   let size: CGFloat
-  let theme: ReaderTheme
+  let ctx: ReaderContext
 
   var body: some View {
+    let reciting = ctx.playing && ctx.bismillah == surah
     Text(MushafStore.shared.bismillah)
       .font(.custom(MushafFont.name, size: size))
-      .foregroundColor(theme.ink)
+      .foregroundColor(reciting && !ctx.wordLevel ? ctx.theme.recited : ctx.theme.ink)
       .fixedSize()
+      .background {
+        if reciting && ctx.wordLevel {
+          Capsule(style: .continuous)
+            .fill(ctx.theme.highlight.opacity(ctx.theme.dark ? 0.26 : 0.16))
+            .padding(.horizontal, -size * 0.3)
+            .padding(.vertical, size * 0.16)
+            .matchedGeometryEffect(id: "highlight", in: ctx.ns)
+        }
+      }
       .accessibilityLabel("Bismillah")
   }
 }
@@ -377,8 +396,8 @@ struct PageView: View {
     switch line {
     case .header(let surah):
       SurahHeader(surah: surah, size: size, theme: ctx.theme).frame(width: width)
-    case .bismillah:
-      BismillahLine(size: size, theme: ctx.theme)
+    case .bismillah(let s):
+      BismillahLine(surah: s, size: size, ctx: ctx)
     case .words(let words, let em):
       if let q = qcf, index >= 0, index < q.lines.count {
         // The printed page: each line's glyphs nearly fill it; the rest is shared between words.
@@ -421,7 +440,7 @@ struct FlowPage: View {
 
   private enum Block {
     case header(Int)
-    case bismillah
+    case bismillah(Int)
     case words([MushafWord])
   }
 
@@ -433,9 +452,9 @@ struct FlowPage: View {
       case .header(let s):
         if !run.isEmpty { out.append(.words(run)); run = [] }
         out.append(.header(s))
-      case .bismillah:
+      case .bismillah(let s):
         if !run.isEmpty { out.append(.words(run)); run = [] }
-        out.append(.bismillah)
+        out.append(.bismillah(s))
       case .words(let words, _):
         run.append(contentsOf: words)
       }
@@ -450,8 +469,8 @@ struct FlowPage: View {
         switch block {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
-        case .bismillah:
-          BismillahLine(size: size * 0.8, theme: ctx.theme)
+        case .bismillah(let s):
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx)
         case .words(let words):
           if let q = qcf, qcfSize > 0 {
             FlowingLines(gap: qcfSize * 0.12, lineHeight: qcfSize * 1.75) {
@@ -496,8 +515,8 @@ struct TranslationPage: View {
         switch block {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
-        case .bismillah:
-          BismillahLine(size: size * 0.8, theme: ctx.theme)
+        case .bismillah(let s):
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx)
         case .ayah(let key, let words):
           VStack(spacing: 10) {
             if let q = qcf, qcfSize > 0 {
@@ -560,8 +579,8 @@ struct WordsPage: View {
         switch block {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme).frame(width: width)
-        case .bismillah:
-          BismillahLine(size: size * 0.8, theme: ctx.theme)
+        case .bismillah(let s):
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx)
         case .ayah(_, let words):
           FlowingRows(gap: glyphSize * 0.45, rowSpacing: gloss * 0.9) {
             ForEach(words, id: \.order) { word in
@@ -713,6 +732,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
       currentPage: props.highlighting ? (MushafStore.shared.ayahPage[props.curSurah * 1000 + props.curAyah] ?? -1) : -1,
       currentAyah: props.curSurah * 1000 + props.curAyah,
       wordLevel: props.curWord > 0,
+      bismillah: props.highlighting ? props.bismillahSurah : 0,
       focusFrom: props.focusFrom,
       focusTo: props.focusTo,
       ns: ns,
