@@ -1,7 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { QuranReader } from 'quran-reader';
 import React from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getSurah } from '../../data/surahs';
@@ -15,7 +15,6 @@ import { todaySummary, type Goal } from '../../quran/goals';
 import { firstAyahOnPage } from '../../quran/pageLayout';
 import type { QuranProgress } from '../../quran/useQuranProgress';
 import { QURAN_FONT } from '../../recitation/format';
-import { useRecitation, useRecitationProgress } from '../../recitation/RecitationProvider';
 import { NativeMenu } from '../NativeMenu';
 import { AddGoalItems } from './GoalsSheet';
 import { GoalRings, ringColors } from './GoalRings';
@@ -110,7 +109,6 @@ export function QuranHome({
         </PressableScale>
       </View>
 
-      <Listening onOpenPage={onOpenPage} lastPage={lastPage} />
 
       {friday && !(kahfGoal && kahfGoal.done) ? (
         <PressableScale scaleTo={0.99} onPress={() => onOpenPage(293)} accessibilityRole="button" accessibilityLabel="It's Friday. Read Al-Kahf" style={{ marginTop: t.spacing.md }}>
@@ -202,43 +200,5 @@ export function QuranHome({
         </>
       ) : null}
     </ScrollView>
-  );
-}
-
-/** The recitation, when it's somewhere other than the page you were reading. */
-function Listening({ lastPage, onOpenPage }: { lastPage: number; onOpenPage: (page: number) => void }) {
-  const t = useTheme();
-  const r = useRecitation();
-  const { buffering } = useRecitationProgress();
-  const surah = r.surahId ? getSurah(r.surahId) : undefined;
-  if (!surah || surah.id === surahForPage(lastPage)) return null;
-  return (
-    <View style={{ marginTop: t.spacing.md, flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: t.c.surface1, paddingLeft: t.spacing.lg, paddingRight: t.spacing.xs, minHeight: 64 }}>
-      <View style={{ flex: 1 }}>
-        <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-          {r.isPlaying ? 'Listening' : 'Continue listening'}
-        </Text>
-        <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600' }}>
-          {surah.transliteration}, Ayah {r.ayahIndex + 1}
-        </Text>
-        <Text variant="caption" color="textSecondary" numberOfLines={1}>
-          {r.reciter.name}
-        </Text>
-      </View>
-      <PressableScale haptic="light" onPress={r.togglePlay} accessibilityRole="button" accessibilityLabel={r.isPlaying ? 'Pause' : 'Play'}>
-        <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-          {r.isPlaying && buffering ? (
-            <ActivityIndicator color={t.c.text} />
-          ) : (
-            <SymbolView name={r.isPlaying ? 'pause.fill' : 'play.fill'} size={20} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
-          )}
-        </View>
-      </PressableScale>
-      <PressableScale haptic="select" onPress={() => onOpenPage(-1)} accessibilityRole="button" accessibilityLabel="Open the recitation in the reader">
-        <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
-          <SymbolView name="book" size={18} tintColor={t.c.textSecondary} style={{ width: 22, height: 22 }} />
-        </View>
-      </PressableScale>
-    </View>
   );
 }

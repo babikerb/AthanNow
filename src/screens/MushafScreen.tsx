@@ -282,7 +282,7 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
           progress={progress}
           bookmarks={bookmarks}
           onContinue={() => jumpTo(page)}
-          onOpenPage={(p) => jumpTo(p === -1 ? (playingPage ?? page) : p)}
+          onOpenPage={jumpTo}
           onOpenGoals={() => setGoalsOpen(true)}
           onOpenGoal={openGoal}
         />
