@@ -201,12 +201,20 @@ function Reader({ display }: { display: Display }) {
     [openReader],
   );
   /** A jump the reader chose: the index, a bookmark, the page strip. */
+  // After a jump, the reader's page reports are ignored for a moment: in the flowing layouts the
+  // pages around it settle their heights first, and the in-between pages would twitch the strip.
+  const leapAt = useRef(0);
   const leapTo = useCallback(
     (p: number) => {
+      leapAt.current = Date.now();
       jumpTo(p);
     },
     [jumpTo],
   );
+  const onReaderPage = useCallback((p: number) => {
+    if (Date.now() - leapAt.current < 900) return;
+    setPage(p);
+  }, []);
 
   // Swiping in from the left edge goes back, as on any pushed page.
   const edge = useMemo(
@@ -540,7 +548,7 @@ function Reader({ display }: { display: Display }) {
                     display={display}
                     onZoomChange={setZoomed}
                     colors={{ bg: t.c.bg, text: t.c.text, accent: t.c.accent, recited: t.c.info }}
-                    onPageChange={setPage}
+                    onPageChange={onReaderPage}
                     onTap={() => {
                       LayoutAnimation.configureNext(
                         LayoutAnimation.create(240, "easeInEaseOut", "opacity"),

@@ -700,7 +700,14 @@ struct QuranReaderView: ExpoSwiftUI.View {
     .onChange(of: props.pageNonce) { _ in
       let target = clampPage(props.page)
       if zoom > 1.001 || props.view != "mushaf" {
-        openFlow(at: target)
+        // A page already laid out is scrolled to as it is; only a page outside them rebuilds the
+        // scroll around it (rebuilding for every jump made the page strip glitch).
+        if target < flowFirst || target > flowLast {
+          openFlow(at: target)
+        } else {
+          flowSettled = false
+          if target > flowLast - 2 { flowLast = min(604, target + 6) }
+        }
         flowTarget = target
         page = target
       } else if abs(target - page) <= 2 {

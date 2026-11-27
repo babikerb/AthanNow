@@ -124,7 +124,7 @@ export function glyph(word: MushafWord): string {
 // `fetchPageMeta` below, which also needs hizb/rub data). Used by the header
 // bar for an instant, flicker-free Juz readout. ----
 
-const JUZ_START = [1, 22, 42, 62, 82, 102, 121, 142, 162, 182, 201, 222, 242, 262, 282, 302, 322, 342, 362, 382, 402, 422, 442, 462, 482, 502, 522, 542, 562, 582];
+export const JUZ_START = [1, 22, 42, 62, 82, 102, 121, 142, 162, 182, 201, 222, 242, 262, 282, 302, 322, 342, 362, 382, 402, 422, 442, 462, 482, 502, 522, 542, 562, 582];
 
 /** Which juz (1-30) a given 1-based mushaf page falls in. */
 export function juzForPage(page: number): number {

@@ -1,13 +1,17 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, SectionList, Text as RNText, View } from 'react-native';
+import type { SFSymbol } from 'sf-symbols-typescript';
 
-import { useTheme } from '../context/ThemeContext';
-import { getSurah, Surah, SURAHS } from '../data/surahs';
-import { TOTAL_PAGES } from '../data/surahPages';
-import { radiiTokens, textStyle } from '../design/tokens';
-import { Palette, QURAN_FONT } from '../theme/colors';
-import { AyahHit, searchAyat, searchTranslation } from '../utils/quran';
+import { getSurah, SURAHS, type Surah } from '../data/surahs';
+import { pageForSurah, TOTAL_PAGES } from '../data/surahPages';
+import { PressableScale } from '../design/PressableScale';
+import { Text } from '../design/Text';
+import { useTheme } from '../design/theme';
+import type { Palette } from '../theme/colors';
+import { QURAN_FONT } from '../theme/colors';
+import { JUZ_START } from '../utils/mushaf';
+import { searchAyat, searchMeaning, type AyahHit } from '../utils/quran';
 import { Sheet, SheetSearchField } from './Sheet';
 
 interface SurahPickerSheetProps {
@@ -19,252 +23,260 @@ interface SurahPickerSheetProps {
   onSelectVerse?: (verseKey: string) => void;
   /** Jump to a 1-based mushaf page number. */
   onSelectPage?: (page: number) => void;
-  /** Overrides the app's default (dark) palette, the Quran tab stays on the
-   *  forced-light reading palette instead. */
+  /** @deprecated The sheet follows the app's colours. */
   palette?: Palette;
 }
 
-export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, onSelectVerse, onSelectPage, palette }: SurahPickerSheetProps) {
-  const { colors: themeColors } = useTheme();
-  const colors = palette ?? themeColors;
+type Jump = { key: string; icon: SFSymbol; title: string; subtitle: string; go: () => void };
+type Row = { kind: 'jump'; jump: Jump } | { kind: 'surah'; surah: Surah } | { kind: 'ayah'; hit: AyahHit };
+
+/** Folds a name for matching: no case, accents, hyphens, apostrophes or a leading "al". */
+function fold(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/['‘’`ʿʾ\-\s]/g, '')
+    .replace(/^(adh|ash|al|an|ar|as|at|ad|az)(?=[a-z]{3})/, '')
+    .replace(/h$/, '');
+}
+
+const FOLDED = SURAHS.map((s) => ({ surah: s, name: fold(s.transliteration), meaning: s.translation.toLowerCase() }));
+
+/** Surahs matching the query: by number, name (however it's spelled), meaning or Arabic name. */
+function matchSurahs(query: string): Surah[] {
+  const q = query.trim();
+  if (!q) return SURAHS;
+  if (/^\d{1,3}$/.test(q)) {
+    const s = getSurah(Number(q));
+    return s ? [s] : [];
+  }
+  const f = fold(q);
+  const lower = q.toLowerCase();
+  const scored = FOLDED.map(({ surah, name, meaning }) => {
+    let score = 0;
+    if (f && name.startsWith(f)) score = 3;
+    else if (f && name.includes(f)) score = 2;
+    else if (meaning.includes(lower) || surah.arabicName.includes(q)) score = 1;
+    return { surah, score };
+  }).filter((x) => x.score > 0);
+  scored.sort((a, b) => b.score - a.score || a.surah.id - b.surah.id);
+  return scored.map((x) => x.surah);
+}
+
+/**
+ * Go to: one search for everything. Type a surah (any spelling: "baqara", "yasin", "kahf"), a
+ * reference ("2:255", "2 255", "baqarah 255"), a page ("page 50", or any number past 114), a juz
+ * ("juz 30"), or words, in English ("mercy", "patience") or Arabic. Results come as quick jumps,
+ * then surahs, then ayahs.
+ */
+export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, onSelectVerse, onSelectPage }: SurahPickerSheetProps) {
+  const t = useTheme();
   const [query, setQuery] = useState('');
+  const q = query.trim();
+  const isArabic = /[؀-ۿ]/.test(q);
 
-  // Detect a verse reference like "2:286" or "2.286".
-  const verseRef = useMemo(() => {
-    const m = query.trim().match(/^(\d{1,3})\s*[:.]\s*(\d{1,3})$/);
-    if (!m) return null;
-    const surahId = Number(m[1]);
-    const ayah = Number(m[2]);
-    const s = getSurah(surahId);
-    if (!s || ayah < 1 || ayah > s.totalVerses) return null;
-    return { surahId, ayah, key: `${surahId}:${ayah}`, name: s.transliteration };
-  }, [query]);
-
-  // Detect a page jump: "page 50" / "pg 50" / "p50", or a bare number that can't be a
-  // surah (115 to 604). Bare 1 to 114 stays ambiguous and is treated as a surah filter.
-  const pageRef = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let n: number | null = null;
-    const labelled = q.match(/^(?:page|pg|p)\s*(\d{1,3})$/);
-    if (labelled) n = Number(labelled[1]);
-    else if (/^\d{1,3}$/.test(q) && Number(q) > 114) n = Number(q);
-    if (n === null || n < 1 || n > TOTAL_PAGES) return null;
-    return n;
-  }, [query]);
-
-  // Arabic full-text ayah search (debounced) when the query contains Arabic letters.
-  const isArabic = /[؀-ۿ]/.test(query);
-  const [ayahHits, setAyahHits] = useState<AyahHit[]>([]);
-  const [searching, setSearching] = useState(false);
   useEffect(() => {
-    if (!isArabic || query.trim().length < 2 || verseRef) {
-      setAyahHits([]);
+    if (!visible) setQuery('');
+  }, [visible]);
+
+  const close = (then: () => void) => {
+    then();
+    onClose();
+  };
+
+  // Quick jumps: a reference, a page, a juz.
+  const jumps = useMemo<Jump[]>(() => {
+    const out: Jump[] = [];
+    const lower = q.toLowerCase();
+    // "2:255", "2.255", "2 255"
+    let ref = lower.match(/^(\d{1,3})\s*[:. ]\s*(\d{1,3})$/);
+    let surahId = ref ? Number(ref[1]) : 0;
+    let ayah = ref ? Number(ref[2]) : 0;
+    // "baqarah 255", "al-kahf 10"
+    if (!ref) {
+      const named = lower.match(/^([a-z'‘’\- ]{3,}?)\s*[: ]\s*(\d{1,3})$/);
+      if (named) {
+        const s = matchSurahs(named[1])[0];
+        if (s) {
+          surahId = s.id;
+          ayah = Number(named[2]);
+          ref = named;
+        }
+      }
+    }
+    const s = surahId ? getSurah(surahId) : undefined;
+    if (ref && s && ayah >= 1 && ayah <= s.totalVerses && onSelectVerse) {
+      out.push({ key: 'verse', icon: 'text.book.closed', title: `${s.transliteration} ${s.id}:${ayah}`, subtitle: 'Go to this ayah', go: () => close(() => onSelectVerse(`${s.id}:${ayah}`)) });
+    }
+    const labelled = lower.match(/^(?:page|pg|p)\s*(\d{1,3})$/);
+    const page = labelled ? Number(labelled[1]) : /^\d{1,3}$/.test(lower) && Number(lower) > 114 ? Number(lower) : 0;
+    if (page >= 1 && page <= TOTAL_PAGES && onSelectPage) {
+      out.push({ key: 'page', icon: 'book.pages', title: `Page ${page}`, subtitle: 'Go to this page', go: () => close(() => onSelectPage(page)) });
+    }
+    const juz = lower.match(/^(?:juz|juzz|jz|j|para)\s*(\d{1,2})$/);
+    const j = juz ? Number(juz[1]) : 0;
+    if (j >= 1 && j <= 30 && onSelectPage) {
+      out.push({ key: 'juz', icon: 'square.stack', title: `Juz ${j}`, subtitle: `From page ${JUZ_START[j - 1]}`, go: () => close(() => onSelectPage(JUZ_START[j - 1])) });
+    }
+    return out;
+  }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const surahs = useMemo(() => (jumps.some((x) => x.key === 'verse') ? [] : matchSurahs(q)), [q, jumps]);
+
+  // Ayahs: Arabic text, or English meaning; alongside surah matches, not instead of them.
+  const wantsAyahs = !jumps.length && (isArabic ? q.length >= 2 : /[a-z]/i.test(q) && q.replace(/[^a-z]/gi, '').length >= 3);
+  const [hits, setHits] = useState<AyahHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+    if (!wantsAyahs) {
+      setHits([]);
       setSearching(false);
       return;
     }
     setSearching(true);
     let cancelled = false;
-    const t = setTimeout(() => {
-      searchAyat(query)
-        .then((h) => !cancelled && (setAyahHits(h), setSearching(false)))
-        .catch(() => !cancelled && (setAyahHits([]), setSearching(false)));
-    }, 300);
+    const timer = setTimeout(() => {
+      (isArabic ? searchAyat(q).then((h) => h.slice(0, 60)) : searchMeaning(q))
+        .then((h) => !cancelled && setHits(h))
+        .catch(() => !cancelled && (setHits([]), setFailed(true)))
+        .finally(() => !cancelled && setSearching(false));
+    }, 250);
     return () => {
       cancelled = true;
-      clearTimeout(t);
+      clearTimeout(timer);
     };
-  }, [query, isArabic, verseRef]);
+  }, [q, wantsAyahs, isArabic]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return SURAHS;
-    return SURAHS.filter(
-      (s) =>
-        s.transliteration.toLowerCase().includes(q) ||
-        s.translation.toLowerCase().includes(q) ||
-        s.arabicName.includes(query.trim()) ||
-        String(s.id) === q,
-    );
-  }, [query]);
+  const sections = useMemo(() => {
+    const out: { title: string; data: Row[] }[] = [];
+    if (jumps.length) out.push({ title: 'Go to', data: jumps.map((jump) => ({ kind: 'jump' as const, jump })) });
+    if (surahs.length) out.push({ title: q ? 'Surahs' : 'All surahs', data: surahs.map((surah) => ({ kind: 'surah' as const, surah })) });
+    if (wantsAyahs && hits.length) out.push({ title: hits.length >= 60 ? 'Ayahs, the first 60' : `Ayahs, ${hits.length}`, data: hits.map((hit) => ({ kind: 'ayah' as const, hit })) });
+    return out;
+  }, [jumps, surahs, hits, wantsAyahs, q]);
 
-  // English word/meaning search (debounced), only once nothing else matches
-  // (no verse/page ref, no surah-name hit), so a surah search like "light"
-  // (An-Nur's translation) still wins over ayah results.
-  const wantsTranslationSearch = !isArabic && !verseRef && !pageRef && filtered.length === 0 && query.trim().length >= 3;
-  const [translationHits, setTranslationHits] = useState<AyahHit[]>([]);
-  const [searchingEn, setSearchingEn] = useState(false);
-  useEffect(() => {
-    if (!wantsTranslationSearch) {
-      setTranslationHits([]);
-      setSearchingEn(false);
-      return;
+  const nothing = !!q && !sections.length && !searching;
+
+  const row = (item: Row) => {
+    if (item.kind === 'jump') {
+      const { jump } = item;
+      return (
+        <PressableScale scaleTo={0.99} onPress={jump.go} accessibilityRole="button" accessibilityLabel={jump.title}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, marginHorizontal: t.spacing.lg, marginBottom: t.spacing.sm, padding: t.spacing.md, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: t.c.accentSoft }}>
+            <SymbolView name={jump.icon} size={18} tintColor={t.c.accentText} style={{ width: 24, height: 24 }} />
+            <View style={{ flex: 1 }}>
+              <Text variant="headline">{jump.title}</Text>
+              <Text variant="footnote" color="textSecondary">
+                {jump.subtitle}
+              </Text>
+            </View>
+            <SymbolView name="arrow.right" size={14} tintColor={t.c.accentText} />
+          </View>
+        </PressableScale>
+      );
     }
-    setSearchingEn(true);
-    let cancelled = false;
-    const t = setTimeout(() => {
-      searchTranslation(query)
-        .then((h) => !cancelled && (setTranslationHits(h), setSearchingEn(false)))
-        .catch(() => !cancelled && (setTranslationHits([]), setSearchingEn(false)));
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [query, wantsTranslationSearch]);
-
-  const renderItem = ({ item }: { item: Surah }) => {
-    const selected = item.id === currentSurahId;
+    if (item.kind === 'surah') {
+      const s = item.surah;
+      const current = s.id === currentSurahId;
+      return (
+        <PressableScale scaleTo={0.99} onPress={() => close(() => onSelect(s.id))} accessibilityRole="button" accessibilityLabel={`${s.id}, ${s.transliteration}, ${s.translation}`} accessibilityState={{ selected: current }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, paddingHorizontal: t.spacing.xl, paddingVertical: t.spacing.sm + 2 }}>
+            <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: current ? t.c.accent : t.c.surface2 }}>
+              <Text variant="footnote" style={{ fontWeight: '700', fontVariant: ['tabular-nums'], color: current ? t.c.onAccent : t.c.textSecondary }}>
+                {s.id}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="body" style={{ fontWeight: '600' }} numberOfLines={1}>
+                {s.transliteration}
+              </Text>
+              <Text variant="footnote" color="textSecondary" numberOfLines={1}>
+                {s.translation}, {s.totalVerses} ayahs, page {pageForSurah(s.id)}
+              </Text>
+            </View>
+            <RNText style={{ fontFamily: QURAN_FONT, fontSize: 20, color: t.c.text }}>{s.arabicName}</RNText>
+          </View>
+        </PressableScale>
+      );
+    }
+    const h = item.hit;
     return (
-      <Pressable
-        onPress={() => {
-          onSelect(item.id);
-          onClose();
-        }}
-        accessibilityState={{ selected }}
-        style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
-      >
-        <Text style={[styles.numberText, { color: selected ? colors.accent : colors.textTertiary }]}>{item.id}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.name, { color: colors.textPrimary }]}>{item.transliteration}</Text>
-          <Text style={[styles.sub, { color: colors.textTertiary }]}>
-            {item.translation}, {item.totalVerses} ayat
+      <PressableScale scaleTo={0.99} onPress={() => close(() => onSelectVerse?.(h.key))} accessibilityRole="button" accessibilityLabel={`${h.surahName} ${h.key}${h.translation ? `, ${h.translation}` : ''}`}>
+        <View style={{ marginHorizontal: t.spacing.lg, marginBottom: t.spacing.sm, padding: t.spacing.md, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: t.c.surface1, gap: 4 }}>
+          <RNText numberOfLines={2} style={{ fontFamily: QURAN_FONT, fontSize: 20, lineHeight: 36, color: t.c.text, textAlign: 'right', writingDirection: 'rtl' }}>
+            {h.text}
+          </RNText>
+          {h.translation ? (
+            <Text variant="subhead" color="textSecondary" numberOfLines={3}>
+              {h.translation}
+            </Text>
+          ) : null}
+          <Text variant="caption" style={{ fontWeight: '600', color: t.c.accentText }}>
+            {h.surahName} {h.key}
           </Text>
         </View>
-        <Text style={[styles.arabic, { color: colors.textSecondary }]}>{item.arabicName}</Text>
-      </Pressable>
+      </PressableScale>
     );
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Go to" palette={colors}>
-      <SheetSearchField
-        placeholder="Surah, ayah, page, or a word like 'mercy'"
-        value={query}
-        onChangeText={setQuery}
-        accessibilityLabel="Search the Quran"
-      />
-      {verseRef && onSelectVerse && (
-        <Pressable
-          onPress={() => {
-            onSelectVerse(verseRef.key);
-            onClose();
-          }}
-          style={({ pressed }) => [styles.gotoRow, { backgroundColor: colors.accentSoft, opacity: pressed ? 0.6 : 1 }]}
-        >
-          <SymbolView name="arrow.right.circle.fill" size={22} tintColor={colors.accent} />
-          <Text style={[styles.gotoText, { color: colors.textPrimary }]}>
-            Go to {verseRef.name} {verseRef.surahId}:{verseRef.ayah}
+    <Sheet visible={visible} onClose={onClose} title="Go to">
+      <SheetSearchField placeholder="Surah, 2:255, page 50, juz 30, or a word" value={query} onChangeText={setQuery} returnKeyType="search" accessibilityLabel="Search the Quran" />
+      {!q ? (
+        // With nothing typed: each juz a tap away, above the surahs.
+        <View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: t.spacing.sm, paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.md }}>
+            {JUZ_START.map((p, i) => (
+              <PressableScale key={i} haptic="select" onPress={() => close(() => onSelectPage?.(p))} accessibilityRole="button" accessibilityLabel={`Juz ${i + 1}, page ${p}`}>
+                <View style={{ height: 36, paddingHorizontal: t.spacing.md, borderRadius: 18, justifyContent: 'center', backgroundColor: t.c.surface2 }}>
+                  <Text variant="subhead" style={{ fontWeight: '600' }}>
+                    Juz {i + 1}
+                  </Text>
+                </View>
+              </PressableScale>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+      {nothing ? (
+        <View style={{ alignItems: 'center', gap: t.spacing.sm, paddingTop: t.spacing.xxl, paddingHorizontal: t.spacing.xl }}>
+          <SymbolView name={failed ? 'wifi.slash' : 'magnifyingglass'} size={26} tintColor={t.c.glyphQuiet} />
+          <Text variant="headline" style={{ textAlign: 'center' }}>
+            {failed ? 'Search needs a connection the first time' : 'Nothing found'}
           </Text>
-        </Pressable>
-      )}
-      {pageRef && onSelectPage && (
-        <Pressable
-          onPress={() => {
-            onSelectPage(pageRef);
-            onClose();
-          }}
-          style={({ pressed }) => [styles.gotoRow, { backgroundColor: colors.accentSoft, opacity: pressed ? 0.6 : 1 }]}
-        >
-          <SymbolView name="book.pages.fill" size={22} tintColor={colors.accent} />
-          <Text style={[styles.gotoText, { color: colors.textPrimary }]}>Go to page {pageRef}</Text>
-        </Pressable>
-      )}
-      {isArabic && !verseRef ? (
-        searching && ayahHits.length === 0 ? (
-          <View style={styles.searchState}>
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        ) : ayahHits.length === 0 ? (
-          <View style={styles.searchState}>
-            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No ayat match that text.</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={ayahHits}
-            keyExtractor={(a) => a.key}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingBottom: 40 }}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => {
-                  onSelectVerse?.(item.key);
-                  onClose();
-                }}
-                style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.ayahText, { color: colors.textPrimary }]} numberOfLines={2}>
-                    {item.text}
-                  </Text>
-                  <Text style={[styles.sub, { color: colors.textTertiary }]}>
-                    {item.surahName} {item.surahId}:{item.ayah}
-                  </Text>
-                </View>
-              </Pressable>
-            )}
-          />
-        )
-      ) : wantsTranslationSearch ? (
-        searchingEn && translationHits.length === 0 ? (
-          <View style={styles.searchState}>
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        ) : translationHits.length === 0 ? (
-          <View style={styles.searchState}>
-            <Text style={[styles.emptyText, { color: colors.textTertiary }]}>No ayat match that word.</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={translationHits}
-            keyExtractor={(a) => a.key}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingBottom: 40 }}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => {
-                  onSelectVerse?.(item.key);
-                  onClose();
-                }}
-                style={({ pressed }) => [styles.row, { borderBottomColor: colors.separator, opacity: pressed ? 0.6 : 1 }]}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.translationText, { color: colors.textPrimary }]} numberOfLines={2}>
-                    {item.translation}
-                  </Text>
-                  <Text style={[styles.sub, { color: colors.textTertiary }]}>
-                    {item.surahName} {item.surahId}:{item.ayah}
-                  </Text>
-                </View>
-              </Pressable>
-            )}
-          />
-        )
+          <Text variant="subhead" color="textSecondary" style={{ textAlign: 'center' }}>
+            {failed ? 'Ayah search downloads the Quran once, then works offline.' : 'Try a surah name, a reference like 2:255, a page, or another word.'}
+          </Text>
+        </View>
       ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(s) => String(s.id)}
-          renderItem={renderItem}
+        <SectionList
+          sections={sections}
+          keyExtractor={(r) => (r.kind === 'jump' ? r.jump.key : r.kind === 'surah' ? `s${r.surah.id}` : `a${r.hit.key}`)}
+          renderItem={({ item }) => row(item)}
+          renderSectionHeader={({ section }) => (
+            <View style={{ backgroundColor: t.c.bg, paddingHorizontal: t.spacing.xl, paddingTop: t.spacing.sm, paddingBottom: t.spacing.xs }}>
+              <Text variant="caption" color="textSecondary" header style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                {section.title}
+              </Text>
+            </View>
+          )}
+          ListFooterComponent={
+            searching ? (
+              <View style={{ paddingVertical: t.spacing.xl }}>
+                <ActivityIndicator color={t.c.textSecondary} />
+              </View>
+            ) : null
+          }
+          stickySectionHeadersEnabled
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
+          initialNumToRender={20}
         />
       )}
     </Sheet>
   );
 }
-
-const styles = StyleSheet.create({
-  gotoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 12, paddingHorizontal: 16, paddingVertical: 14, borderRadius: radiiTokens.control, borderCurve: 'continuous' },
-  gotoText: { ...textStyle('bodyEmph') },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  numberText: { ...textStyle('subhead'), width: 32, fontVariant: ['tabular-nums'] },
-  name: { ...textStyle('bodyEmph') },
-  sub: { ...textStyle('footnote'), marginTop: 2 },
-  arabic: { fontSize: 20, writingDirection: 'rtl' },
-  ayahText: { fontSize: 19, lineHeight: 32, fontFamily: QURAN_FONT, writingDirection: 'rtl', textAlign: 'right' },
-  translationText: { ...textStyle('subhead') },
-  searchState: { paddingTop: 32, alignItems: 'center', gap: 8 },
-  emptyText: { ...textStyle('footnote') },
-});

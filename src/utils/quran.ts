@@ -169,3 +169,24 @@ export function toArabicNumber(n: number): string {
     .map((d) => map[Number(d)] ?? d)
     .join('');
 }
+
+/**
+ * Ayahs whose meaning has every word of the query, as whole words (or word beginnings: "merc"
+ * finds "mercy" and "merciful"). Ranked by how many query words match whole, then by order in the
+ * Quran. At most `limit`.
+ */
+export async function searchMeaning(query: string, limit = 60): Promise<AyahHit[]> {
+  const words = query.toLowerCase().replace(/[^a-z' ]/g, ' ').split(/\s+/).filter((w) => w.length >= 2);
+  if (!words.length || words.join('').length < 3) return [];
+  const index = await buildIndex();
+  const starts = words.map((w) => new RegExp(`\b${w.replace(/'/g, "'?")}`));
+  const whole = words.map((w) => new RegExp(`\b${w.replace(/'/g, "'?")}\b`));
+  const scored: { hit: AyahHit; score: number; order: number }[] = [];
+  index.forEach((a, order) => {
+    if (!starts.every((r) => r.test(a.normEn))) return;
+    const score = whole.reduce((n, r) => n + (r.test(a.normEn) ? 1 : 0), 0);
+    scored.push({ hit: { surahId: a.surahId, ayah: a.ayah, key: a.key, text: a.text, surahName: a.surahName, translation: a.translation }, score, order });
+  });
+  scored.sort((x, y) => y.score - x.score || x.order - y.order);
+  return scored.slice(0, limit).map((s) => s.hit);
+}
