@@ -313,7 +313,7 @@ function Reader({
   const openGoal = useCallback(
     (goal: Goal) => {
       setGoalsOpen(false);
-      if (goal.kind === "surah") jumpTo(surahPages(goal.surah)[0]);
+      if (goal.target.kind === "surah") jumpTo(surahPages(goal.target.surah)[0]);
       else jumpTo(pageRef.current);
     },
     [jumpTo],

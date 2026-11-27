@@ -54,7 +54,7 @@ export function QuranHome({
     : { bg: "#4338CA", ink: "#FFFFFF" };
   const friday = new Date().getDay() === 5;
   const kahfGoal = progress.statuses.find(
-    (s) => s.goal.kind === "surah" && s.goal.surah === 18,
+    (s) => s.goal.target.kind === "surah" && s.goal.target.surah === 18,
   );
 
   return (

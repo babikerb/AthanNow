@@ -1,30 +1,16 @@
-import { Button as MenuButton, Section as MenuSection } from '@expo/ui/swift-ui';
+import { Button as MenuButton } from '@expo/ui/swift-ui';
 import { SymbolView } from 'expo-symbols';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, ScrollView, View } from 'react-native';
 
 import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
-import { GOAL_TEMPLATES, todayHeadline, todaySummary, type Goal, type GoalStatus } from '../../quran/goals';
+import { todayHeadline, todaySummary, type Goal, type GoalStatus } from '../../quran/goals';
 import type { QuranProgress } from '../../quran/useQuranProgress';
 import { NativeMenu } from '../NativeMenu';
+import { GoalEditor } from './GoalEditor';
 import { GoalRings, ringColors } from './GoalRings';
-
-/** The native menu of goals to add. */
-export function AddGoalItems({ progress }: { progress: QuranProgress }) {
-  return (
-    <>
-      {GOAL_TEMPLATES.map((group) => (
-        <MenuSection key={group.section} title={group.section}>
-          {group.items.map((item) => (
-            <MenuButton key={item.label} label={item.label} onPress={() => progress.addGoal(item.make())} />
-          ))}
-        </MenuSection>
-      ))}
-    </>
-  );
-}
 
 function GoalRow({ status, color, onOpen, onRemove, last }: { status: GoalStatus; color?: string; onOpen: () => void; onRemove: () => void; last: boolean }) {
   const t = useTheme();
@@ -91,19 +77,26 @@ export function GoalsSheet({ visible, onClose, progress, dark, onOpenGoal }: { v
   const today = progress.statuses.filter((s) => s.today);
   const later = progress.statuses.filter((s) => !s.today);
   const colors = ringColors(dark);
+  const [adding, setAdding] = useState(false);
+  // With no goals yet, opening goals goes straight to making one (once the sheet is up).
+  useEffect(() => {
+    if (!visible || progress.goals.length) return;
+    const id = setTimeout(() => setAdding(true), 450);
+    return () => clearTimeout(id);
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="pageSheet">
       <View style={{ flex: 1, backgroundColor: t.c.bg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
-          <NativeMenu width={120} height={44} colorScheme={t.scheme} items={<AddGoalItems progress={progress} />}>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel="Add a goal">
+          <PressableScale haptic="select" onPress={() => setAdding(true)} accessibilityRole="button" accessibilityLabel="Add a goal">
+            <View style={{ height: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <SymbolView name="plus" size={15} tintColor={t.c.accentText} style={{ width: 18, height: 18 }} />
               <Text variant="body" color="accentText" style={{ fontWeight: '600' }}>
                 Add Goal
               </Text>
             </View>
-          </NativeMenu>
+          </PressableScale>
           <PressableScale haptic="select" onPress={onClose} accessibilityRole="button" accessibilityLabel="Done">
             <View style={{ height: 44, justifyContent: 'center' }}>
               <Text variant="body" style={{ fontWeight: '600' }}>
@@ -157,11 +150,12 @@ export function GoalsSheet({ visible, onClose, progress, dark, onOpenGoal }: { v
                 No goals yet
               </Text>
               <Text variant="subhead" color="textSecondary" style={{ textAlign: 'center' }}>
-                Add Goal above: a few pages a day, a surah each night, or the whole Quran.
+                Add Goal above: some pages or a surah every day or on chosen days, or the whole Quran by a date.
               </Text>
             </View>
           ) : null}
         </ScrollView>
+        <GoalEditor visible={adding} onClose={() => setAdding(false)} onAdd={progress.addGoal} />
       </View>
     </Modal>
   );

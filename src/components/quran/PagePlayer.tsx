@@ -9,9 +9,9 @@ import { getSurah } from '../../data/surahs';
 import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
-import { clock, rateLabel } from '../../recitation/format';
+import { clock } from '../../recitation/format';
 import { RECITERS } from '../../recitation/reciters';
-import { PLAYBACK_RATES, useRecitation, useRecitationProgress } from '../../recitation/RecitationProvider';
+import { useRecitation, useRecitationProgress } from '../../recitation/RecitationProvider';
 import { NativeMenu } from '../NativeMenu';
 import { Scrubber } from '../recitation/Scrubber';
 import { TapTarget } from '../recitation/TapTarget';
@@ -34,7 +34,7 @@ function ReciterItems() {
 
 /**
  * The player over the page: a slim strip with the reciter and play, which opens into a card with the
- * position, speed, repeat and skip. Before anything has played, play starts at the top of the page.
+ * position, repeat and skip. The recitation plays at the reciter's own pace. Before anything has played, play starts at the top of the page.
  */
 export function PagePlayer({ onPlayPage }: { onPlayPage: () => void }) {
   const t = useTheme();
@@ -179,29 +179,13 @@ function Expanded({ onCollapse, style }: { onCollapse: () => void; style: object
         </View>
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.xs }}>
-        <NativeMenu
-          width={44}
-          height={44}
-          colorScheme={t.scheme}
-          items={
-            <Section title="Speed">
-              {PLAYBACK_RATES.map((rate) => (
-                <Button key={rate} label={rateLabel(rate)} systemImage={rate === r.rate ? 'checkmark' : undefined} onPress={() => r.setRate(rate)} />
-              ))}
-            </Section>
-          }
-        >
-          <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Speed ${rateLabel(r.rate)}`}>
-            <Text variant="subhead" color={r.rate !== 1 ? 'accentText' : 'text'} style={{ fontWeight: '600' }} maxFontSizeMultiplier={1.2}>
-              {rateLabel(r.rate)}
-            </Text>
-          </View>
-        </NativeMenu>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: t.spacing.xl, marginTop: t.spacing.xs }}>
+        <Icon name={r.repeat === 'ayah' ? 'repeat.1' : 'repeat'} label={repeatLabel} active={r.repeat !== 'off'} onPress={r.cycleRepeat} />
         <Icon name="backward.fill" label="Previous ayah" size={22} onPress={r.previous} disabled={r.ayahIndex === 0} />
         <PlayButton onPlayPage={() => {}} size={56} filled />
         <Icon name="forward.fill" label="Next ayah" size={22} onPress={r.next} disabled={r.ayahIndex >= surah.totalVerses - 1} />
-        <Icon name={r.repeat === 'ayah' ? 'repeat.1' : 'repeat'} label={repeatLabel} active={r.repeat !== 'off'} onPress={r.cycleRepeat} />
+        {/* Balances repeat on the other side, so play sits in the middle. */}
+        <View style={{ width: 44 }} />
       </View>
     </View>
   );

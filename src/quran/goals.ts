@@ -1,14 +1,35 @@
-// Reading goals and what counts towards them. Everything stays on the device.
+// Reading goals and what counts towards them. A goal is what to read (some pages, some juz, a surah,
+// or the whole Quran) and when (every day, on chosen days, by a date, or in your own time).
+// Everything stays on the device.
 import { getSurah } from '../data/surahs';
 import { SURAH_PAGES, TOTAL_PAGES } from '../data/surahPages';
 
-export type Goal =
-  /** A number of pages every day. */
-  | { id: string; kind: 'pages'; pages: number; createdAt: number }
-  /** A surah every day, every night, or every Friday. */
-  | { id: string; kind: 'surah'; surah: number; when: 'day' | 'night' | 'friday'; createdAt: number }
-  /** The whole Quran, by a number of days from the start, or in your own time. */
-  | { id: string; kind: 'khatm'; days: number | null; startedOn: string; createdAt: number };
+export type GoalTarget =
+  | { kind: 'pages'; count: number }
+  | { kind: 'juz'; count: number }
+  | { kind: 'surah'; surah: number }
+  | { kind: 'quran' };
+
+export type GoalSchedule =
+  /** The target each day. */
+  | { kind: 'daily' }
+  /** The target on these weekdays (0 is Sunday). */
+  | { kind: 'days'; days: number[] }
+  /** The target in all, by this date (yyyy-mm-dd), shared out over the days left. */
+  | { kind: 'by'; date: string }
+  /** The target in all, whenever. */
+  | { kind: 'open' };
+
+export interface Goal {
+  id: string;
+  target: GoalTarget;
+  schedule: GoalSchedule;
+  /** yyyy-mm-dd: reading from this day on counts towards a goal in all (by a date, own time). */
+  startedOn: string;
+  createdAt: number;
+}
+
+export type NewGoal = Pick<Goal, 'target' | 'schedule'>;
 
 /** Pages read each day (a page counts after a little while on it), and surahs heard to the end. */
 export interface ReadingLog {
@@ -18,6 +39,11 @@ export interface ReadingLog {
 
 export const EMPTY_LOG: ReadingLog = { days: {}, heard: {} };
 
+const JUZ_PAGES = 20;
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 /** yyyy-mm-dd in local time. */
 export function dayKey(d = new Date()): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -25,11 +51,13 @@ export function dayKey(d = new Date()): string {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
-function daysBetween(fromKey: string, to: Date): number {
-  const [y, m, d] = fromKey.split('-').map(Number);
-  const start = new Date(y, m - 1, d);
-  const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-  return Math.round((end.getTime() - start.getTime()) / 86400000);
+export function fromKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function daysBetween(a: string, b: string): number {
+  return Math.round((fromKey(b).getTime() - fromKey(a).getTime()) / 86400000);
 }
 
 export function surahPages(surah: number): number[] {
@@ -37,13 +65,47 @@ export function surahPages(surah: number): number[] {
   return Array.from({ length: b - a + 1 }, (_, i) => a + i);
 }
 
-export function goalTitle(g: Goal): string {
-  if (g.kind === 'pages') return g.pages === 1 ? 'A Page Each Day' : g.pages === 20 ? 'A Juz Each Day' : `${g.pages} Pages Each Day`;
-  if (g.kind === 'surah') {
-    const name = getSurah(g.surah)?.transliteration ?? `Surah ${g.surah}`;
-    return `${name} ${g.when === 'night' ? 'Each Night' : g.when === 'friday' ? 'Each Friday' : 'Each Day'}`;
+/** The pages a target asks for, as a count of pages (a surah's or the Quran's pages in full). */
+function targetPages(t: GoalTarget): number {
+  if (t.kind === 'pages') return t.count;
+  if (t.kind === 'juz') return t.count * JUZ_PAGES;
+  if (t.kind === 'surah') return surahPages(t.surah).length;
+  return TOTAL_PAGES;
+}
+
+function amount(t: GoalTarget): string {
+  if (t.kind === 'pages') return t.count === 1 ? 'A Page' : `${t.count} Pages`;
+  if (t.kind === 'juz') return t.count === 1 ? 'A Juz' : `${t.count} Juz`;
+  if (t.kind === 'surah') return getSurah(t.surah)?.transliteration ?? `Surah ${t.surah}`;
+  return 'The Quran';
+}
+
+export function shortDate(key: string): string {
+  const d = fromKey(key);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+function dayList(days: number[]): string {
+  const sorted = [...days].sort();
+  if (sorted.length === 7) return 'Each Day';
+  if (sorted.length === 5 && sorted.every((d) => d >= 1 && d <= 5)) return 'On Weekdays';
+  if (sorted.length === 2 && sorted[0] === 0 && sorted[1] === 6) return 'On Weekends';
+  if (sorted.length === 1) return `Each ${WEEKDAYS[sorted[0]]}`;
+  return `On ${sorted.map((d) => WEEKDAYS_SHORT[d]).join(', ')}`;
+}
+
+export function goalTitle(g: Pick<Goal, 'target' | 'schedule'>): string {
+  const what = amount(g.target);
+  switch (g.schedule.kind) {
+    case 'daily':
+      return `${what} Each Day`;
+    case 'days':
+      return `${what} ${dayList(g.schedule.days)}`;
+    case 'by':
+      return `${g.target.kind === 'quran' ? 'Finish the Quran' : what} by ${shortDate(g.schedule.date)}`;
+    default:
+      return g.target.kind === 'quran' ? 'Finish the Quran' : g.target.kind === 'surah' ? `Read ${what}` : `Read ${what}`;
   }
-  return g.days ? `The Quran in ${g.days} Days` : 'Finish the Quran';
 }
 
 export interface GoalStatus {
@@ -54,91 +116,119 @@ export interface GoalStatus {
   done: boolean;
   /** 0..1 towards today (or, in your own time, towards the whole). */
   progress: number;
-  /** "Done for today", "1 of 2 pages", "Due tonight", "42% of the Quran". */
+  /** "Done for today", "1 of 2 pages", "Next on Friday", "42% read". */
   detail: string;
+}
+
+/** Pages of a target covered by a set of read pages (and, for a surah, hearing it in full). */
+function covered(t: GoalTarget, read: Set<number>, heard: Set<number>): number {
+  if (t.kind === 'surah') {
+    const pages = surahPages(t.surah);
+    return heard.has(t.surah) ? pages.length : pages.filter((p) => read.has(p)).length;
+  }
+  return read.size;
+}
+
+function nextDue(days: number[], from: Date): string {
+  for (let i = 1; i <= 7; i++) {
+    const d = (from.getDay() + i) % 7;
+    if (days.includes(d)) return i === 1 ? 'Due tomorrow' : `Next on ${WEEKDAYS[d]}`;
+  }
+  return 'Not scheduled';
 }
 
 export function goalStatus(g: Goal, log: ReadingLog, now = new Date()): GoalStatus {
   const today = dayKey(now);
-  const read = new Set(log.days[today] ?? []);
   const title = goalTitle(g);
+  const need = targetPages(g.target);
+  const unit = (n: number) => (n === 1 ? 'page' : 'pages');
 
-  if (g.kind === 'pages') {
-    const n = Math.min(read.size, g.pages);
-    const done = n >= g.pages;
-    return { goal: g, title, today: true, done, progress: n / g.pages, detail: done ? 'Done for today' : `${n} of ${g.pages} ${g.pages === 1 ? 'page' : 'pages'}` };
+  // Each day (or on chosen days): today's reading against the target.
+  if (g.schedule.kind === 'daily' || g.schedule.kind === 'days') {
+    const due = g.schedule.kind === 'daily' || g.schedule.days.includes(now.getDay());
+    if (!due) return { goal: g, title, today: false, done: false, progress: 0, detail: nextDue(g.schedule.kind === 'days' ? g.schedule.days : [], now) };
+    const n = Math.min(need, covered(g.target, new Set(log.days[today] ?? []), new Set(log.heard[today] ?? [])));
+    const done = n >= need;
+    return { goal: g, title, today: true, done, progress: n / need, detail: done ? 'Done for today' : `${n} of ${need} ${unit(need)}` };
   }
 
-  if (g.kind === 'surah') {
-    const due = g.when !== 'friday' || now.getDay() === 5;
-    const pages = surahPages(g.surah);
-    const heard = (log.heard[today] ?? []).includes(g.surah);
-    const covered = heard ? pages.length : pages.filter((p) => read.has(p)).length;
-    const done = covered >= pages.length;
-    const detail = !due ? 'Next Friday' : done ? 'Done for today' : covered > 0 ? `${covered} of ${pages.length} pages` : g.when === 'night' ? 'Due tonight' : 'Due today';
-    return { goal: g, title, today: due, done: due && done, progress: due ? covered / pages.length : 0, detail };
-  }
-
-  // The whole Quran: every page read since the goal began, counted once.
-  const since = new Set<number>();
-  let beforeToday = 0;
+  // In all: every page read since the goal began, counted once.
+  const all = new Set<number>();
+  const allHeard = new Set<number>();
+  const before = new Set<number>();
+  const beforeHeard = new Set<number>();
   for (const [key, pages] of Object.entries(log.days)) {
     if (key < g.startedOn) continue;
     for (const p of pages) {
-      if (!since.has(p)) {
-        since.add(p);
-        if (key < today) beforeToday += 1;
-      }
+      all.add(p);
+      if (key < today) before.add(p);
     }
   }
-  const total = since.size;
-  if (!g.days) {
-    const done = total >= TOTAL_PAGES;
-    return { goal: g, title, today: false, done, progress: total / TOTAL_PAGES, detail: done ? 'Finished' : `${Math.floor((total / TOTAL_PAGES) * 100)}% of the Quran` };
+  for (const [key, surahs] of Object.entries(log.heard)) {
+    if (key < g.startedOn) continue;
+    for (const s of surahs) {
+      allHeard.add(s);
+      if (key < today) beforeHeard.add(s);
+    }
   }
-  const left = Math.max(1, g.days - daysBetween(g.startedOn, now));
-  const target = Math.max(1, Math.ceil((TOTAL_PAGES - beforeToday) / left));
-  const n = Math.min(target, total - beforeToday);
-  const done = n >= target || total >= TOTAL_PAGES;
+  const total = Math.min(need, covered(g.target, all, allHeard));
+  if (total >= need) return { goal: g, title, today: false, done: true, progress: 1, detail: 'Finished' };
+
+  if (g.schedule.kind === 'open') {
+    return { goal: g, title, today: false, done: false, progress: total / need, detail: `${Math.floor((total / need) * 100)}% read` };
+  }
+
+  // By a date: what's left at the start of today, shared out over the days left (today included).
+  const left = Math.max(1, daysBetween(today, g.schedule.date) + 1);
+  const doneBefore = Math.min(need, covered(g.target, before, beforeHeard));
+  const todayTarget = Math.max(1, Math.ceil((need - doneBefore) / left));
+  const todayRead = Math.max(0, total - doneBefore);
+  const done = todayRead >= todayTarget;
+  const overdue = daysBetween(today, g.schedule.date) < 0;
   return {
     goal: g,
     title,
-    today: total < TOTAL_PAGES,
+    today: true,
     done,
-    progress: Math.max(0, n) / target,
-    detail: total >= TOTAL_PAGES ? 'Finished' : done ? 'Done for today' : `${Math.max(0, n)} of ${target} pages today`,
+    progress: Math.min(1, todayRead / todayTarget),
+    detail: overdue ? `${need - total} ${unit(need - total)} left` : done ? 'Done for today' : `${Math.min(todayRead, todayTarget)} of ${todayTarget} ${unit(todayTarget)} today`,
   };
 }
 
-/** Goals to offer, as the native menu lists them. */
-export const GOAL_TEMPLATES: { section: string; items: { label: string; make: () => Omit<Goal, 'id' | 'createdAt'> }[] }[] = [
+/** A quick start in the goal editor; each fills it in, and can be changed before adding. */
+export const GOAL_SUGGESTIONS: { label: string; goal: () => NewGoal }[] = [
+  { label: 'A page a day', goal: () => ({ target: { kind: 'pages', count: 1 }, schedule: { kind: 'daily' } }) },
+  { label: 'Al-Mulk each night', goal: () => ({ target: { kind: 'surah', surah: 67 }, schedule: { kind: 'daily' } }) },
+  { label: 'Al-Kahf on Fridays', goal: () => ({ target: { kind: 'surah', surah: 18 }, schedule: { kind: 'days', days: [5] } }) },
   {
-    section: 'Every day',
-    items: [
-      { label: 'A Page Each Day', make: () => ({ kind: 'pages', pages: 1 }) },
-      { label: '2 Pages Each Day', make: () => ({ kind: 'pages', pages: 2 }) },
-      { label: '5 Pages Each Day', make: () => ({ kind: 'pages', pages: 5 }) },
-      { label: 'A Juz Each Day', make: () => ({ kind: 'pages', pages: 20 }) },
-    ],
-  },
-  {
-    section: 'A surah',
-    items: [
-      { label: 'Al-Mulk Each Night', make: () => ({ kind: 'surah', surah: 67, when: 'night' }) },
-      { label: "Al-Waqi'ah Each Night", make: () => ({ kind: 'surah', surah: 56, when: 'night' }) },
-      { label: 'Ya-Sin Each Day', make: () => ({ kind: 'surah', surah: 36, when: 'day' }) },
-      { label: 'Al-Kahf Each Friday', make: () => ({ kind: 'surah', surah: 18, when: 'friday' }) },
-    ],
-  },
-  {
-    section: 'The whole Quran',
-    items: [
-      { label: 'In 30 Days', make: () => ({ kind: 'khatm', days: 30, startedOn: dayKey() }) },
-      { label: 'In 60 Days', make: () => ({ kind: 'khatm', days: 60, startedOn: dayKey() }) },
-      { label: 'In Your Own Time', make: () => ({ kind: 'khatm', days: null, startedOn: dayKey() }) },
-    ],
+    label: 'The Quran in 30 days',
+    goal: () => {
+      const d = new Date();
+      d.setDate(d.getDate() + 29);
+      return { target: { kind: 'quran' }, schedule: { kind: 'by', date: dayKey(d) } };
+    },
   },
 ];
+
+/** Goals saved before goals were built from parts, in today's shape. */
+export function upgradeGoal(raw: unknown): Goal | null {
+  const g = raw as Record<string, unknown>;
+  if (!g || typeof g !== 'object') return null;
+  if (g.target && g.schedule) return g as unknown as Goal;
+  const base = { id: String(g.id ?? Date.now()), createdAt: Number(g.createdAt ?? Date.now()) };
+  const started = typeof g.startedOn === 'string' ? g.startedOn : dayKey(new Date(base.createdAt));
+  if (g.kind === 'pages') return { ...base, startedOn: started, target: { kind: 'pages', count: Number(g.pages) || 1 }, schedule: { kind: 'daily' } };
+  if (g.kind === 'surah') {
+    return { ...base, startedOn: started, target: { kind: 'surah', surah: Number(g.surah) || 1 }, schedule: g.when === 'friday' ? { kind: 'days', days: [5] } : { kind: 'daily' } };
+  }
+  if (g.kind === 'khatm') {
+    if (!g.days) return { ...base, startedOn: started, target: { kind: 'quran' }, schedule: { kind: 'open' } };
+    const end = fromKey(started);
+    end.setDate(end.getDate() + Number(g.days) - 1);
+    return { ...base, startedOn: started, target: { kind: 'quran' }, schedule: { kind: 'by', date: dayKey(end) } };
+  }
+  return null;
+}
 
 /** The line under the greeting: what's done, then what's still open. */
 export function todaySummary(statuses: GoalStatus[]): string {

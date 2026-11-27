@@ -136,10 +136,12 @@ struct WordView: View {
       .fixedSize()
       .background {
         if isCurrent {
-          GlassBubble(dark: ctx.theme.dark)
-            .padding(.horizontal, -size * 0.22)
-            .padding(.vertical, size * 0.12)
-            .matchedGeometryEffect(id: "glass", in: ctx.ns)
+          // A soft pill of the recited colour behind the word: rounded all round, no outline.
+          Capsule(style: .continuous)
+            .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.3 : 0.15))
+            .padding(.horizontal, -size * 0.2)
+            .padding(.vertical, size * 0.16)
+            .matchedGeometryEffect(id: "highlight", in: ctx.ns)
         }
       }
   }

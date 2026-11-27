@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { dayKey, EMPTY_LOG, goalStatus, type Goal, type GoalStatus, type ReadingLog } from './goals';
+import { dayKey, EMPTY_LOG, goalStatus, upgradeGoal, type Goal, type GoalStatus, type NewGoal, type ReadingLog } from './goals';
 
 const GOALS_KEY = 'athannow.quran.goals.v1';
 const LOG_KEY = 'athannow.quran.reading.v1';
@@ -11,7 +11,7 @@ const KEEP_DAYS = 400;
 export interface QuranProgress {
   goals: Goal[];
   statuses: GoalStatus[];
-  addGoal: (goal: Omit<Goal, 'id' | 'createdAt'>) => void;
+  addGoal: (goal: NewGoal) => void;
   removeGoal: (id: string) => void;
   /** A page has been read for a while today. */
   markRead: (page: number) => void;
@@ -30,7 +30,7 @@ export function useQuranProgress(): QuranProgress {
   useEffect(() => {
     Promise.all([AsyncStorage.getItem(GOALS_KEY), AsyncStorage.getItem(LOG_KEY)])
       .then(([g, l]) => {
-        if (g) setGoals(JSON.parse(g));
+        if (g) setGoals((JSON.parse(g) as unknown[]).map(upgradeGoal).filter((x): x is Goal => !!x));
         if (l) setLog({ ...EMPTY_LOG, ...JSON.parse(l) });
       })
       .catch(() => {})
@@ -77,8 +77,8 @@ export function useQuranProgress(): QuranProgress {
     });
   }, []);
 
-  const addGoal = useCallback((goal: Omit<Goal, 'id' | 'createdAt'>) => {
-    setGoals((gs) => [...gs, { ...goal, id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`, createdAt: Date.now() } as Goal]);
+  const addGoal = useCallback((goal: NewGoal) => {
+    setGoals((gs) => [...gs, { ...goal, id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`, startedOn: dayKey(), createdAt: Date.now() }]);
   }, []);
   const removeGoal = useCallback((id: string) => setGoals((gs) => gs.filter((g) => g.id !== id)), []);
 
