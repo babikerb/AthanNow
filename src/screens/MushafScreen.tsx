@@ -70,7 +70,11 @@ const LAST_COLOR_KEY = "athannow.quran.lastcolor.v1";
 const DARK_KEY = "athannow.quran.reader.dark.v1";
 
 const TITLES = SURAHS.map((s) => s.transliteration);
-const TOP_BAR = 60;
+// The top bar (44 high, 4 below the status bar) and the player (56 high, 8 above the home
+// indicator); the page sits between them with the same gap above and below.
+const TOP_BAR = 4 + 44;
+const PLAYER = 8 + 56;
+const PAGE_GAP = 18;
 // A page counts as read after this long on it.
 const READ_AFTER_MS = 12000;
 
@@ -371,10 +375,10 @@ function Reader({
 
   const surah = getSurah(surahForPage(page))!;
   const juz = juzForPage(page);
-  // The page runs from under the top bar to the foot of the screen; the player floats over its foot
-  // and hides with the controls.
-  const topInset = insets.top + TOP_BAR;
-  const bottomInset = insets.bottom + t.spacing.xxl;
+  // The page fills the space between the top bar and the player, an equal gap from each. It keeps
+  // that place when the controls hide.
+  const topInset = insets.top + TOP_BAR + PAGE_GAP;
+  const bottomInset = insets.bottom + PLAYER + PAGE_GAP;
   const pointer = hidden ? "none" : "box-none";
   const capsule = {
     backgroundColor: dark
