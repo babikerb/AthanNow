@@ -50,6 +50,7 @@ const LONGEST = HADITH.reduce((best, h, i) => (h.text.length > HADITH[best].text
 export function QuranHome({
   dark,
   lastPage,
+  started,
   progress,
   bookmarks,
   onContinue,
@@ -58,6 +59,8 @@ export function QuranHome({
 }: {
   dark: boolean;
   lastPage: number;
+  /** False until the reader has first been opened: the card then offers to start, from Al-Fatihah. */
+  started: boolean;
   progress: QuranProgress;
   bookmarks: Bookmark[];
   onContinue: () => void;
@@ -154,7 +157,7 @@ export function QuranHome({
       >
         <HadithCard />
 
-        <ContinueCard dark={dark} lastPage={lastPage} onContinue={onContinue} onOpenPage={onOpenPage} />
+        <ContinueCard dark={dark} lastPage={lastPage} started={started} onContinue={onContinue} onOpenPage={onOpenPage} />
 
         <AyahOfTheDay dark={dark} onOpenPage={onOpenPage} />
 
@@ -277,15 +280,17 @@ export function QuranHome({
  * Where you left off: the last page read, and one tap back to it. While a recitation is playing it
  * becomes Listening now: the page being recited, its word lit as it goes, a way back to it, and pause.
  */
-function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolean; lastPage: number; onContinue: () => void; onOpenPage: (page: number) => void }) {
+function ContinueCard({ dark, lastPage, started, onContinue, onOpenPage }: { dark: boolean; lastPage: number; started: boolean; onContinue: () => void; onOpenPage: (page: number) => void }) {
   const t = useTheme();
   const r = useRecitation();
   const { word } = useRecitationProgress();
   const listening = !!r.surahId && r.isPlaying;
-  const page = listening ? pageForAyah(r.surahId!, r.ayahIndex + 1) : lastPage;
+  // Nothing read yet: the card offers the Quran from its first page.
+  const fresh = !started && !listening;
+  const page = listening ? pageForAyah(r.surahId!, r.ayahIndex + 1) : fresh ? 1 : lastPage;
   const surah = getSurah(listening ? r.surahId! : (surahsOnPage(page).slice(-1)[0] ?? surahForPage(page)))!;
   const ayah = listening ? r.ayahIndex + 1 : (firstAyahOnPage(page)?.ayah ?? 1);
-  const open = () => (listening ? onOpenPage(page) : onContinue());
+  const open = () => (listening || fresh ? onOpenPage(page) : onContinue());
   const current = listening ? { surah: r.surahId!, ayah: r.ayahIndex + 1, word: Math.max(word, r.reciter.qdc ? 1 : 0) } : null;
 
   return (
@@ -295,10 +300,10 @@ function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolea
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: t.spacing.sm, paddingTop: t.spacing.xs, paddingBottom: t.spacing.sm }}>
           {listening ? <SymbolView name="waveform" size={11} tintColor={t.c.accent} /> : null}
           <Text variant="caption" color="textSecondary" header style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
-            {listening ? "Listening now" : "Continue where you left off"}
+            {listening ? "Listening now" : fresh ? "Start reading" : "Continue where you left off"}
           </Text>
         </View>
-        <PressableScale scaleTo={0.99} onPress={open} accessibilityRole="button" accessibilityLabel={listening ? `Back to the recitation, ${surah.transliteration}, ayah ${ayah}` : `Continue reading ${surah.transliteration}, page ${page}`}>
+        <PressableScale scaleTo={0.99} onPress={open} accessibilityRole="button" accessibilityLabel={listening ? `Back to the recitation, ${surah.transliteration}, ayah ${ayah}` : fresh ? "Start reading from Al-Fatihah" : `Continue reading ${surah.transliteration}, page ${page}`}>
           <View pointerEvents="none" style={{ height: 112, borderRadius: t.radii.card, borderCurve: "continuous", overflow: "hidden", backgroundColor: t.c.bg }}>
             <QuranReader
               style={{ flex: 1 }}
@@ -329,16 +334,16 @@ function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolea
               {surah.transliteration}
             </Text>
             <Text variant="footnote" color="textSecondary" numberOfLines={1}>
-              {listening ? `Ayah ${ayah}, ${r.reciter.name}` : `Ayah ${ayah}, Page ${page}`}
+              {listening ? `Ayah ${ayah}, ${r.reciter.name}` : fresh ? "The Opening, Page 1" : `Ayah ${ayah}, Page ${page}`}
             </Text>
           </View>
           <Text style={{ fontFamily: QURAN_FONT, fontSize: 22, lineHeight: 40, color: t.c.text }}>{surah.arabicName}</Text>
         </View>
         <View style={{ flexDirection: "row", gap: t.spacing.sm }}>
-          <PressableScale haptic="light" onPress={open} accessibilityRole="button" accessibilityLabel={listening ? "Back to the recitation" : "Continue"} style={{ flex: 1 }}>
+          <PressableScale haptic="light" onPress={open} accessibilityRole="button" accessibilityLabel={listening ? "Back to the recitation" : fresh ? "Start reading" : "Continue"} style={{ flex: 1 }}>
             <View style={{ height: 44, borderRadius: 22, backgroundColor: t.c.accent, alignItems: "center", justifyContent: "center" }}>
               <Text variant="body" style={{ color: t.c.onAccent, fontWeight: "600" }}>
-                {listening ? "Back to the recitation" : "Continue"}
+                {listening ? "Back to the recitation" : fresh ? "Start reading" : "Continue"}
               </Text>
             </View>
           </PressableScale>

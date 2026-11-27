@@ -114,6 +114,9 @@ function Reader({ display }: { display: Display }) {
   const [page, setPage] = useState(1);
   const [target, setTarget] = useState({ page: 1, nonce: 0 });
   const [restored, setRestored] = useState(false);
+  // Whether the reader has ever been opened (a new install, or after Reset all data, it hasn't):
+  // until then the home offers to start reading rather than to continue.
+  const [hasRead, setHasRead] = useState(false);
   const [lastColor, setLastColor] = useState<BookmarkColor>("red");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
@@ -141,6 +144,7 @@ function Reader({ display }: { display: Display }) {
         if (cancelled) return;
         const n = Number(pageRaw);
         if (Number.isFinite(n) && n >= 1 && n <= TOTAL_PAGES) {
+          setHasRead(true);
           setPage(n);
           setTarget({ page: n, nonce: 1 });
         }
@@ -154,13 +158,14 @@ function Reader({ display }: { display: Display }) {
     };
   }, []);
   useEffect(() => {
-    if (restored)
+    if (restored && hasRead)
       AsyncStorage.setItem(LAST_PAGE_KEY, String(page)).catch(() => {});
-  }, [page, restored]);
+  }, [page, restored, hasRead]);
 
   const openReader = useCallback(() => {
     if (readingRef.current) return;
     readingRef.current = true;
+    setHasRead(true);
     setReading(true);
     setHidden(false);
     setImmersive(true);
@@ -495,6 +500,7 @@ function Reader({ display }: { display: Display }) {
       <QuranHome
         dark={appDark}
         lastPage={page}
+        started={!restored || hasRead}
         progress={progress}
         bookmarks={bookmarks}
         onContinue={() => jumpTo(page)}
