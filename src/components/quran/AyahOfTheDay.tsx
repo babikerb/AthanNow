@@ -36,7 +36,7 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
 
   const share = (asImage: boolean) => {
     const done = shareAyah({ surah: surahId, ayah, title, asImage, colors: { bg: t.c.bg, text: t.c.text, accent: t.c.accent }, dark });
-    if (!done) Share.share({ message: `${title} ${ayah}\n\n${arabic}\n\n“${translation}”\n\nShared from AthanNow, free on the App Store` }).catch(() => {});
+    if (!done) Share.share({ message: `${title} ${surahId}:${ayah}\n\n${arabic}\n\n“${translation}”\n\nShared from AthanNow, free on the App Store` }).catch(() => {});
   };
 
   return (
@@ -44,7 +44,7 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
       <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
         Ayah of the day
       </Text>
-      <PressableScale scaleTo={0.99} onPress={() => onOpenPage(pageForAyah(surahId, ayah))} accessibilityRole="button" accessibilityLabel={`${title} ${ayah}: ${translation}`} accessibilityHint="Opens it in the mushaf">
+      <PressableScale scaleTo={0.99} onPress={() => onOpenPage(pageForAyah(surahId, ayah))} accessibilityRole="button" accessibilityLabel={`${title} ${surahId}:${ayah}: ${translation}`} accessibilityHint="Opens it in the mushaf">
         <RNText numberOfLines={4} style={{ fontFamily: HAFS_FONT, fontSize: 24, lineHeight: 46, color: t.c.text, textAlign: 'right', writingDirection: 'rtl', marginTop: t.spacing.sm }}>
           {arabic}
         </RNText>
@@ -54,7 +54,7 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
       </PressableScale>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.sm }}>
         <Text variant="footnote" style={{ fontWeight: '600' }}>
-          {title} {ayah}
+          {title} {surahId}:{ayah}
         </Text>
         {/* Share, as an image card or as text, like sharing from the mushaf. */}
         <NativeMenu
