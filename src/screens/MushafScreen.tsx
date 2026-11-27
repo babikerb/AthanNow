@@ -348,6 +348,8 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
           </View>
         </PressableScale>
         <NativeMenu
+          width={44}
+          height={44}
           colorScheme={dark ? 'dark' : 'light'}
           items={
             <>

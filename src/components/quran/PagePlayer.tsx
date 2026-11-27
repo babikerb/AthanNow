@@ -54,7 +54,7 @@ export function PagePlayer({ onPlayPage }: { onPlayPage: () => void }) {
   if (open && surah) return <Expanded onCollapse={() => setOpen(false)} style={card} />;
 
   const label = (
-    <View style={{ minHeight: 54, justifyContent: 'center' }}>
+    <View style={{ flex: 1, justifyContent: 'center' }}>
       <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600' }} maxFontSizeMultiplier={1.4}>
         {surah ? `${surah.transliteration}, Ayah ${r.ayahIndex + 1}` : r.reciter.name}
       </Text>
@@ -73,7 +73,7 @@ export function PagePlayer({ onPlayPage }: { onPlayPage: () => void }) {
           </PressableScale>
         ) : (
           // Before anything plays, the strip is where the reciter is chosen.
-          <NativeMenu style={{ flex: 1 }} colorScheme={t.scheme} items={<ReciterItems />}>
+          <NativeMenu height={54} colorScheme={t.scheme} items={<ReciterItems />}>
             {label}
           </NativeMenu>
         )}
@@ -138,8 +138,8 @@ function Expanded({ onCollapse, style }: { onCollapse: () => void; style: object
     <View style={[style, { paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.sm, paddingBottom: t.spacing.sm }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
         <Icon name="chevron.down" label="Hide the player controls" onPress={onCollapse} size={17} />
-        <NativeMenu style={{ flex: 1 }} colorScheme={t.scheme} items={<ReciterItems />}>
-          <View style={{ alignItems: 'center', minHeight: 44, justifyContent: 'center' }}>
+        <NativeMenu height={48} colorScheme={t.scheme} items={<ReciterItems />}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600', flexShrink: 1 }} maxFontSizeMultiplier={1.4}>
                 {r.reciter.name}
@@ -181,6 +181,8 @@ function Expanded({ onCollapse, style }: { onCollapse: () => void; style: object
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.xs }}>
         <NativeMenu
+          width={44}
+          height={44}
           colorScheme={t.scheme}
           items={
             <Section title="Speed">

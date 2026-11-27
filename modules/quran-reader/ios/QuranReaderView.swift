@@ -430,14 +430,17 @@ struct QuranReaderView: ExpoSwiftUI.View {
         }
         .padding(.top, CGFloat(props.topInset))
         .padding(.bottom, CGFloat(props.bottomInset))
-        .frame(width: full.width, height: full.height)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { props.onTap() }
         .environment(\.layoutDirection, .leftToRight)
+        .ignoresSafeArea()
         .tag(p.number)
       }
     }
     .tabViewStyle(.page(indexDisplayMode: .never))
+    .ignoresSafeArea()
+    .frame(width: full.width, height: full.height)
     .environment(\.layoutDirection, .rightToLeft)
     .onChange(of: page) { newValue in
       props.onPageChange(["page": newValue])
@@ -467,6 +470,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
         .contentShape(Rectangle())
         .onTapGesture { props.onTap() }
       }
+      .ignoresSafeArea()
+      .frame(width: full.width, height: full.height)
       .coordinateSpace(name: "flow")
       .environment(\.layoutDirection, .leftToRight)
       .onPreferenceChange(PageOffsetsKey.self) { offsets in

@@ -55,6 +55,8 @@ function GoalRow({ status, color, onOpen, onRemove, last }: { status: GoalStatus
         </View>
       </PressableScale>
       <NativeMenu
+        width={44}
+        height={44}
         colorScheme={t.scheme}
         items={
           <>
@@ -94,8 +96,8 @@ export function GoalsSheet({ visible, onClose, progress, dark, onOpenGoal }: { v
     <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle="pageSheet">
       <View style={{ flex: 1, backgroundColor: t.c.bg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
-          <NativeMenu colorScheme={t.scheme} items={<AddGoalItems progress={progress} />}>
-            <View style={{ height: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel="Add a goal">
+          <NativeMenu width={120} height={44} colorScheme={t.scheme} items={<AddGoalItems progress={progress} />}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel="Add a goal">
               <SymbolView name="plus" size={15} tintColor={t.c.accentText} style={{ width: 18, height: 18 }} />
               <Text variant="body" color="accentText" style={{ fontWeight: '600' }}>
                 Add Goal
