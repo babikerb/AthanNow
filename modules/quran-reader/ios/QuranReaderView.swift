@@ -733,6 +733,13 @@ struct QuranReaderView: ExpoSwiftUI.View {
     props.highlighting ? MushafWord.order(props.curSurah, props.curAyah, props.curWord) : -1
   }
 
+  /// A word to scroll to for the recitation: the word being recited, or the first word of the ayah
+  /// where the timing goes only by the ayah (or the Bismillah is still being recited).
+  private var recitedWord: Int {
+    guard props.highlighting else { return -1 }
+    return MushafWord.order(props.curSurah, props.curAyah, props.bismillahSurah > 0 ? 1 : max(props.curWord, 1))
+  }
+
   private func context(_ theme: ReaderTheme) -> ReaderContext {
     ReaderContext(
       theme: theme,
@@ -863,37 +870,73 @@ struct QuranReaderView: ExpoSwiftUI.View {
       .environment(\.layoutDirection, .leftToRight)
       .onPreferenceChange(PageOffsetsKey.self) { offsets in
         guard flowSettled else { return }
-        // The page whose top has most recently passed a third of the way down is the one being read.
+        // The page whose top has most recently passed a third of the way down is the one being read;
+        // while following a recitation, the recited page whenever it's on screen around the middle.
         let line = full.height * 0.35
-        if let reading = offsets.filter({ $0.value <= line }).max(by: { $0.value < $1.value })?.key, reading != page {
+        var found = offsets.filter({ $0.value <= line }).max(by: { $0.value < $1.value })?.key
+        if props.follow, let recited = recitedPage, let top = offsets[recited], top < full.height * 0.6,
+           (offsets[recited + 1] ?? .infinity) > full.height * 0.4 {
+          found = recited
+        }
+        if let reading = found, reading != page {
           page = reading
           props.onPageChange(["page": reading])
           PageFonts.shared.prepare(around: reading)
         }
       }
       .onAppear {
-        // Straight to the word being recited, if a recitation is on; otherwise the page's top. Once
-        // after the first layout pass, and again when the pages around it have settled their heights.
-        let onWord = props.highlighting
-        let target: Int = onWord ? currentOrder : -page
-        DispatchQueue.main.async {
-          proxy.scrollTo(target, anchor: onWord ? .center : .top)
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-            proxy.scrollTo(target, anchor: onWord ? .center : .top)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flowSettled = true }
+        // Straight to the word being recited, if a recitation is on; otherwise the page's top. The
+        // pages are built lazily, so first the recited page (always reachable), which builds its
+        // words; then the word itself, again once the pages around it have settled their heights.
+        if let recited = recitedPage {
+          let word = recitedWord
+          DispatchQueue.main.async {
+            proxy.scrollTo(-recited, anchor: .top)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+              proxy.scrollTo(word, anchor: .center)
+              DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                proxy.scrollTo(recitedWord, anchor: .center)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flowSettled = true }
+              }
+            }
+          }
+        } else {
+          let target = -page
+          DispatchQueue.main.async {
+            proxy.scrollTo(target, anchor: .top)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+              proxy.scrollTo(target, anchor: .top)
+              DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flowSettled = true }
+            }
           }
         }
       }
-      .onChange(of: currentOrder) { order in
-        guard props.follow, order > 0 else { return }
+      .onChange(of: recitedWord) { word in
+        guard props.follow, word > 0 else { return }
         withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
-          proxy.scrollTo(order, anchor: .center)
+          proxy.scrollTo(word, anchor: .center)
+        }
+      }
+      .onChange(of: recitedPage) { recited in
+        // Onto a page that may not be built yet: reach the page, then the word on it.
+        guard props.follow, let recited else { return }
+        if recited > flowLast - 1 { flowLast = min(604, recited + 4) }
+        if recited < flowFirst { flowFirst = max(1, recited - 2) }
+        proxy.scrollTo(-recited, anchor: .top)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+          withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
+            proxy.scrollTo(recitedWord, anchor: .center)
+          }
         }
       }
       .onChange(of: flowTarget) { target in
         guard let target else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
           proxy.scrollTo(-target, anchor: .top)
+          // Brought back to the recitation: on to the word being recited, not the page's top.
+          if target == recitedPage {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { proxy.scrollTo(recitedWord, anchor: .center) }
+          }
           flowTarget = nil
           DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { flowSettled = true }
         }
