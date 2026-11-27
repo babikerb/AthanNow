@@ -603,9 +603,10 @@ struct TranslationPage: View {
             }
             Text(MushafStore.shared.translation(key / 1000, key % 1000))
               .font(.system(size: meaningSize))
+              .lineSpacing(3)
               .foregroundColor(ctx.theme.ink.opacity(0.82))
-              .frame(maxWidth: .infinity, alignment: .leading)
               .fixedSize(horizontal: false, vertical: true)
+              .frame(width: width, alignment: .leading)
             if let first = words.first {
               Button {
                 ctx.act("meaning", first, page.number)
@@ -614,10 +615,11 @@ struct TranslationPage: View {
                   .font(.footnote.weight(.semibold))
                   .foregroundColor(ctx.theme.recited)
               }
-              .frame(maxWidth: .infinity, alignment: .leading)
+              .frame(width: width, alignment: .leading)
             }
-            Rectangle().fill(ctx.theme.frame.opacity(0.35)).frame(height: 0.5).padding(.top, 6)
+            Rectangle().fill(ctx.theme.frame.opacity(0.35)).frame(width: width, height: 0.5).padding(.top, 6)
           }
+          .frame(width: width)
         }
       }
     }
@@ -639,7 +641,6 @@ struct WordsPage: View {
   var body: some View {
     let glyphSize = qcf != nil && qcfSize > 0 ? qcfSize : size
     let gloss = min(12 * max(1, zoom * 0.55), 18)
-    let lineHeight = glyphSize * 1.7 + gloss * (translit ? 2.9 : 1.6) + 10
     VStack(spacing: size * 0.6) {
       ForEach(Array(page.blocks.enumerated()), id: \.offset) { _, block in
         switch block {
@@ -648,7 +649,7 @@ struct WordsPage: View {
         case .bismillah:
           BismillahLine(size: size * 0.8, theme: ctx.theme)
         case .ayah(_, let words):
-          FlowingLines(gap: glyphSize * 0.45, lineHeight: lineHeight) {
+          FlowingRows(gap: glyphSize * 0.45, rowSpacing: gloss * 0.9) {
             ForEach(words, id: \.order) { word in
               VStack(spacing: 2) {
                 if let q = qcf, qcfSize > 0 {
@@ -907,7 +908,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
           }
         }
         .padding(.top, CGFloat(props.topInset) + 8)
-        .padding(.bottom, CGFloat(props.bottomInset) + 40)
+        .padding(.bottom, CGFloat(props.bottomInset) + 120)
         .frame(width: full.width)
         .contentShape(Rectangle())
         .onTapGesture { props.onTap() }

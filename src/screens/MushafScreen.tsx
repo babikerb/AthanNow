@@ -39,6 +39,7 @@ import { QuranHome } from "../components/quran/QuranHome";
 import { NativeMenu } from "../components/NativeMenu";
 import { PagePlayer } from "../components/quran/PagePlayer";
 import { PageScroller } from "../components/quran/PageScroller";
+import { EdgeFade } from "../components/quran/EdgeFade";
 import { SurahPickerSheet } from "../components/SurahPickerSheet";
 import { getSurah, SURAHS } from "../data/surahs";
 import { pageForSurah, surahForPage, TOTAL_PAGES } from "../data/surahPages";
@@ -97,6 +98,8 @@ export default function MushafScreen() {
 
 function Reader({ display }: { display: Display }) {
   const [displayOpen, setDisplayOpen] = useState(false);
+  // Pinched into flowing text (the page layout only; the others always flow).
+  const [zoomed, setZoomed] = useState(false);
   const t = useTheme();
   // The mushaf follows the app's appearance and accent, like every other tab.
   const appDark = t.scheme === "dark";
@@ -530,6 +533,7 @@ function Reader({ display }: { display: Display }) {
                     bookmarkedPages={bookmarkedPages}
                     focus={focus}
                     display={display}
+                    onZoomChange={setZoomed}
                     colors={{ bg: t.c.bg, text: t.c.text, accent: t.c.accent, recited: t.c.info }}
                     onPageChange={setPage}
                     onTap={() => {
@@ -540,6 +544,14 @@ function Reader({ display }: { display: Display }) {
                     }}
                     onAction={onAction}
                   />
+                ) : null}
+
+                {/* Flowing text fades out under the bars instead of running behind them. */}
+                {display.view !== "mushaf" || zoomed ? (
+                  <>
+                    <EdgeFade edge="top" color={t.c.bg} height={insets.top + TOP_BAR + 36} solid={insets.top + TOP_BAR - 4} />
+                    <EdgeFade edge="bottom" color={t.c.bg} height={insets.bottom + (hidden ? 110 : 170)} solid={insets.bottom + (hidden ? 70 : 128)} />
+                  </>
                 ) : null}
 
                 {/* Surah (or surahs), juz and page; tap for the index and search. Focused, it widens to the
@@ -807,6 +819,7 @@ function ReaderSurface(props: {
   bookmarkedPages: number[];
   focus: { from: number; to: number } | null;
   display: Display;
+  onZoomChange: (zoomed: boolean) => void;
   colors: { bg: string; text: string; accent: string; recited: string };
   onPageChange: (page: number) => void;
   onTap: () => void;
@@ -862,6 +875,7 @@ function ReaderSurface(props: {
       textScale={props.display.textScale}
       showTranslit={props.display.translit}
       onTextScale={(scale) => props.display.set({ textScale: scale })}
+      onZoomChange={props.onZoomChange}
       onPageChange={props.onPageChange}
       onTap={props.onTap}
       onAction={props.onAction}

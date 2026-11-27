@@ -76,6 +76,57 @@ struct FlowingLines: Layout {
   }
 }
 
+/// Words flowing right to left into centred rows, each row as tall as its tallest word (for words
+/// with their meanings beneath, which can wrap onto two lines), with a space between rows.
+struct FlowingRows: Layout {
+  var gap: CGFloat
+  var rowSpacing: CGFloat
+
+  private func rows(_ sizes: [CGSize], width: CGFloat) -> [[Int]] {
+    var rows: [[Int]] = []
+    var row: [Int] = []
+    var used: CGFloat = 0
+    for (index, size) in sizes.enumerated() {
+      let needed = row.isEmpty ? size.width : used + gap + size.width
+      if !row.isEmpty && needed > width {
+        rows.append(row)
+        row = [index]
+        used = size.width
+      } else {
+        row.append(index)
+        used = needed
+      }
+    }
+    if !row.isEmpty { rows.append(row) }
+    return rows
+  }
+
+  func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+    let width = proposal.width ?? 320
+    let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+    let all = rows(sizes, width: width)
+    let height = all.reduce(CGFloat(0)) { $0 + ($1.map { sizes[$0].height }.max() ?? 0) } + rowSpacing * CGFloat(max(0, all.count - 1))
+    return CGSize(width: width, height: height)
+  }
+
+  func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+    let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+    var y = bounds.minY
+    for row in rows(sizes, width: bounds.width) {
+      let rowWidth = row.reduce(0) { $0 + sizes[$1].width } + gap * CGFloat(max(0, row.count - 1))
+      let rowHeight = row.map { sizes[$0].height }.max() ?? 0
+      var x = bounds.midX + rowWidth / 2
+      for index in row {
+        x -= sizes[index].width
+        // Each word hangs from the top of its row, so the Arabic lines up across the row.
+        subviews[index].place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: .unspecified)
+        x -= gap
+      }
+      y += rowHeight + rowSpacing
+    }
+  }
+}
+
 /// The page offsets in the zoomed-in scroll, to tell which page is being read.
 struct PageOffsetsKey: PreferenceKey {
   static let defaultValue: [Int: CGFloat] = [:]
