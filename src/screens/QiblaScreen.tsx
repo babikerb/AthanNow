@@ -20,6 +20,10 @@ const c = colorTokens.dark;
 
 const KAABA = require('../../assets/kaaba.png');
 const KAABA_SIZE = 22;
+// The marker grows to this when facing the Qibla. It's drawn at this size and shown smaller until
+// then: iOS draws an image for its laid-out size, so growing a smaller one past it would blur it.
+const KAABA_LOCKED = 28;
+const KAABA_REST = KAABA_SIZE / KAABA_LOCKED;
 
 const DIAL = 300;
 const R = DIAL / 2;
@@ -206,14 +210,14 @@ function Compass({
   // crossfade (ring, lubber, crosshair, dot, readout) and a spring on the dot instead of an instant swap.
   const { reduceMotion, motion } = useDesignTheme();
   const lock = useRef(new Animated.Value(isAligned ? 1 : 0)).current;
-  const dotScale = useRef(new Animated.Value(isAligned ? 1.25 : 1)).current;
+  const dotScale = useRef(new Animated.Value(isAligned ? 1 : KAABA_REST)).current;
   useEffect(() => {
     Animated.timing(lock, {
       toValue: isAligned ? 1 : 0,
       duration: reduceMotion ? motion.duration.reducedFade : motion.duration.standard,
       useNativeDriver: true,
     }).start();
-    const to = isAligned ? 1.25 : 1;
+    const to = isAligned ? 1 : KAABA_REST;
     if (reduceMotion) dotScale.setValue(to);
     else Animated.spring(dotScale, { toValue: to, useNativeDriver: true, ...motion.spring.snappy }).start();
   }, [isAligned, reduceMotion, lock, dotScale, motion]);
@@ -433,7 +437,7 @@ const styles = StyleSheet.create({
   crossH: { position: 'absolute', height: 1, width: DIAL - 8, backgroundColor: c.hairline },
   markLetter: { ...textStyle('headline'), color: c.skyText },
   markNumber: { ...textStyle('caption'), color: c.skyTextSecondary },
-  kaaba: { width: KAABA_SIZE, height: KAABA_SIZE, resizeMode: 'contain' },
+  kaaba: { width: KAABA_LOCKED, height: KAABA_LOCKED, resizeMode: 'contain' },
   // Aligned ring overlay: same circle as the dial, accent, fades in (the base hairline ring never changes width).
   ring: { position: 'absolute', top: -1, left: -1, width: DIAL, height: DIAL, borderRadius: R, borderWidth: 2, borderColor: c.accent },
   // Second copy of an element stacked exactly on the first (crossfaded with opacity).
