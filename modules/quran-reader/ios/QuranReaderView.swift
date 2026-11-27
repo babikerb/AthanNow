@@ -22,6 +22,9 @@ final class QuranReaderProps: ExpoSwiftUI.ViewProps {
   /// English surah names for the menus, Al-Fatihah first.
   @Field var surahTitles: [String] = []
   @Field var bookmarkedPages: [Int] = []
+  /// Ayahs being explained (the Meaning sheet), from and to as surah * 1000 + ayah: a soft tint.
+  @Field var focusFrom: Int = 0
+  @Field var focusTo: Int = 0
   /// A still snapshot of the page's opening lines (the home screen's Continue card): no gestures or menus.
   @Field var preview: Bool = false
   var onPageChange = EventDispatcher()
@@ -68,6 +71,13 @@ struct ReaderContext {
   /// it the whole ayah is lit while it's recited.
   let currentAyah: Int
   let wordLevel: Bool
+  /// Ayahs being explained, as `ayahKey`s; 0 for none.
+  let focusFrom: Int
+  let focusTo: Int
+
+  func inFocus(_ word: MushafWord) -> Bool {
+    focusFrom > 0 && word.ayahKey >= focusFrom && word.ayahKey <= focusTo
+  }
   let ns: Namespace.ID
   let titles: [String]
   let bookmarked: Set<Int>
@@ -166,6 +176,12 @@ struct WordView: View {
               .padding(.horizontal, -size * 0.1)
               .padding(.vertical, size * 0.16)
           }
+        } else if ctx.inFocus(word) {
+          // Being explained in the Meaning sheet: fainter than the recitation's highlight.
+          Capsule(style: .continuous)
+            .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.16 : 0.08))
+            .padding(.horizontal, -size * 0.1)
+            .padding(.vertical, size * 0.16)
         }
       }
   }
@@ -178,6 +194,7 @@ struct WordMenu: View {
 
   var body: some View {
     Section("\(ctx.title(word.surah)), Ayah \(word.ayah)") {
+      Button { ctx.act("meaning", word, page) } label: { Label("Meaning", systemImage: "text.book.closed") }
       Button { ctx.act("play", word, page) } label: { Label("Play from here", systemImage: "play.fill") }
       Button { ctx.act("repeat", word, page) } label: { Label("Repeat this ayah", systemImage: "repeat.1") }
     }
@@ -206,6 +223,14 @@ struct AyahPreview: View {
         .multilineTextAlignment(.center)
         .lineSpacing(6)
         .environment(\.layoutDirection, .rightToLeft)
+      let meaning = MushafStore.shared.translation(word.surah, word.ayah)
+      if !meaning.isEmpty {
+        Text(meaning)
+          .font(.callout)
+          .foregroundColor(ctx.theme.ink.opacity(0.85))
+          .multilineTextAlignment(.center)
+          .lineLimit(6)
+      }
       Text("\(ctx.title(word.surah)), Ayah \(word.ayah)")
         .font(.footnote)
         .foregroundColor(ctx.theme.quiet)
@@ -584,6 +609,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
       currentPage: props.highlighting ? (MushafStore.shared.ayahPage[props.curSurah * 1000 + props.curAyah] ?? -1) : -1,
       currentAyah: props.curSurah * 1000 + props.curAyah,
       wordLevel: props.curWord > 0,
+      focusFrom: props.focusFrom,
+      focusTo: props.focusTo,
       ns: ns,
       titles: props.surahTitles,
       bookmarked: Set(props.bookmarkedPages),

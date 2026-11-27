@@ -33,6 +33,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BookmarkSheet } from "../components/BookmarkSheet";
 import { GoalsSheet } from "../components/quran/GoalsSheet";
+import { MeaningSheet } from "../components/quran/MeaningSheet";
 import { QuranHome } from "../components/quran/QuranHome";
 import { NativeMenu } from "../components/NativeMenu";
 import { PagePlayer } from "../components/quran/PagePlayer";
@@ -352,9 +353,29 @@ function Reader({
   );
   const pageMark = bookmarkForPage(page);
 
+  // ---- Meaning: the held ayah's explanation, its passage tinted on the page ----
+  const [meaningAyah, setMeaningAyah] = useState<AyahRef | null>(null);
+  const [focus, setFocus] = useState<{ from: number; to: number } | null>(null);
+  const onPassage = useCallback(
+    (first: AyahRef, last: AyahRef) => {
+      setFocus({ from: first.surah * 1000 + first.ayah, to: last.surah * 1000 + last.ayah });
+      // Reading on to a passage on another page turns the page to it.
+      const p = pageForAyah(first.surah, first.ayah);
+      if (p !== pageRef.current) jumpTo(p);
+    },
+    [jumpTo],
+  );
+  const closeMeaning = useCallback(() => {
+    setMeaningAyah(null);
+    setFocus(null);
+  }, []);
+
   const onAction = useCallback(
     (action: ReaderAction, surah: number, ayah: number, onPage: number) => {
-      if (action === "play") {
+      if (action === "meaning") {
+        haptic.select();
+        setMeaningAyah({ surah, ayah });
+      } else if (action === "play") {
         if (r.repeat === "ayah") r.setRepeat("off");
         playFrom({ surah, ayah }, onPage);
       } else if (action === "repeat") {
@@ -461,6 +482,7 @@ function Reader({
               topInset={topInset}
               bottomInset={bottomInset}
               bookmarkedPages={bookmarkedPages}
+              focus={focus}
               onPageChange={setPage}
               onTap={() => setHidden((h) => !h)}
               onAction={onAction}
@@ -624,7 +646,10 @@ function Reader({
               opacity: controls,
             }}
           >
-            <PagePlayer onPlayPage={playPage} />
+            <PagePlayer
+              onPlayPage={playPage}
+              onMeaning={() => r.surahId && setMeaningAyah({ surah: r.surahId, ayah: r.ayahIndex + 1 })}
+            />
           </Animated.View>
 
           {/* The left edge: swipe in to go back. */}
@@ -641,6 +666,15 @@ function Reader({
         </Animated.View>
       ) : null}
       {sheets}
+      <MeaningSheet
+        ayah={meaningAyah}
+        onClose={closeMeaning}
+        onPassage={onPassage}
+        onPlay={(from) => {
+          if (r.repeat === "ayah") r.setRepeat("off");
+          playFrom(from, pageForAyah(from.surah, from.ayah));
+        }}
+      />
     </View>
   );
 }
@@ -655,6 +689,7 @@ function ReaderSurface(props: {
   topInset: number;
   bottomInset: number;
   bookmarkedPages: number[];
+  focus: { from: number; to: number } | null;
   onPageChange: (page: number) => void;
   onTap: () => void;
   onAction: (
@@ -690,6 +725,8 @@ function ReaderSurface(props: {
       bottomInset={props.bottomInset}
       surahTitles={TITLES}
       bookmarkedPages={props.bookmarkedPages}
+      focusFrom={props.focus?.from ?? 0}
+      focusTo={props.focus?.to ?? 0}
       onPageChange={props.onPageChange}
       onTap={props.onTap}
       onAction={props.onAction}

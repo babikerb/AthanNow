@@ -1,9 +1,10 @@
 import { Host } from '@expo/ui/swift-ui';
 import { requireNativeView } from 'expo';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import React from 'react';
 import { Platform, View, type StyleProp, type ViewStyle } from 'react-native';
 
-export type ReaderAction = 'play' | 'repeat' | 'bookmark' | 'unbookmark';
+export type ReaderAction = 'meaning' | 'play' | 'repeat' | 'bookmark' | 'unbookmark';
 
 export interface WordRef {
   surah: number;
@@ -33,6 +34,9 @@ export interface QuranReaderProps {
   onZoomChange?: (zoomed: boolean) => void;
   /** A still snapshot of the page's opening lines, with no gestures or menus. */
   preview?: boolean;
+  /** Ayahs being explained (the Meaning sheet), from and to as surah * 1000 + ayah: a soft tint. */
+  focusFrom?: number;
+  focusTo?: number;
 }
 
 type NativeProps = Omit<QuranReaderProps, 'current' | 'from' | 'onPageChange' | 'onTap' | 'onAction' | 'onZoomChange'> & {
@@ -50,6 +54,19 @@ type NativeProps = Omit<QuranReaderProps, 'current' | 'from' | 'onPageChange' | 
 };
 
 const NativeReader: React.ComponentType<NativeProps> | null = Platform.OS === 'ios' ? requireNativeView('QuranReader') : null;
+const NativeModule = Platform.OS === 'ios' ? requireOptionalNativeModule<{ ayah: (surah: number, ayah: number) => { arabic: string; translation: string } }>('QuranReader') : null;
+
+/** An ayah's text (KFGQPC Hafs) and its Saheeh International translation, from the bundled data. */
+export function ayahText(surah: number, ayah: number): { arabic: string; translation: string } {
+  try {
+    return NativeModule?.ayah(surah, ayah) ?? { arabic: '', translation: '' };
+  } catch {
+    return { arabic: '', translation: '' };
+  }
+}
+
+/** The font the reader registers for KFGQPC Hafs text, usable from React Native once the reader has loaded. */
+export const HAFS_FONT = 'KFGQPCHAFSUthmanicScript-Regula';
 
 /** The native mushaf (modules/quran-reader/ios). iOS only. */
 export function QuranReader({ current, from, onPageChange, onTap, onAction, onZoomChange, style, ...rest }: QuranReaderProps) {

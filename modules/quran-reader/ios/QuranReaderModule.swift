@@ -12,6 +12,15 @@ public class QuranReaderModule: Module {
       }
     }
 
+    /// An ayah's text (KFGQPC Hafs) and its Saheeh International translation.
+    Function("ayah") { (surah: Int, ayah: Int) -> [String: String] in
+      MushafStore.shared.load()
+      return [
+        "arabic": MushafStore.shared.ayahText[surah * 1000 + ayah] ?? "",
+        "translation": MushafStore.shared.translation(surah, ayah),
+      ]
+    }
+
     View(QuranReaderView.self)
   }
 }

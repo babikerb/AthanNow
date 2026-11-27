@@ -132,6 +132,10 @@ final class MushafStore {
   private(set) var ayahText: [Int: String] = [:]
   /// The page each ayah is printed on, by `ayahKey`.
   private(set) var ayahPage: [Int: Int] = [:]
+  /// Saheeh International, every ayah in order (bundled translation.json), and where each surah's
+  /// ayahs begin in it.
+  private(set) var translations: [String] = []
+  private var surahStart: [Int] = []
   private(set) var bismillah = "بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ"
   private(set) var loaded = false
   private let lock = NSLock()
@@ -178,8 +182,30 @@ final class MushafStore {
       out.append(MushafPage(number: index + 1, lines: parsed))
     }
     ayahText = words.mapValues { $0.joined(separator: " ") }
+    // Each surah's ayah count, from the highest ayah seen in it.
+    var counts = [Int](repeating: 0, count: 115)
+    for key in words.keys {
+      let s = key / 1000
+      if s >= 1 && s <= 114 { counts[s] = max(counts[s], key % 1000) }
+    }
+    var start = [Int](repeating: 0, count: 116)
+    for s in 1...114 { start[s + 1] = start[s] + counts[s] }
+    surahStart = start
+    if let url = MushafResources.url("translation", "json"),
+       let data = try? Data(contentsOf: url),
+       let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+       let list = json["ayahs"] as? [String] {
+      translations = list
+    }
     if let first = words[1001] { bismillah = first.dropLast().joined(separator: " ") }
     pages = out
+  }
+
+  /// An ayah's Saheeh International translation.
+  func translation(_ surah: Int, _ ayah: Int) -> String {
+    guard surah >= 1, surah <= 114, surahStart.count > surah else { return "" }
+    let index = surahStart[surah] + ayah - 1
+    return index >= 0 && index < translations.count ? translations[index] : ""
   }
 
   func page(_ number: Int) -> MushafPage? {

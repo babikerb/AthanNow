@@ -36,7 +36,7 @@ function ReciterItems() {
  * The player over the page: a slim strip with the reciter and play, which opens into a card with the
  * position, repeat and skip. The recitation plays at the reciter's own pace. Before anything has played, play starts at the top of the page.
  */
-export function PagePlayer({ onPlayPage }: { onPlayPage: () => void }) {
+export function PagePlayer({ onPlayPage, onMeaning }: { onPlayPage: () => void; onMeaning?: () => void }) {
   const t = useTheme();
   const r = useRecitation();
   const [open, setOpen] = useState(false);
@@ -51,7 +51,7 @@ export function PagePlayer({ onPlayPage }: { onPlayPage: () => void }) {
     overflow: 'hidden' as const,
   };
 
-  if (open && surah) return <Expanded onCollapse={() => setOpen(false)} style={card} />;
+  if (open && surah) return <Expanded onCollapse={() => setOpen(false)} onMeaning={onMeaning} style={card} />;
 
   const label = (
     <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -127,7 +127,7 @@ function Icon({ name, label, onPress, active, disabled, size = 20 }: { name: SFS
   );
 }
 
-function Expanded({ onCollapse, style }: { onCollapse: () => void; style: object }) {
+function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; onMeaning?: () => void; style: object }) {
   const t = useTheme();
   const r = useRecitation();
   const p = useRecitationProgress();
@@ -184,8 +184,8 @@ function Expanded({ onCollapse, style }: { onCollapse: () => void; style: object
         <Icon name="backward.fill" label="Previous ayah" size={22} onPress={r.previous} disabled={r.ayahIndex === 0} />
         <PlayButton onPlayPage={() => {}} size={56} filled />
         <Icon name="forward.fill" label="Next ayah" size={22} onPress={r.next} disabled={r.ayahIndex >= surah.totalVerses - 1} />
-        {/* Balances repeat on the other side, so play sits in the middle. */}
-        <View style={{ width: 44 }} />
+        {/* The meaning of the ayah being recited; it also balances repeat, so play sits in the middle. */}
+        {onMeaning ? <Icon name="text.book.closed" label="Meaning of this ayah" onPress={onMeaning} /> : <View style={{ width: 44 }} />}
       </View>
     </View>
   );
