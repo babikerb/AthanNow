@@ -375,7 +375,7 @@ struct BandOrnament: View {
 }
 
 /// A surah's opening band across the full width: a framed band with its ornament, and the surah's
-/// name in calligraphy (سورة and the name) in a cartouche at its middle.
+/// name (سورة and the name) in a cartouche at its middle.
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
@@ -391,14 +391,12 @@ struct SurahHeader: View {
         BandOrnament(color: theme.ornament).padding(.horizontal, h * 0.12)
         Cartouche().fill(theme.background).frame(width: g.size.width * 0.46, height: h * 0.74)
         Cartouche().stroke(theme.frame, lineWidth: 1).frame(width: g.size.width * 0.46, height: h * 0.74)
-        HStack(spacing: h * 0.1) {
-          Text(String(format: "%03d", surah))
-          Text("surah")
-        }
-        .font(.custom(MushafFont.surahNames, size: h * 0.62))
-        .foregroundColor(theme.ink)
-        .environment(\.layoutDirection, .leftToRight)
-        .fixedSize()
+        Text("سورة \(MushafStore.shared.name(surah))")
+          .font(.custom(MushafFont.name, size: h * 0.5))
+          .foregroundColor(theme.ink)
+          .lineLimit(1)
+          .minimumScaleFactor(0.6)
+          .frame(width: g.size.width * 0.42)
       }
     }
     .frame(height: size * 1.55)

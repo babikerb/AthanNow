@@ -46,13 +46,9 @@ struct ShareCard: View {
     let arabic = MushafStore.shared.ayahText[word.ayahKey] ?? word.text
     let meaning = MushafStore.shared.translation(word.surah, word.ayah)
     VStack(spacing: 18) {
-      HStack(spacing: 6) {
-        Text(String(format: "%03d", word.surah))
-        Text("surah")
-      }
-      .font(.custom(MushafFont.surahNames, size: 30))
-      .foregroundColor(theme.ink.opacity(0.8))
-      .environment(\.layoutDirection, .leftToRight)
+      Text("سورة \(MushafStore.shared.name(word.surah))")
+        .font(.custom(MushafFont.name, size: 24))
+        .foregroundColor(theme.ink.opacity(0.8))
 
       Text(arabic)
         .font(.custom(MushafFont.name, size: arabic.count > 220 ? 22 : arabic.count > 120 ? 26 : 30))

@@ -82,19 +82,16 @@ enum MushafResources {
   }
 }
 
-/// The bundled fonts, registered for this process: KFGQPC HAFS Uthmanic Script v18 (the text when
-/// a page's own font isn't there yet), and quran.com's surah-name calligraphy, where "025" draws
-/// the name of surah 25 and "surah" draws سورة.
+/// The bundled font, registered for this process: KFGQPC HAFS Uthmanic Script v18 (the text when
+/// a page's own font isn't there yet, the Bismillah and the surah names).
 enum MushafFont {
   private(set) static var name = "KFGQPCHAFSUthmanicScript-Regula"
-  private(set) static var surahNames = "sura_names"
   private static var registered = false
 
   static func register() {
     if registered { return }
     registered = true
     if let n = registerBundled("UthmanicHafs") { name = n }
-    if let n = registerBundled("SurahNames") { surahNames = n }
   }
 
   private static func registerBundled(_ file: String) -> String? {
