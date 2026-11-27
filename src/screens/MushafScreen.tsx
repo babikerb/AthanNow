@@ -308,30 +308,6 @@ function Reader({ display }: { display: Display }) {
   useEffect(() => {
     if (!r.surahId) setFrom(null);
   }, [r.surahId]);
-  // Zooming in during a recitation goes to the word being recited. The reader's own jump can come
-  // before the zoomed view has laid out, so the page is asked for again once it has (twice, as the
-  // heights settle); the reader then centres the recited word.
-  const playingRef = useRef<number | undefined>(undefined);
-  playingRef.current = r.isPlaying ? playingPage : undefined;
-  const zoomTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const onZoomChange = useCallback(
-    (z: boolean) => {
-      setZoomed(z);
-      zoomTimers.current.forEach(clearTimeout);
-      zoomTimers.current = [];
-      if (!z || !playingRef.current) return;
-      for (const ms of [450, 1100]) {
-        zoomTimers.current.push(
-          setTimeout(() => {
-            const p = playingRef.current;
-            if (p) jumpTo(p);
-          }, ms),
-        );
-      }
-    },
-    [jumpTo],
-  );
-  useEffect(() => () => zoomTimers.current.forEach(clearTimeout), []);
   // A surah heard to its last ayah counts as read today.
   useEffect(() => {
     const s = r.surahId ? getSurah(r.surahId) : undefined;
@@ -556,7 +532,7 @@ function Reader({ display }: { display: Display }) {
                     bookmarkedPages={bookmarkedPages}
                     focus={focus}
                     display={display}
-                    onZoomChange={onZoomChange}
+                    onZoomChange={setZoomed}
                     colors={{ bg: t.c.bg, text: t.c.text, accent: t.c.accent, recited: t.c.info }}
                     onPageChange={setPage}
                     onTap={() => {

@@ -839,6 +839,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
     return ScrollViewReader { proxy in
       ScrollView(.vertical, showsIndicators: false) {
         LazyVStack(spacing: size * 1.2) {
+          // Each page is scrolled to by its ForEach identity, its number: the only id a lazy stack can
+          // reach before the page has been built. (Words use their order, always above 1,000,000.)
           ForEach(flowPages) { p in
             let metrics = fonts.metrics(p.number)
             let qs = metrics.map { min(area.width * 0.985 / max($0.widest, 1) * 100, lineHeight * 0.72) * zoom } ?? 0
@@ -851,7 +853,6 @@ struct QuranReaderView: ExpoSwiftUI.View {
                 FlowPage(page: p, size: size, width: area.width, ctx: ctx, qcf: metrics, qcfSize: qs)
               }
             }
-              .id(-p.number)
               .onAppear {
                 if p.number == recitedPage { recitedBuilt = true }
                 // Near the end of what's laid out: lay out more.
@@ -899,7 +900,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
           // before the scroll has laid out, or land short while the pages above settle their
           // heights), then centre the word being recited, twice as the heights settle.
           func reach(_ tries: Int) {
-            proxy.scrollTo(-recited, anchor: .top)
+            proxy.scrollTo(recited, anchor: .top)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
               if recitedBuilt || tries >= 8 {
                 proxy.scrollTo(recitedWord, anchor: .center)
@@ -916,7 +917,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
           }
           DispatchQueue.main.async { reach(0) }
         } else {
-          let target = -page
+          let target = page
           DispatchQueue.main.async {
             proxy.scrollTo(target, anchor: .top)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -937,7 +938,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
         guard props.follow, let recited else { return }
         if recited > flowLast - 1 { flowLast = min(604, recited + 4) }
         if recited < flowFirst { flowFirst = max(1, recited - 2) }
-        proxy.scrollTo(-recited, anchor: .top)
+        proxy.scrollTo(recited, anchor: .top)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
           withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
             proxy.scrollTo(recitedWord, anchor: .center)
@@ -947,7 +948,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
       .onChange(of: flowTarget) { target in
         guard let target else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-          proxy.scrollTo(-target, anchor: .top)
+          proxy.scrollTo(target, anchor: .top)
           // Brought back to the recitation: on to the word being recited, not the page's top.
           if target == recitedPage {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { proxy.scrollTo(recitedWord, anchor: .center) }
