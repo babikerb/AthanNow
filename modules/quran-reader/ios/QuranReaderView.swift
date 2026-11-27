@@ -242,6 +242,17 @@ struct WordMenu: View {
       UIPasteboard.general.string = MushafStore.shared.ayahText[word.ayahKey]
       UINotificationFeedbackGenerator().notificationOccurred(.success)
     } label: { Label("Copy ayah", systemImage: "doc.on.doc") }
+    Menu {
+      Button {
+        let title = ctx.title(word.surah)
+        if let image = AyahShare.image(word, title: title, theme: ctx.theme) {
+          AyahShare.present([image])
+        }
+      } label: { Label("As image", systemImage: "photo") }
+      Button {
+        AyahShare.present([AyahShare.text(word, title: ctx.title(word.surah))])
+      } label: { Label("As text", systemImage: "text.quote") }
+    } label: { Label("Share ayah", systemImage: "square.and.arrow.up") }
     if ctx.bookmarked.contains(page) {
       Button(role: .destructive) { ctx.act("unbookmark", word, page) } label: { Label("Remove bookmark", systemImage: "bookmark.slash") }
     } else {
