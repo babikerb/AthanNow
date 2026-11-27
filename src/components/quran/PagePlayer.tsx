@@ -129,9 +129,9 @@ function Icon({ name, label, onPress, active, disabled, size = 20 }: { name: SFS
 }
 
 /**
- * The player opened up: AirPlay, the reciter (tap to change) and close along the top, the surah and
- * ayah under it, the ayah's position between its times, then the controls: Meaning, previous, play,
- * next and repeat.
+ * The player opened up: the reciter (tap to change) and close along the top, then the surah and ayah
+ * with a Meaning button beside them, the ayah's position between its times, then the controls:
+ * AirPlay, previous, play, next and repeat.
  */
 function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; onMeaning?: () => void; style: object }) {
   const t = useTheme();
@@ -143,10 +143,9 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
   return (
     <View style={[style, { borderRadius: 30, paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md, paddingBottom: t.spacing.md }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
-        <AirPlayButton tint={t.c.text} />
         {/* The reciter, as a button that looks like one: tap to choose another. */}
         <NativeMenu height={44} colorScheme={t.scheme} items={<ReciterItems />}>
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Reciter, ${r.reciter.name}`} accessibilityHint="Choose another reciter">
+          <View style={{ flex: 1, alignItems: 'flex-start', justifyContent: 'center' }} accessibilityLabel={`Reciter, ${r.reciter.name}`} accessibilityHint="Choose another reciter">
             <View
               style={{
                 maxWidth: '100%',
@@ -184,11 +183,37 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
         </PressableScale>
       </View>
 
-      <PressableScale scaleTo={1} onPress={onCollapse} accessibilityRole="button" accessibilityLabel={`${surah.transliteration}, ayah ${r.ayahIndex + 1}`} accessibilityHint="Folds the player away">
-        <Text variant="subhead" color="textSecondary" style={{ textAlign: 'center', marginTop: 2 }}>
-          {surah.transliteration}: {r.ayahIndex + 1}
-        </Text>
-      </PressableScale>
+      {/* Where the recitation is, and what that ayah means. */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, marginTop: t.spacing.md }}>
+        <PressableScale scaleTo={1} onPress={onCollapse} accessibilityRole="button" accessibilityLabel={`${surah.transliteration}, ayah ${r.ayahIndex + 1}`} accessibilityHint="Folds the player away" style={{ flex: 1 }}>
+          <Text variant="headline" numberOfLines={1} maxFontSizeMultiplier={1.3}>
+            {surah.transliteration}
+          </Text>
+          <Text variant="footnote" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1.3}>
+            Ayah {r.ayahIndex + 1} of {surah.totalVerses}
+          </Text>
+        </PressableScale>
+        {onMeaning ? (
+          <PressableScale haptic="select" onPress={onMeaning} accessibilityRole="button" accessibilityLabel={`Meaning of ayah ${r.ayahIndex + 1}`}>
+            <View
+              style={{
+                height: 36,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                paddingHorizontal: t.spacing.md,
+                borderRadius: 18,
+                backgroundColor: t.c.accentSoft,
+              }}
+            >
+              <SymbolView name="text.book.closed" size={13} tintColor={t.c.accent} style={{ width: 16, height: 16 }} />
+              <Text variant="subhead" maxFontSizeMultiplier={1.3} style={{ fontWeight: '600', color: t.c.accent }}>
+                Meaning
+              </Text>
+            </View>
+          </PressableScale>
+        ) : null}
+      </View>
 
       {r.error ? (
         <Text variant="footnote" color="danger" style={{ textAlign: 'center', marginTop: t.spacing.xs }}>
@@ -208,7 +233,9 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.xs }}>
-        {onMeaning ? <Icon name="text.book.closed" label="Meaning of this ayah" onPress={onMeaning} /> : <View style={{ width: 44 }} />}
+        <View style={{ width: 44, height: 44 }}>
+          <AirPlayButton tint={t.c.text} />
+        </View>
         <Icon name="backward.fill" label="Previous ayah" size={30} onPress={r.previous} disabled={r.ayahIndex === 0} />
         <BigPlay />
         <Icon name="forward.fill" label="Next ayah" size={30} onPress={r.next} disabled={r.ayahIndex >= surah.totalVerses - 1} />

@@ -9,6 +9,7 @@ import { useTheme } from '../../design/theme';
 import { firstAyahOnPage } from '../../quran/pageLayout';
 
 const TILE = 30;
+const STRIP = 34;
 const PAGES = Array.from({ length: TOTAL_PAGES }, (_, i) => i + 1);
 // Pages that open a surah get a mark on their tile.
 const OPENS_SURAH = new Set(PAGES.filter((p) => firstAyahOnPage(p)?.ayah === 1));
@@ -18,15 +19,16 @@ const Tile = memo(function Tile({ page, current, onPress }: { page: number; curr
   const t = useTheme();
   return (
     <PressableScale scaleTo={0.9} onPress={() => onPress(page)} accessibilityRole="button" accessibilityLabel={`Page ${page}`} accessibilityState={{ selected: current }}>
-      <View style={{ width: TILE, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: TILE, height: STRIP, alignItems: 'center', justifyContent: 'center' }}>
         <View
           style={{
-            width: 18,
-            height: 26,
+            width: 16,
+            height: 22,
             borderRadius: 4,
+            borderCurve: 'continuous',
             backgroundColor: current ? t.c.accent : t.c.surface2,
             paddingHorizontal: 4,
-            paddingVertical: 5,
+            paddingVertical: 4,
             justifyContent: 'space-between',
           }}
         >
@@ -34,7 +36,7 @@ const Tile = memo(function Tile({ page, current, onPress }: { page: number; curr
             <View key={i} style={{ height: 1.5, borderRadius: 1, backgroundColor: current ? t.c.onAccent : t.c.glyphQuiet, opacity: current ? 0.7 : 0.6 }} />
           ))}
         </View>
-        {OPENS_SURAH.has(page) ? <View style={{ position: 'absolute', top: 3, width: 4, height: 4, borderRadius: 2, backgroundColor: t.c.info }} /> : null}
+        {OPENS_SURAH.has(page) ? <View style={{ position: 'absolute', top: 1, width: 4, height: 4, borderRadius: 2, backgroundColor: t.c.info }} /> : null}
       </View>
     </PressableScale>
   );
@@ -81,7 +83,8 @@ export function PageScroller({ page, onPage }: { page: number; onPage: (page: nu
 
   const pad = Math.max(0, (width - TILE) / 2);
   return (
-    <View style={{ flex: 1, height: 56, justifyContent: 'center' }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View style={{ flex: 1, justifyContent: 'center', paddingTop: 3 }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <View style={{ height: STRIP }}>
       {width > 0 ? (
         <FlatList
           ref={list}
@@ -109,12 +112,15 @@ export function PageScroller({ page, onPage }: { page: number; onPage: (page: nu
           accessibilityLabel={`Page ${shown} of ${TOTAL_PAGES}`}
         />
       ) : null}
-      {/* The number of the page in the middle, under its tile. */}
-      <View pointerEvents="none" style={{ position: 'absolute', bottom: -2, left: 0, right: 0, alignItems: 'center' }}>
-        <Text variant="caption2" style={{ fontWeight: '700', fontVariant: ['tabular-nums'], color: t.c.text }}>
-          {shown}
-        </Text>
       </View>
+      {/* The number of the page in the middle, under its tile. */}
+      <Text
+        variant="caption2"
+        maxFontSizeMultiplier={1}
+        style={{ textAlign: 'center', lineHeight: 13, fontWeight: '700', fontVariant: ['tabular-nums'], color: t.c.text }}
+      >
+        {shown}
+      </Text>
     </View>
   );
 }

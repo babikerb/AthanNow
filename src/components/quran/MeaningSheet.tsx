@@ -26,14 +26,12 @@ export function MeaningSheet({
   ayah,
   onClose,
   onPassage,
-  onPlay,
 }: {
   /** The ayah held; null when closed. */
   ayah: AyahRef | null;
   onClose: () => void;
   /** The passage being explained, as it changes (the page tints it). */
   onPassage: (first: AyahRef, last: AyahRef) => void;
-  onPlay: (from: AyahRef) => void;
 }) {
   const t = useTheme();
   const [anchor, setAnchor] = useState<AyahRef | null>(ayah);
@@ -123,7 +121,6 @@ export function MeaningSheet({
                 before={before}
                 after={after}
                 onGo={setAnchor}
-                onPlay={() => first && onPlay(first)}
               />
             </View>
           </RNHostView>
@@ -148,7 +145,6 @@ function SheetBody({
   before,
   after,
   onGo,
-  onPlay,
 }: {
   scrollRef: React.RefObject<ScrollView | null>;
   sourceName: string;
@@ -164,7 +160,6 @@ function SheetBody({
   before: AyahRef | null;
   after: AyahRef | null;
   onGo: (r: AyahRef) => void;
-  onPlay: () => void;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -281,11 +276,6 @@ function SheetBody({
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.xxl, gap: t.spacing.sm }}>
           <NavButton label="Previous" icon="chevron.left" disabled={!before} onPress={() => before && onGo(before)} />
-          <PressableScale haptic="light" onPress={onPlay} accessibilityRole="button" accessibilityLabel="Play this passage">
-            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: t.c.accent, alignItems: 'center', justifyContent: 'center' }}>
-              <SymbolView name="play.fill" size={20} tintColor={t.c.onAccent} style={{ width: 24, height: 24, marginLeft: 2 }} />
-            </View>
-          </PressableScale>
           <NavButton label="Next" icon="chevron.right" trailing disabled={!after} onPress={() => after && onGo(after)} />
         </View>
       </ScrollView>

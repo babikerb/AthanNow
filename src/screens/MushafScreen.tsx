@@ -78,10 +78,11 @@ const LAST_COLOR_KEY = "athannow.quran.lastcolor.v1";
 const DARK_KEY = "athannow.quran.reader.dark.v1";
 
 const TITLES = SURAHS.map((s) => s.transliteration);
-// The top bar (44 high, 4 below the status bar) and the player (56 high, 8 above the home
-// indicator); the page sits between them with the same gap above and below.
+// The top bar (44 high, 4 below the status bar) and the controls at the foot: the player and the
+// page strip under it (56 each, 8 apart, 8 above the home indicator). The page sits between them
+// with the same gap above and below, so nothing of it is ever behind the controls.
 const TOP_BAR = 4 + 44;
-const PLAYER = 8 + 56;
+const PLAYER = 8 + 56 + 8 + 56;
 const PAGE_GAP = 18;
 // A page counts as read after this long on it.
 const READ_AFTER_MS = 12000;
@@ -646,10 +647,11 @@ function Reader({ display }: { display: Display }) {
                       <Text
                         variant="subhead"
                         color="textSecondary"
+                        numberOfLines={1}
                         style={{ fontVariant: ["tabular-nums"] }}
                         maxFontSizeMultiplier={1.3}
                       >
-                        {page}
+                        {hidden ? `Page ${page}` : page}
                       </Text>
                     </View>
                   </PressableScale>
@@ -721,10 +723,10 @@ function Reader({ display }: { display: Display }) {
                         accessibilityRole="button"
                         accessibilityLabel={backTo != null ? `Back to page ${backTo}` : "Back"}
                       >
-                        <View style={[capsule, { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", opacity: backTo == null ? 0.45 : 1 }]}>
-                          <SymbolView name="arrow.uturn.backward" size={16} tintColor={t.c.text} style={{ width: 20, height: 20 }} />
+                        <View style={[capsule, { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", gap: 1, opacity: backTo == null ? 0.45 : 1 }]}>
+                          <SymbolView name="arrow.uturn.backward" size={15} tintColor={t.c.text} style={{ width: 18, height: 18 }} />
                           {backTo != null ? (
-                            <Text variant="caption2" style={{ fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+                            <Text variant="caption2" maxFontSizeMultiplier={1} style={{ fontWeight: "700", fontVariant: ["tabular-nums"], lineHeight: 13 }}>
                               {backTo}
                             </Text>
                           ) : null}
@@ -797,10 +799,6 @@ function Reader({ display }: { display: Display }) {
         ayah={meaningAyah}
         onClose={closeMeaning}
         onPassage={onPassage}
-        onPlay={(from) => {
-          if (r.repeat === "ayah") r.setRepeat("off");
-          playFrom(from, pageForAyah(from.surah, from.ayah));
-        }}
       />
       <ReaderSettingsSheet open={displayOpen} onClose={() => setDisplayOpen(false)} display={display} />
     </View>
