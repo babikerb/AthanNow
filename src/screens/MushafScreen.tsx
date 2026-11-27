@@ -490,11 +490,6 @@ function Reader({ display }: { display: Display }) {
         onOpenGoals={() => setGoalsOpen(true)}
         pageColor={display.pageColor}
         textTone={display.textTone}
-        onPlayPage={playPage}
-        onMeaning={() =>
-          r.surahId &&
-          setMeaningAyah({ surah: r.surahId, ayah: r.ayahIndex + 1 })
-        }
       />
       {reading ? (
         <ThemeProvider preference={dark ? "dark" : "light"}>
@@ -876,7 +871,8 @@ function ReaderSurface(props: {
   const key = `${r.surahId}:${r.ayahIndex}`;
   let shown = word;
   if (word > 0) last.current = { key, word };
-  else if (r.reciter.qdc) shown = last.current.key === key ? last.current.word : 1;
+  else if (r.reciter.qdc)
+    shown = last.current.key === key ? last.current.word : 1;
   const current: WordRef | null = r.surahId
     ? { surah: r.surahId, ayah: r.ayahIndex + 1, word: shown }
     : null;
