@@ -281,28 +281,38 @@ struct AyahPreview: View {
   let ctx: ReaderContext
 
   var body: some View {
+    // Kept to a size the system never has to squeeze: iOS shrinks a preview that's too large by
+    // clipping it, not by laying it out again. Longer ayahs get a smaller size and are cut short.
+    let arabic = MushafStore.shared.ayahText[word.ayahKey] ?? word.text
+    let size: CGFloat = arabic.count > 300 ? 20 : arabic.count > 180 ? 22 : arabic.count > 100 ? 25 : 28
+    let width = min(UIScreen.main.bounds.width - 48, 340)
     VStack(spacing: 10) {
-      Text(MushafStore.shared.ayahText[word.ayahKey] ?? word.text)
-        .font(.custom(MushafFont.name, size: 30))
+      Text(arabic)
+        .font(.custom(MushafFont.name, size: size))
         .foregroundColor(ctx.theme.ink)
         .multilineTextAlignment(.center)
-        .lineSpacing(6)
+        .lineSpacing(4)
+        .lineLimit(5)
+        .truncationMode(.tail)
         .environment(\.layoutDirection, .rightToLeft)
+        .fixedSize(horizontal: false, vertical: true)
       let meaning = MushafStore.shared.translation(word.surah, word.ayah)
       if !meaning.isEmpty {
         Text(meaning)
           .font(.callout)
           .foregroundColor(ctx.theme.ink.opacity(0.85))
           .multilineTextAlignment(.center)
-          .lineLimit(6)
+          .lineLimit(4)
+          .fixedSize(horizontal: false, vertical: true)
       }
       Text("\(ctx.title(word.surah)), Ayah \(word.ayah)")
         .font(.footnote)
         .foregroundColor(ctx.theme.quiet)
     }
-    .padding(.horizontal, 22)
+    .padding(.horizontal, 20)
     .padding(.vertical, 18)
-    .frame(width: min(UIScreen.main.bounds.width - 40, 380))
+    .frame(width: width)
+    .fixedSize(horizontal: false, vertical: true)
     .background(ctx.theme.background)
   }
 }
