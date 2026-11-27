@@ -39,6 +39,8 @@ const HADITH: { text: string; source: string }[] = [
   },
 ];
 const HADITH_MS = 6000;
+// The longest hadith sets the card's height.
+const LONGEST = HADITH.reduce((best, h, i) => (h.text.length > HADITH[best].text.length ? i : best), 0);
 
 /**
  * The Quran tab's home: the title with goals at its right, a hadith on reciting and listening, and
@@ -374,20 +376,32 @@ function HadithCard() {
         backgroundColor: t.c.surface1,
         paddingHorizontal: t.spacing.lg,
         paddingVertical: t.spacing.md,
-        minHeight: 118,
       }}
     >
       <Text variant="caption" color="textSecondary" style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
         The Prophet ﷺ said
       </Text>
-      <Animated.View style={{ opacity: fade, flex: 1, justifyContent: "space-between" }}>
-        <Text variant="body" style={{ marginTop: t.spacing.xs, lineHeight: 22, fontWeight: "600" }}>
-          “{h.text}”
-        </Text>
-        <Text variant="footnote" color="textSecondary" style={{ marginTop: t.spacing.xs }}>
-          {h.source}
-        </Text>
-      </Animated.View>
+      {/* Every hadith is laid out in the same place, the longest setting the card's height, so the
+          card never changes size as they turn; only the current one shows. */}
+      <View>
+        {HADITH.map((x, i) => (
+          <Animated.View
+            key={i}
+            importantForAccessibility="no"
+            style={[
+              { opacity: i === index ? fade : 0 },
+              i === LONGEST ? null : { position: "absolute", top: 0, left: 0, right: 0 },
+            ]}
+          >
+            <Text variant="body" style={{ marginTop: t.spacing.xs, lineHeight: 22, fontWeight: "600" }}>
+              “{x.text}”
+            </Text>
+            <Text variant="footnote" color="textSecondary" style={{ marginTop: t.spacing.xs }}>
+              {x.source}
+            </Text>
+          </Animated.View>
+        ))}
+      </View>
     </View>
   );
 }
