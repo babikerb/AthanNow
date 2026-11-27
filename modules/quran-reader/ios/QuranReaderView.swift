@@ -642,6 +642,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
   @State private var flowLast = 8
   /// Page reports from the zoomed scroll are ignored until it has reached the page being read.
   @State private var flowSettled = false
+  /// The recited page has been built in the zoomed scroll (so its words can be scrolled to).
+  @State private var recitedBuilt = false
 
   private let maxZoom: CGFloat = 3.2
   private let sidePadding: CGFloat = 14
@@ -818,6 +820,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
     flowFirst = max(1, target - 2)
     flowLast = min(604, target + 6)
     flowSettled = false
+    recitedBuilt = false
   }
 
   // MARK: Zoomed in
@@ -850,6 +853,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
             }
               .id(-p.number)
               .onAppear {
+                if p.number == recitedPage { recitedBuilt = true }
                 // Near the end of what's laid out: lay out more.
                 if p.number >= flowLast - 1 && flowLast < 604 { flowLast = min(604, flowLast + 6) }
               }
@@ -891,17 +895,26 @@ struct QuranReaderView: ExpoSwiftUI.View {
         // pages are built lazily, so first the recited page (always reachable), which builds its
         // words; then the word itself, again once the pages around it have settled their heights.
         if let recited = recitedPage {
-          let word = recitedWord
-          DispatchQueue.main.async {
+          // Keep reaching for the recited page until it has been built (the first tries can come
+          // before the scroll has laid out, or land short while the pages above settle their
+          // heights), then centre the word being recited, twice as the heights settle.
+          func reach(_ tries: Int) {
             proxy.scrollTo(-recited, anchor: .top)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-              proxy.scrollTo(word, anchor: .center)
-              DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+              if recitedBuilt || tries >= 8 {
                 proxy.scrollTo(recitedWord, anchor: .center)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flowSettled = true }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                  proxy.scrollTo(recitedWord, anchor: .center)
+                  DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flowSettled = true }
+                }
+              } else {
+                // Still not built: start the scroll at the recited page, so it's built at once.
+                if tries == 3 { flowFirst = recited }
+                reach(tries + 1)
               }
             }
           }
+          DispatchQueue.main.async { reach(0) }
         } else {
           let target = -page
           DispatchQueue.main.async {
