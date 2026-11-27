@@ -655,7 +655,7 @@ function Reader({ display }: { display: Display }) {
                     onPress={() => setPickerOpen(true)}
                     accessibilityRole="button"
                     accessibilityLabel={`${pageTitle}, Juz ${juz}, page ${page}`}
-                    accessibilityHint="Opens the surah index and search"
+                    accessibilityHint="Opens the contents: surahs, juz and search"
                     style={[capsule, { flex: 1, height: 44, borderRadius: 22 }]}
                   >
                     <View
@@ -663,52 +663,36 @@ function Reader({ display }: { display: Display }) {
                         flex: 1,
                         flexDirection: "row",
                         alignItems: "center",
-                        paddingHorizontal: t.spacing.lg,
+                        paddingLeft: 7,
+                        paddingRight: t.spacing.lg,
                         gap: t.spacing.sm,
                       }}
                     >
+                      {/* The contents: a plain sign that this opens the surahs and search. */}
+                      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: t.c.accentSoft, alignItems: "center", justifyContent: "center" }}>
+                        <SymbolView name="list.bullet" size={13} weight="semibold" tintColor={t.c.accentText} style={{ width: 16, height: 16 }} />
+                      </View>
                       <View style={{ flex: 1 }}>
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
+                        <Text
+                          variant="subhead"
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                          minimumFontScale={0.8}
+                          style={{ fontWeight: "600" }}
+                          maxFontSizeMultiplier={1.3}
                         >
-                          <Text
-                            variant="subhead"
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                            minimumFontScale={0.8}
-                            style={{ fontWeight: "600", flexShrink: 1 }}
-                            maxFontSizeMultiplier={1.3}
-                          >
-                            {pageTitle}
-                          </Text>
-                          <SymbolView
-                            name="chevron.down"
-                            size={11}
-                            tintColor={t.c.textSecondary}
-                          />
-                        </View>
+                          {pageTitle}
+                        </Text>
                         <Text
                           variant="caption"
                           color="textSecondary"
                           numberOfLines={1}
                           maxFontSizeMultiplier={1.3}
+                          style={{ fontVariant: ["tabular-nums"] }}
                         >
-                          Juz {juz}
+                          Juz {juz}, page {page}
                         </Text>
                       </View>
-                      <Text
-                        variant="subhead"
-                        color="textSecondary"
-                        numberOfLines={1}
-                        style={{ fontVariant: ["tabular-nums"] }}
-                        maxFontSizeMultiplier={1.3}
-                      >
-                        {hidden ? `Page ${page}` : page}
-                      </Text>
                     </View>
                   </PressableScale>
                   {!hidden ? (
