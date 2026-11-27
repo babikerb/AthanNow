@@ -187,8 +187,6 @@ function Reader({ display }: { display: Display }) {
     });
   }, [push, t.reduceMotion]);
 
-  // The page before the last jump (the index, a bookmark, the page strip), for the back button.
-  const [backTo, setBackTo] = useState<number | null>(null);
   const jumpTo = useCallback(
     (p: number) => {
       setPage(p);
@@ -197,10 +195,9 @@ function Reader({ display }: { display: Display }) {
     },
     [openReader],
   );
-  /** A jump the reader chose: remembered, so the back button can return. */
+  /** A jump the reader chose: the index, a bookmark, the page strip. */
   const leapTo = useCallback(
     (p: number) => {
-      if (readingRef.current && p !== pageRef.current) setBackTo(pageRef.current);
       jumpTo(p);
     },
     [jumpTo],
@@ -710,29 +707,8 @@ function Reader({ display }: { display: Display }) {
                         })
                       }
                     />
-                    {/* Back to the page before the last jump, every page as a strip, and search. */}
+                    {/* Every page as a strip, and search. */}
                     <View style={{ flexDirection: "row", alignItems: "center", gap: t.spacing.sm }}>
-                      <PressableScale
-                        haptic="select"
-                        disabled={backTo == null}
-                        onPress={() => {
-                          if (backTo == null) return;
-                          const from = page;
-                          jumpTo(backTo);
-                          setBackTo(from);
-                        }}
-                        accessibilityRole="button"
-                        accessibilityLabel={backTo != null ? `Back to page ${backTo}` : "Back"}
-                      >
-                        <View style={[capsule, { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", gap: 1, opacity: backTo == null ? 0.45 : 1 }]}>
-                          <SymbolView name="arrow.uturn.backward" size={15} tintColor={t.c.text} style={{ width: 18, height: 18 }} />
-                          {backTo != null ? (
-                            <Text variant="caption2" maxFontSizeMultiplier={1} style={{ fontWeight: "700", fontVariant: ["tabular-nums"], lineHeight: 13 }}>
-                              {backTo}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </PressableScale>
                       <View style={[capsule, { flex: 1, height: 56, borderRadius: 28, overflow: "hidden" }]}>
                         <PageScroller page={page} onPage={leapTo} />
                       </View>

@@ -301,108 +301,24 @@ struct AyahPreview: View {
   }
 }
 
-/// The pointed cartouche the surah's name sits in.
-struct Cartouche: Shape {
-  func path(in r: CGRect) -> Path {
-    let tip = r.height * 0.55
-    var p = Path()
-    p.move(to: CGPoint(x: r.minX, y: r.midY))
-    p.addQuadCurve(to: CGPoint(x: r.minX + tip, y: r.minY), control: CGPoint(x: r.minX + tip * 0.2, y: r.minY))
-    p.addLine(to: CGPoint(x: r.maxX - tip, y: r.minY))
-    p.addQuadCurve(to: CGPoint(x: r.maxX, y: r.midY), control: CGPoint(x: r.maxX - tip * 0.2, y: r.minY))
-    p.addQuadCurve(to: CGPoint(x: r.maxX - tip, y: r.maxY), control: CGPoint(x: r.maxX - tip * 0.2, y: r.maxY))
-    p.addLine(to: CGPoint(x: r.minX + tip, y: r.maxY))
-    p.addQuadCurve(to: CGPoint(x: r.minX, y: r.midY), control: CGPoint(x: r.minX + tip * 0.2, y: r.maxY))
-    p.closeSubpath()
-    return p
-  }
-}
-
-/// The band's ornament: a rosette either side of the name, scrolls running out from each, and a
-/// small star near each end. Flat lines in one colour, like the printed frame.
-struct BandOrnament: View {
-  let color: Color
-
-  var body: some View {
-    Canvas { ctx, size in
-      let h = size.height
-      let w = size.width
-      let line = max(0.6, h * 0.022)
-      for side in [-1.0, 1.0] {
-        let cx = w / 2 + CGFloat(side) * w * 0.355
-        let cy = h / 2
-        let r = h * 0.3
-        // Rosette: a ring, eight petals, a centre.
-        ctx.stroke(Path(ellipseIn: CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)), with: .color(color), lineWidth: line)
-        for k in 0..<8 {
-          let a = Double(k) * .pi / 4
-          var petal = Path(ellipseIn: CGRect(x: -r * 0.17, y: -r * 0.86, width: r * 0.34, height: r * 0.72))
-          petal = petal.applying(CGAffineTransform(rotationAngle: CGFloat(a)).concatenating(CGAffineTransform(translationX: cx, y: cy)))
-          ctx.stroke(petal, with: .color(color), lineWidth: line * 0.8)
-        }
-        ctx.fill(Path(ellipseIn: CGRect(x: cx - r * 0.14, y: cy - r * 0.14, width: r * 0.28, height: r * 0.28)), with: .color(color))
-        // Scrolls between the rosette and the name, and out towards the end.
-        for dir in [-1.0, 1.0] {
-          let x0 = cx + CGFloat(dir) * r * 1.15
-          let reach = w * 0.075 * CGFloat(dir)
-          var s = Path()
-          s.move(to: CGPoint(x: x0, y: cy))
-          s.addCurve(to: CGPoint(x: x0 + reach, y: cy),
-                     control1: CGPoint(x: x0 + reach * 0.3, y: cy - h * 0.3),
-                     control2: CGPoint(x: x0 + reach * 0.7, y: cy + h * 0.3))
-          ctx.stroke(s, with: .color(color), lineWidth: line)
-          for t in [0.3, 0.7] {
-            let lx = x0 + reach * CGFloat(t)
-            let ly = cy + (t < 0.5 ? -h * 0.12 : h * 0.12)
-            ctx.fill(Path(ellipseIn: CGRect(x: lx - h * 0.045, y: ly - h * 0.045, width: h * 0.09, height: h * 0.09)), with: .color(color))
-          }
-        }
-        // A four-point star near the end of the band.
-        let sx = w / 2 + CGFloat(side) * w * 0.465
-        let sr = h * 0.17
-        var star = Path()
-        for k in 0..<8 {
-          let a = Double(k) * .pi / 4
-          let rr = k % 2 == 0 ? sr : sr * 0.38
-          let pt = CGPoint(x: sx + CGFloat(cos(a)) * rr, y: cy + CGFloat(sin(a)) * rr)
-          if k == 0 { star.move(to: pt) } else { star.addLine(to: pt) }
-        }
-        star.closeSubpath()
-        ctx.fill(star, with: .color(color))
-      }
-    }
-  }
-}
-
-/// A surah's opening band across the full width: a framed band with its ornament, and the surah's
-/// name (سورة and the name) in a cartouche at its middle.
+/// A surah's opening line: its name (سورة and the name), centred, with no band around it. It keeps
+/// the band's height so the printed page's lines stay where they were.
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
   let theme: ReaderTheme
 
   var body: some View {
-    GeometryReader { g in
-      let h = g.size.height
-      ZStack {
-        RoundedRectangle(cornerRadius: h * 0.14).fill(theme.band)
-        RoundedRectangle(cornerRadius: h * 0.14).stroke(theme.frame, lineWidth: 1)
-        RoundedRectangle(cornerRadius: h * 0.1).stroke(theme.frame, lineWidth: 0.6).padding(h * 0.07)
-        BandOrnament(color: theme.ornament).padding(.horizontal, h * 0.12)
-        Cartouche().fill(theme.background).frame(width: g.size.width * 0.46, height: h * 0.74)
-        Cartouche().stroke(theme.frame, lineWidth: 1).frame(width: g.size.width * 0.46, height: h * 0.74)
-        Text("سورة \(MushafStore.shared.name(surah))")
-          .font(.custom(MushafFont.name, size: h * 0.5))
-          .foregroundColor(theme.ink)
-          .lineLimit(1)
-          .minimumScaleFactor(0.6)
-          .frame(width: g.size.width * 0.42)
-      }
-    }
-    .frame(height: size * 1.55)
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel("Surah \(MushafStore.shared.name(surah))")
-    .accessibilityAddTraits(.isHeader)
+    Text("سورة \(MushafStore.shared.name(surah))")
+      .font(.custom(MushafFont.name, size: size * 0.95))
+      .foregroundColor(theme.ink)
+      .lineLimit(1)
+      .minimumScaleFactor(0.6)
+      .frame(maxWidth: .infinity)
+      .frame(height: size * 1.55)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Surah \(MushafStore.shared.name(surah))")
+      .accessibilityAddTraits(.isHeader)
   }
 }
 
