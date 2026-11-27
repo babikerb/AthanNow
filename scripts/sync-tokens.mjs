@@ -153,13 +153,14 @@ for (const [vName, v] of Object.entries(variants)) {
     need(contrast(P.glyphQuiet, P[sName]) >= 3, `paper: glyphQuiet on ${sName} = ${contrast(P.glyphQuiet, P[sName]).toFixed(2)} (<3)`);
   }
 }
-// surface steps (dark): tonal, ink-hued
+// surface steps (dark): tonal charcoal
 {
   const ks = ['bg', 'surface1', 'surface2', 'surface3'];
   const labs = ks.map((k) => toOKLab(C.dark[k]));
   for (let i = 1; i < labs.length; i++) need(labs[i].L - labs[i - 1].L >= 0.028, `dark surface step ${ks[i - 1]}->${ks[i]} dL=${(labs[i].L - labs[i - 1].L).toFixed(3)} (<0.028)`);
   labs.forEach((l, i) => {
-    need(l.h >= 295 && l.h <= 305, `dark ${ks[i]} hue ${l.h.toFixed(0)} outside 295-305`);
+    // Charcoal: near neutral, so its hue hardly shows; any tint stays cool (blue to violet).
+    need(l.C <= 0.015 || (l.h >= 240 && l.h <= 305), `dark ${ks[i]} hue ${l.h.toFixed(0)} outside 240-305`);
     need(l.C <= 0.045, `dark ${ks[i]} chroma ${l.C.toFixed(3)} > 0.045`);
   });
 }
@@ -171,7 +172,7 @@ for (const name of stageNames) {
   const { stops, scrimBottom } = tokens.sky.stages[name];
   need(stops.length >= 6 && stops.length <= 8, `${name}: needs 6-8 stops`);
   const last = stops[stops.length - 1];
-  need(last[0] >= 0.17 && last[0] <= 0.23 && last[1] <= 0.04 && last[2] >= 295 && last[2] <= 305, `${name}: bottom stop must be ink family`);
+  need(last[0] >= 0.17 && last[0] <= 0.23 && last[1] <= 0.04, `${name}: bottom stop must be the background's family`);
   let travel = 0;
   stops.forEach((s, i) => {
     const horizon = i >= stops.length - 3 && i < stops.length - 1;

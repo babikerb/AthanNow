@@ -4,7 +4,7 @@
 
 export type ScenePeriod = 'fajr' | 'sunrise' | 'dhuhr' | 'asr' | 'maghrib' | 'isha' | 'night';
 
-export const INK = '#17121F';
+export const INK = '#121316';
 
 export type Body =
   | { kind: 'crescent'; x: number; y: number; r: number; color: string; waning?: boolean }

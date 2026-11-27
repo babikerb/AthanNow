@@ -399,11 +399,9 @@ function Reader({ display }: { display: Display }) {
   const topInset = insets.top + TOP_BAR + PAGE_GAP;
   const bottomInset = insets.bottom + PLAYER + PAGE_GAP;
   const capsule = {
-    backgroundColor: dark
-      ? "rgba(30, 28, 42, 0.92)"
-      : "rgba(255, 255, 255, 0.92)",
+    backgroundColor: dark ? "rgba(26, 27, 31, 0.94)" : "rgba(255, 253, 248, 0.94)",
     borderWidth: 1,
-    borderColor: dark ? "rgba(255, 255, 255, 0.08)" : "rgba(29, 27, 38, 0.08)",
+    borderColor: t.c.hairline,
   };
 
   const pageMenu = (
@@ -521,7 +519,7 @@ function Reader({ display }: { display: Display }) {
                     bookmarkedPages={bookmarkedPages}
                     focus={focus}
                     display={display}
-                    colors={{ bg: t.c.bg, text: t.c.text, accent: t.c.accent }}
+                    colors={{ bg: t.c.bg, text: t.c.text, accent: t.c.accent, recited: t.c.info }}
                     onPageChange={setPage}
                     onTap={() => {
                       LayoutAnimation.configureNext(
@@ -765,7 +763,7 @@ function ReaderSurface(props: {
   bookmarkedPages: number[];
   focus: { from: number; to: number } | null;
   display: Display;
-  colors: { bg: string; text: string; accent: string };
+  colors: { bg: string; text: string; accent: string; recited: string };
   onPageChange: (page: number) => void;
   onTap: () => void;
   onAction: (
@@ -816,6 +814,7 @@ function ReaderSurface(props: {
       backgroundHex={props.colors.bg}
       inkHex={props.colors.text}
       accentHex={props.colors.accent}
+      recitedHex={props.colors.recited}
       textScale={props.display.textScale}
       showTranslit={props.display.translit}
       onTextScale={(scale) => props.display.set({ textScale: scale })}

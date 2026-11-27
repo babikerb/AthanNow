@@ -107,48 +107,6 @@ enum MushafFont {
   }
 }
 
-/// The calligraphic Bismillah (quran.com's drawing, scripts/build-bismillah-path.py), as a shape.
-struct BismillahShape: Shape {
-  private static let source: (path: Path, size: CGSize) = {
-    guard let url = MushafResources.url("bismillah", "txt"),
-          let text = try? String(contentsOf: url, encoding: .utf8) else { return (Path(), CGSize(width: 1, height: 1)) }
-    let lines = text.split(separator: "\n", maxSplits: 1)
-    let dims = lines.first?.split(separator: " ").compactMap { Double($0) } ?? [1, 1]
-    var path = Path()
-    if lines.count > 1 {
-      let tokens = lines[1].split(separator: " ")
-      var i = 0
-      func num() -> CGFloat {
-        defer { i += 1 }
-        return i < tokens.count ? CGFloat(Double(tokens[i]) ?? 0) : 0
-      }
-      while i < tokens.count {
-        let command = tokens[i]
-        i += 1
-        switch command {
-        case "M": path.move(to: CGPoint(x: num(), y: num()))
-        case "L": path.addLine(to: CGPoint(x: num(), y: num()))
-        case "C":
-          let c1 = CGPoint(x: num(), y: num())
-          let c2 = CGPoint(x: num(), y: num())
-          path.addCurve(to: CGPoint(x: num(), y: num()), control1: c1, control2: c2)
-        case "Z": path.closeSubpath()
-        default: break
-        }
-      }
-    }
-    return (path, CGSize(width: dims.first ?? 1, height: dims.count > 1 ? dims[1] : 1))
-  }()
-
-  func path(in rect: CGRect) -> Path {
-    let size = BismillahShape.source.size
-    let scale = min(rect.width / size.width, rect.height / size.height)
-    let x = rect.midX - size.width * scale / 2
-    let y = rect.midY - size.height * scale / 2
-    return BismillahShape.source.path.applying(CGAffineTransform(a: scale, b: 0, c: 0, d: scale, tx: x, ty: y))
-  }
-}
-
 /// All 604 pages, loaded once from the bundled mushaf.json (scripts/build-mushaf-words.py).
 final class MushafStore {
   static let shared = MushafStore()

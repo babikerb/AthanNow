@@ -2,9 +2,9 @@ import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-/** Ring colours, outermost first: the reader's indigo, then lighter steps of it. */
+/** Ring colours, outermost first: the accent, then dusk blue, then quieter steps. */
 export function ringColors(dark: boolean): string[] {
-  return dark ? ['#8B85FF', '#A5A1FF', '#C4C1FF', '#DEDCFF'] : ['#4338CA', '#5B50E0', '#7C73EE', '#A29BF5'];
+  return dark ? ['#E7D8B8', '#7FA7C7', '#C9B48C', '#A7AEBA'] : ['#152B48', '#386484', '#7A93AD', '#9C8A63'];
 }
 
 /**

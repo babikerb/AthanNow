@@ -48,6 +48,8 @@ export interface QuranReaderProps {
   backgroundHex?: string;
   inkHex?: string;
   accentHex?: string;
+  /** The colour recited words turn (the accent is the highlight on the word being recited). */
+  recitedHex?: string;
   /** Pinching in the flowing views asks for a new text size. */
   onTextScale?: (scale: number) => void;
 }

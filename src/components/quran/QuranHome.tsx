@@ -301,6 +301,7 @@ function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolea
               backgroundHex={t.c.bg}
               inkHex={t.c.text}
               accentHex={t.c.accent}
+              recitedHex={t.c.info}
               page={page}
               pageNonce={page}
               dark={dark}

@@ -23,30 +23,30 @@ private func dtDynamic(dark: UInt32, light: UInt32, darkHC: UInt32, lightHC: UIn
 }
 
 enum DTColor {
-  static let bg = dtDynamic(dark: 0x17121FFF, light: 0xF3F0F7FF, darkHC: 0x17121FFF, lightHC: 0xF3F0F7FF)
-  static let surface1 = dtDynamic(dark: 0x1E1828FF, light: 0xFAF8FCFF, darkHC: 0x1E1828FF, lightHC: 0xFAF8FCFF)
-  static let surface2 = dtDynamic(dark: 0x261F33FF, light: 0xE9E4F0FF, darkHC: 0x261F33FF, lightHC: 0xE9E4F0FF)
-  static let surface3 = dtDynamic(dark: 0x30283FFF, light: 0xDED7E8FF, darkHC: 0x30283FFF, lightHC: 0xDED7E8FF)
-  static let hairline = dtDynamic(dark: 0xFFFFFF14, light: 0x1F1A281A, darkHC: 0xFFFFFF2E, lightHC: 0x1F1A2838)
-  static let text = dtDynamic(dark: 0xEDE8F2FF, light: 0x1F1A28FF, darkHC: 0xEDE8F2FF, lightHC: 0x1F1A28FF)
-  static let textSecondary = dtDynamic(dark: 0x9C93ABFF, light: 0x5E566EFF, darkHC: 0xB5ADC3FF, lightHC: 0x4A4259FF)
-  static let textTertiary = dtDynamic(dark: 0x8A819BFF, light: 0x6A6179FF, darkHC: 0xA59DB5FF, lightHC: 0x564E65FF)
-  static let glyphQuiet = dtDynamic(dark: 0x6E6680FF, light: 0x877E98FF, darkHC: 0x8A819BFF, lightHC: 0x7A7189FF)
-  static let accent = dtDynamic(dark: 0xF2C14EFF, light: 0xB8860BFF, darkHC: 0xF2C14EFF, lightHC: 0xB8860BFF)
-  static let accentText = dtDynamic(dark: 0xF2C14EFF, light: 0x7A5A00FF, darkHC: 0xF2C14EFF, lightHC: 0x7A5A00FF)
-  static let onAccent = dtDynamic(dark: 0x17121FFF, light: 0x17121FFF, darkHC: 0x17121FFF, lightHC: 0x17121FFF)
-  static let accentSoft = dtDynamic(dark: 0xF2C14E24, light: 0xB8860B24, darkHC: 0xF2C14E24, lightHC: 0xB8860B24)
+  static let bg = dtDynamic(dark: 0x121316FF, light: 0xF6F1E6FF, darkHC: 0x121316FF, lightHC: 0xF6F1E6FF)
+  static let surface1 = dtDynamic(dark: 0x1A1B1FFF, light: 0xFFFDF8FF, darkHC: 0x1A1B1FFF, lightHC: 0xFFFDF8FF)
+  static let surface2 = dtDynamic(dark: 0x232429FF, light: 0xEDE6D6FF, darkHC: 0x232429FF, lightHC: 0xEDE6D6FF)
+  static let surface3 = dtDynamic(dark: 0x2C2E34FF, light: 0xE2DAC7FF, darkHC: 0x2C2E34FF, lightHC: 0xE2DAC7FF)
+  static let hairline = dtDynamic(dark: 0xFFFFFF14, light: 0x0B14241A, darkHC: 0xFFFFFF2E, lightHC: 0x0B142438)
+  static let text = dtDynamic(dark: 0xF3EEE2FF, light: 0x0B1424FF, darkHC: 0xF3EEE2FF, lightHC: 0x0B1424FF)
+  static let textSecondary = dtDynamic(dark: 0xA7AEBAFF, light: 0x4E5D72FF, darkHC: 0xC6CBD3FF, lightHC: 0x3B485BFF)
+  static let textTertiary = dtDynamic(dark: 0x99A0ACFF, light: 0x56657AFF, darkHC: 0xB6BCC6FF, lightHC: 0x455366FF)
+  static let glyphQuiet = dtDynamic(dark: 0x70767FFF, light: 0x7C889AFF, darkHC: 0x8C929CFF, lightHC: 0x6A7689FF)
+  static let accent = dtDynamic(dark: 0xE7D8B8FF, light: 0x152B48FF, darkHC: 0xE7D8B8FF, lightHC: 0x152B48FF)
+  static let accentText = dtDynamic(dark: 0xE7D8B8FF, light: 0x152B48FF, darkHC: 0xE7D8B8FF, lightHC: 0x152B48FF)
+  static let onAccent = dtDynamic(dark: 0x080F1DFF, light: 0xF3EEE2FF, darkHC: 0x080F1DFF, lightHC: 0xF3EEE2FF)
+  static let accentSoft = dtDynamic(dark: 0xE7D8B824, light: 0x152B4822, darkHC: 0xE7D8B824, lightHC: 0x152B4822)
   static let success = dtDynamic(dark: 0x7FB89AFF, light: 0x2F7050FF, darkHC: 0x7FB89AFF, lightHC: 0x2F7050FF)
   static let warning = dtDynamic(dark: 0xD9A25EFF, light: 0x7E5410FF, darkHC: 0xD9A25EFF, lightHC: 0x7E5410FF)
   static let danger = dtDynamic(dark: 0xE08A8AFF, light: 0xA33F3FFF, darkHC: 0xE08A8AFF, lightHC: 0xA33F3FFF)
-  static let info = dtDynamic(dark: 0x8FA6D6FF, light: 0x3F559AFF, darkHC: 0x8FA6D6FF, lightHC: 0x3F559AFF)
+  static let info = dtDynamic(dark: 0x7FA7C7FF, light: 0x386484FF, darkHC: 0x7FA7C7FF, lightHC: 0x386484FF)
   static let skyText = dtDynamic(dark: 0xF2EDF6FF, light: 0xF2EDF6FF, darkHC: 0xF2EDF6FF, lightHC: 0xF2EDF6FF)
   static let skyTextSecondary = dtDynamic(dark: 0xF2EDF6D1, light: 0xF2EDF6D1, darkHC: 0xF2EDF6D1, lightHC: 0xF2EDF6D1)
   static let scrim = dtDynamic(dark: 0x00000066, light: 0x00000066, darkHC: 0x00000066, lightHC: 0x00000066)
   static let skyFill = dtDynamic(dark: 0xF2EDF61A, light: 0xF2EDF61A, darkHC: 0xF2EDF61A, lightHC: 0xF2EDF61A)
   static let skyHairline = dtDynamic(dark: 0xF2EDF629, light: 0xF2EDF629, darkHC: 0xF2EDF629, lightHC: 0xF2EDF629)
   static let skyWash = dtDynamic(dark: 0xF2EDF614, light: 0xF2EDF614, darkHC: 0xF2EDF614, lightHC: 0xF2EDF614)
-  static let onAccentText = dtDynamic(dark: 0x17121FFF, light: 0xFFFFFFFF, darkHC: 0x17121FFF, lightHC: 0xFFFFFFFF)
+  static let onAccentText = dtDynamic(dark: 0x080F1DFF, light: 0xF3EEE2FF, darkHC: 0x080F1DFF, lightHC: 0xF3EEE2FF)
   static let scrimBase = dtDynamic(dark: 0x000000FF, light: 0x000000FF, darkHC: 0x000000FF, lightHC: 0x000000FF)
 }
 
@@ -57,19 +57,19 @@ enum DTNight {
   static let skyTextSecondary = dtColor(0xF2EDF6D1)
   static let skyHairline = dtColor(0xF2EDF629)
   static let skyWash = dtColor(0xF2EDF614)
-  static let accent = dtColor(0xF2C14EFF)
-  static let accentText = dtColor(0xF2C14EFF)
-  static let onAccent = dtColor(0x17121FFF)
+  static let accent = dtColor(0xE7D8B8FF)
+  static let accentText = dtColor(0xE7D8B8FF)
+  static let onAccent = dtColor(0x080F1DFF)
   static let danger = dtColor(0xE08A8AFF)
 }
 
 enum DTSky {
-  static let fajr: [Color] = [dtColor(0x101125FF), dtColor(0x131329FF), dtColor(0x15142CFF), dtColor(0x181631FF), dtColor(0x1B1935FF), dtColor(0x1F1B3AFF), dtColor(0x241E3FFF), dtColor(0x292143FF), dtColor(0x2E2347FF), dtColor(0x34264AFF), dtColor(0x3A284CFF), dtColor(0x41294EFF), dtColor(0x472C50FF), dtColor(0x4D2E52FF), dtColor(0x533154FF), dtColor(0x5A3456FF), dtColor(0x613858FF), dtColor(0x693C59FF), dtColor(0x70405BFF), dtColor(0x75435AFF), dtColor(0x734358FF), dtColor(0x6C3F54FF), dtColor(0x60394DFF), dtColor(0x523146FF), dtColor(0x442A3FFF), dtColor(0x372338FF), dtColor(0x2C1E31FF), dtColor(0x23192AFF), dtColor(0x181322FF)]
-  static let sunrise: [Color] = [dtColor(0x13192DFF), dtColor(0x181D34FF), dtColor(0x1D203AFF), dtColor(0x232542FF), dtColor(0x2B294AFF), dtColor(0x342D53FF), dtColor(0x3E325AFF), dtColor(0x493661FF), dtColor(0x553B68FF), dtColor(0x61406DFF), dtColor(0x6D4470FF), dtColor(0x794972FF), dtColor(0x844D72FF), dtColor(0x8E5070FF), dtColor(0x96526CFF), dtColor(0x9E5566FF), dtColor(0xA5585EFF), dtColor(0xAA5D54FF), dtColor(0xAD6249FF), dtColor(0xAC6541FF), dtColor(0xA5623DFF), dtColor(0x98583EFF), dtColor(0x854B40FF), dtColor(0x6E3D40FF), dtColor(0x58323EFF), dtColor(0x452939FF), dtColor(0x352133FF), dtColor(0x271B2CFF), dtColor(0x181322FF)]
-  static let dhuhr: [Color] = [dtColor(0x769BAFFF), dtColor(0x7599ADFF), dtColor(0x7397ABFF), dtColor(0x7194A9FF), dtColor(0x6F92A7FF), dtColor(0x6D90A5FF), dtColor(0x6B8DA3FF), dtColor(0x698BA0FF), dtColor(0x66879DFF), dtColor(0x628399FF), dtColor(0x5D7E94FF), dtColor(0x59788EFF), dtColor(0x55748AFF), dtColor(0x517086FF), dtColor(0x4F6C83FF), dtColor(0x4D6981FF), dtColor(0x4B677EFF), dtColor(0x4A647CFF), dtColor(0x496179FF), dtColor(0x475E75FF), dtColor(0x45586FFF), dtColor(0x405269FF), dtColor(0x3B4960FF), dtColor(0x354057FF), dtColor(0x2F374DFF), dtColor(0x2A2D42FF), dtColor(0x242437FF), dtColor(0x1F1C2DFF), dtColor(0x181322FF)]
-  static let asr: [Color] = [dtColor(0x1E3548FF), dtColor(0x21394DFF), dtColor(0x243C51FF), dtColor(0x274156FF), dtColor(0x2B455BFF), dtColor(0x2F4A60FF), dtColor(0x334F66FF), dtColor(0x39546BFF), dtColor(0x3E586FFF), dtColor(0x455C74FF), dtColor(0x4D6077FF), dtColor(0x54637BFF), dtColor(0x5D647DFF), dtColor(0x66647EFF), dtColor(0x70637CFF), dtColor(0x796277FF), dtColor(0x826272FF), dtColor(0x89636BFF), dtColor(0x8F6465FF), dtColor(0x91645DFF), dtColor(0x8D6054FF), dtColor(0x82574AFF), dtColor(0x734A40FF), dtColor(0x623C37FF), dtColor(0x512F32FF), dtColor(0x42262FFF), dtColor(0x341F2DFF), dtColor(0x271929FF), dtColor(0x181322FF)]
-  static let maghrib: [Color] = [dtColor(0x0A081BFF), dtColor(0x0C091EFF), dtColor(0x0E0921FF), dtColor(0x110A24FF), dtColor(0x140B26FF), dtColor(0x180C29FF), dtColor(0x1C0D2BFF), dtColor(0x210E2DFF), dtColor(0x260F2FFF), dtColor(0x2D1131FF), dtColor(0x351233FF), dtColor(0x3E1434FF), dtColor(0x471635FF), dtColor(0x501A36FF), dtColor(0x5A1E36FF), dtColor(0x642237FF), dtColor(0x6E2736FF), dtColor(0x792E36FF), dtColor(0x833434FF), dtColor(0x8A3931FF), dtColor(0x893A2EFF), dtColor(0x80362BFF), dtColor(0x702E28FF), dtColor(0x5E2627FF), dtColor(0x4D1F28FF), dtColor(0x3E1A29FF), dtColor(0x31182AFF), dtColor(0x251628FF), dtColor(0x181322FF)]
-  static let isha: [Color] = [dtColor(0x0C0B1AFF), dtColor(0x0D0C1BFF), dtColor(0x0E0C1CFF), dtColor(0x0F0D1DFF), dtColor(0x100E1EFF), dtColor(0x110E1FFF), dtColor(0x120F20FF), dtColor(0x131021FF), dtColor(0x141122FF), dtColor(0x151123FF), dtColor(0x161224FF), dtColor(0x171325FF), dtColor(0x181425FF), dtColor(0x191426FF), dtColor(0x1A1527FF), dtColor(0x1C1628FF), dtColor(0x1D1729FF), dtColor(0x1E182AFF), dtColor(0x1F192CFF), dtColor(0x20192CFF), dtColor(0x20192DFF), dtColor(0x20192CFF), dtColor(0x1F192BFF), dtColor(0x1E182AFF), dtColor(0x1D1728FF), dtColor(0x1C1626FF), dtColor(0x1B1525FF), dtColor(0x191423FF), dtColor(0x181322FF)]
+  static let fajr: [Color] = [dtColor(0x101125FF), dtColor(0x131329FF), dtColor(0x15142CFF), dtColor(0x181631FF), dtColor(0x1B1935FF), dtColor(0x1F1B3AFF), dtColor(0x241E3FFF), dtColor(0x292143FF), dtColor(0x2E2347FF), dtColor(0x34264AFF), dtColor(0x3A284CFF), dtColor(0x41294EFF), dtColor(0x472C50FF), dtColor(0x4D2E52FF), dtColor(0x533154FF), dtColor(0x5A3456FF), dtColor(0x613858FF), dtColor(0x693C59FF), dtColor(0x70405BFF), dtColor(0x75435AFF), dtColor(0x744358FF), dtColor(0x6D3F53FF), dtColor(0x61384DFF), dtColor(0x523146FF), dtColor(0x422A3FFF), dtColor(0x332537FF), dtColor(0x251F2EFF), dtColor(0x1B1A24FF), dtColor(0x121316FF)]
+  static let sunrise: [Color] = [dtColor(0x13192DFF), dtColor(0x181D34FF), dtColor(0x1D203AFF), dtColor(0x232542FF), dtColor(0x2B294AFF), dtColor(0x342D53FF), dtColor(0x3E325AFF), dtColor(0x493661FF), dtColor(0x553B68FF), dtColor(0x61406DFF), dtColor(0x6D4470FF), dtColor(0x794972FF), dtColor(0x844D72FF), dtColor(0x8E5070FF), dtColor(0x96526CFF), dtColor(0x9E5566FF), dtColor(0xA5585EFF), dtColor(0xAA5D54FF), dtColor(0xAD6249FF), dtColor(0xAC6541FF), dtColor(0xA5623CFF), dtColor(0x98583CFF), dtColor(0x854B3EFF), dtColor(0x6E3D40FF), dtColor(0x57323FFF), dtColor(0x412A3AFF), dtColor(0x2D2332FF), dtColor(0x1F1C26FF), dtColor(0x121316FF)]
+  static let dhuhr: [Color] = [dtColor(0x769BAFFF), dtColor(0x7599ADFF), dtColor(0x7397ABFF), dtColor(0x7194A9FF), dtColor(0x6F92A7FF), dtColor(0x6D90A5FF), dtColor(0x6B8DA3FF), dtColor(0x698BA0FF), dtColor(0x66879DFF), dtColor(0x628399FF), dtColor(0x5D7E94FF), dtColor(0x59788EFF), dtColor(0x55748AFF), dtColor(0x517086FF), dtColor(0x4F6C83FF), dtColor(0x4D6981FF), dtColor(0x4B677EFF), dtColor(0x4A647CFF), dtColor(0x496179FF), dtColor(0x475E75FF), dtColor(0x455870FF), dtColor(0x405269FF), dtColor(0x3B4961FF), dtColor(0x354057FF), dtColor(0x2F374BFF), dtColor(0x282E3EFF), dtColor(0x202430FF), dtColor(0x1A1D24FF), dtColor(0x121316FF)]
+  static let asr: [Color] = [dtColor(0x1E3548FF), dtColor(0x21394DFF), dtColor(0x243C51FF), dtColor(0x274156FF), dtColor(0x2B455BFF), dtColor(0x2F4A60FF), dtColor(0x334F66FF), dtColor(0x39546BFF), dtColor(0x3E586FFF), dtColor(0x455C74FF), dtColor(0x4D6077FF), dtColor(0x54637BFF), dtColor(0x5D647DFF), dtColor(0x66647EFF), dtColor(0x70637CFF), dtColor(0x796277FF), dtColor(0x826272FF), dtColor(0x89636BFF), dtColor(0x8F6465FF), dtColor(0x92645DFF), dtColor(0x8D6054FF), dtColor(0x835749FF), dtColor(0x734A3FFF), dtColor(0x623C37FF), dtColor(0x502F33FF), dtColor(0x3E2731FF), dtColor(0x2C202CFF), dtColor(0x1E1B24FF), dtColor(0x121316FF)]
+  static let maghrib: [Color] = [dtColor(0x0A081BFF), dtColor(0x0C091EFF), dtColor(0x0E0921FF), dtColor(0x110A24FF), dtColor(0x140B26FF), dtColor(0x180C29FF), dtColor(0x1C0D2BFF), dtColor(0x210E2DFF), dtColor(0x260F2FFF), dtColor(0x2D1131FF), dtColor(0x351233FF), dtColor(0x3E1434FF), dtColor(0x471635FF), dtColor(0x501A36FF), dtColor(0x5A1E36FF), dtColor(0x642237FF), dtColor(0x6E2736FF), dtColor(0x792E36FF), dtColor(0x833434FF), dtColor(0x8A3931FF), dtColor(0x893A2EFF), dtColor(0x80362AFF), dtColor(0x712E27FF), dtColor(0x5E2627FF), dtColor(0x4C1F29FF), dtColor(0x3A1C2CFF), dtColor(0x291A2BFF), dtColor(0x1C1824FF), dtColor(0x121316FF)]
+  static let isha: [Color] = [dtColor(0x0C0B1AFF), dtColor(0x0D0C1BFF), dtColor(0x0E0C1CFF), dtColor(0x0F0D1DFF), dtColor(0x100E1EFF), dtColor(0x110E1FFF), dtColor(0x120F20FF), dtColor(0x131021FF), dtColor(0x141122FF), dtColor(0x151123FF), dtColor(0x161224FF), dtColor(0x171325FF), dtColor(0x181425FF), dtColor(0x191426FF), dtColor(0x1A1527FF), dtColor(0x1C1628FF), dtColor(0x1D1729FF), dtColor(0x1E182AFF), dtColor(0x1F192CFF), dtColor(0x20192DFF), dtColor(0x20192DFF), dtColor(0x20192CFF), dtColor(0x20182BFF), dtColor(0x1E182AFF), dtColor(0x1C1727FF), dtColor(0x191624FF), dtColor(0x161620FF), dtColor(0x14151BFF), dtColor(0x121316FF)]
   static let shiftMinutes: [String: Double] = ["fajr": 35, "sunrise": 20, "dhuhr": 50, "asr": 95, "maghrib": 45, "isha": 75]
   /// Bottom scrim opacity per stage (top is 0.05); validated against sky-text contrast.
   static let scrimBottom: [String: Double] = ["fajr": 0.15, "sunrise": 0.36, "dhuhr": 0.38, "asr": 0.26, "maghrib": 0.2, "isha": 0.1]

@@ -9,7 +9,7 @@ extension Color {
   }
 }
 
-let SKY_INK = Color(dtHex: 0x17121F)
+let SKY_INK = Color(dtHex: 0x121316)
 
 enum SkyBody {
   case sun(x: CGFloat, y: CGFloat, r: CGFloat, color: Color)

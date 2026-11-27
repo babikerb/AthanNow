@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   listHead: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 12 },
   devClock: { position: 'absolute', bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(23,18,31,0.6)' },
   devTrack: { width: 170, height: 28, justifyContent: 'center' },
-  devThumb: { position: 'absolute', width: 4, height: 18, marginLeft: -2, borderRadius: 2, backgroundColor: '#F2C14E' },
+  devThumb: { position: 'absolute', width: 4, height: 18, marginLeft: -2, borderRadius: 2, backgroundColor: '#E7D8B8' },
   rule: { height: 2, borderRadius: 1, overflow: 'hidden' },
   ruleFill: { height: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

@@ -42,6 +42,8 @@ final class QuranReaderProps: ExpoSwiftUI.ViewProps {
   @Field var backgroundHex: String = ""
   @Field var inkHex: String = ""
   @Field var accentHex: String = ""
+  /// Recited words; the accent is the highlight on the word being recited.
+  @Field var recitedHex: String = ""
   var onTextScale = EventDispatcher()
   var onPageChange = EventDispatcher()
   var onTap = EventDispatcher()
@@ -59,6 +61,9 @@ struct ReaderTheme {
   let frame: Color
   let band: Color
   let ornament: Color
+  /// The highlight on the word being recited; the recited colour unless set.
+  var highlightColor: Color? = nil
+  var highlight: Color { highlightColor ?? recited }
 
   static func make(dark: Bool) -> ReaderTheme {
     make(color: dark ? "night" : "paper", tone: "standard")
@@ -66,10 +71,13 @@ struct ReaderTheme {
 
   /// The app's own colours: its background and text, and its accent for what's recited. The surah band
   /// and quieter text are drawn from the text colour.
-  static func app(background: String, ink: String, accent: String, dark: Bool) -> ReaderTheme {
+  static func app(background: String, ink: String, accent: String, recited: String, dark: Bool) -> ReaderTheme {
     let inkColor = Color(hexString: ink)
-    return ReaderTheme(dark: dark, background: Color(hexString: background), ink: inkColor, quiet: inkColor.opacity(0.38), recited: Color(hexString: accent),
-                       frame: inkColor.opacity(0.3), band: inkColor.opacity(dark ? 0.07 : 0.05), ornament: inkColor.opacity(0.45))
+    let accentColor = Color(hexString: accent)
+    return ReaderTheme(dark: dark, background: Color(hexString: background), ink: inkColor, quiet: inkColor.opacity(0.38),
+                       recited: recited.isEmpty ? accentColor : Color(hexString: recited),
+                       frame: inkColor.opacity(0.3), band: inkColor.opacity(dark ? 0.07 : 0.05), ornament: inkColor.opacity(0.45),
+                       highlightColor: accentColor)
   }
 
   /// A page colour and a text tone. Night and Charcoal are dark; Sepia and Paper are light.
@@ -212,7 +220,7 @@ struct WordView: View {
         if isCurrent {
           // A soft pill of the recited colour behind the word: rounded all round, no outline.
           Capsule(style: .continuous)
-            .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.26 : 0.2))
+            .fill(ctx.theme.highlight.opacity(ctx.theme.dark ? 0.26 : 0.16))
             .padding(.horizontal, -size * 0.2)
             .padding(.vertical, size * 0.16)
             .matchedGeometryEffect(id: "highlight", in: ctx.ns)
@@ -400,16 +408,15 @@ struct SurahHeader: View {
   }
 }
 
-/// The calligraphic Bismillah line that opens each surah (except At-Tawbah).
 struct BismillahLine: View {
   let size: CGFloat
   let theme: ReaderTheme
 
   var body: some View {
-    BismillahShape()
-      .fill(theme.ink, style: FillStyle(eoFill: true))
-      .frame(width: size * 4.9 * 1.1, height: size * 1.1)
-      .accessibilityElement()
+    Text(MushafStore.shared.bismillah)
+      .font(.custom(MushafFont.name, size: size))
+      .foregroundColor(theme.ink)
+      .fixedSize()
       .accessibilityLabel("Bismillah")
   }
 }
@@ -699,7 +706,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
 
   var body: some View {
     let theme = !props.backgroundHex.isEmpty
-      ? ReaderTheme.app(background: props.backgroundHex, ink: props.inkHex, accent: props.accentHex, dark: props.dark)
+      ? ReaderTheme.app(background: props.backgroundHex, ink: props.inkHex, accent: props.accentHex, recited: props.recitedHex, dark: props.dark)
       : props.pageColor.isEmpty ? ReaderTheme.make(dark: props.dark) : ReaderTheme.make(color: props.pageColor, tone: props.textTone)
     let flowing = props.view != "mushaf"
     GeometryReader { geo in
