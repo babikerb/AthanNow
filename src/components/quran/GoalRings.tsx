@@ -2,9 +2,9 @@ import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-/** Ring colours, outermost first: the accent, then dusk blue, then quieter steps. */
+/** Ring colours, outermost first: gold, then dusk blue, then quieter steps. */
 export function ringColors(dark: boolean): string[] {
-  return dark ? ['#E7D8B8', '#7FA7C7', '#C9B48C', '#A7AEBA'] : ['#152B48', '#386484', '#7A93AD', '#9C8A63'];
+  return dark ? ['#E2B456', '#7FA7C7', '#C9965A', '#A7AEBA'] : ['#152B48', '#386484', '#7A93AD', '#9C8A63'];
 }
 
 /**
