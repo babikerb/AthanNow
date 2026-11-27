@@ -525,8 +525,13 @@ struct QuranReaderView: ExpoSwiftUI.View {
       if zoom > 1.001 {
         openFlow(at: target)
         flowTarget = target
+        page = target
+      } else if abs(target - page) <= 2 {
+        // The next page or so (the recitation moving on): turned gently, like a page.
+        withAnimation(.easeInOut(duration: 0.55)) { page = target }
+      } else {
+        page = target
       }
-      page = target
       if ready { PageFonts.shared.prepare(around: target) }
     }
   }
