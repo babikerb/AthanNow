@@ -23,6 +23,7 @@ import {
   Animated,
   AppState,
   Easing,
+  LayoutAnimation,
   PanResponder,
   StyleSheet,
   useColorScheme,
@@ -55,6 +56,7 @@ import { surahPages, type Goal } from "../quran/goals";
 import {
   firstAyahOnPage,
   pageForAyah,
+  surahsOnPage,
   type AyahRef,
 } from "../quran/pageLayout";
 import { useQuranProgress } from "../quran/useQuranProgress";
@@ -136,7 +138,8 @@ function Reader({
   const { width } = useWindowDimensions();
   // 0 with the reader on screen, 1 with it off to the right.
   const push = useRef(new Animated.Value(1)).current;
-  // Tapping the page hides the reader's controls (and brings them back); the page stays put.
+  // Tapping the page focuses it: the tab bar's already away, so the top bar widens and the player
+  // becomes a small capsule (and back). The page stays put.
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
@@ -262,14 +265,6 @@ function Reader({
     return () => clearTimeout(id);
   }, [page, reading, focused, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const controls = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.timing(controls, {
-      toValue: hidden ? 0 : 1,
-      duration: t.reduceMotion ? 0 : 200,
-      useNativeDriver: true,
-    }).start();
-  }, [hidden, controls, t.reduceMotion]);
   // The tab bar is hidden while the mushaf is open, and back when leaving the tab.
   useFocusEffect(
     useCallback(() => {
@@ -400,7 +395,6 @@ function Reader({
   // that place when the controls hide.
   const topInset = insets.top + TOP_BAR + PAGE_GAP;
   const bottomInset = insets.bottom + PLAYER + PAGE_GAP;
-  const pointer = hidden ? "none" : "box-none";
   const capsule = {
     backgroundColor: dark
       ? "rgba(30, 28, 42, 0.92)"
@@ -408,6 +402,29 @@ function Reader({
     borderWidth: 1,
     borderColor: dark ? "rgba(255, 255, 255, 0.08)" : "rgba(29, 27, 38, 0.08)",
   };
+
+  const pageMenu = (
+    <>
+      <MenuToggle label="Dark page" systemImage="moon" isOn={dark} onIsOnChange={onDark} />
+      <MenuDivider />
+      {pageMark ? (
+        <MenuButton label="Remove bookmark" systemImage="bookmark.slash" role="destructive" onPress={() => removeBookmark(pageMark)} />
+      ) : (
+        <MenuButton
+          label="Bookmark this page"
+          systemImage="bookmark"
+          onPress={() => {
+            const first = firstAyahOnPage(page);
+            markPage({ page, surahId: first?.surah ?? surah.id, ayah: first?.ayah ?? 1 });
+          }}
+        />
+      )}
+      <MenuButton label="Bookmarks" systemImage="list.bullet" onPress={() => setBookmarksOpen(true)} />
+    </>
+  );
+  // Every surah on the page, as the mushaf's running head names them: "An-Nur and Al-Furqan".
+  const names = surahsOnPage(page).map((id) => getSurah(id)?.transliteration ?? "");
+  const pageTitle = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : (names[0] ?? surah.transliteration);
 
   const sheets = (
     <>
@@ -484,14 +501,18 @@ function Reader({
               bookmarkedPages={bookmarkedPages}
               focus={focus}
               onPageChange={setPage}
-              onTap={() => setHidden((h) => !h)}
+              onTap={() => {
+                LayoutAnimation.configureNext(LayoutAnimation.create(240, "easeInEaseOut", "opacity"));
+                setHidden((h) => !h);
+              }}
               onAction={onAction}
             />
           ) : null}
 
-          {/* Surah, juz and page; tap for the index and search. The menu holds the page's options. */}
-          <Animated.View
-            pointerEvents={pointer}
+          {/* Surah (or surahs), juz and page; tap for the index and search. Focused, it widens to the
+              full width and the back and options buttons step aside. */}
+          <View
+            pointerEvents="box-none"
             style={{
               position: "absolute",
               top: insets.top + 4,
@@ -500,157 +521,96 @@ function Reader({
               flexDirection: "row",
               alignItems: "center",
               gap: t.spacing.sm,
-              opacity: controls,
             }}
           >
-            <PressableScale
-              haptic="select"
-              onPress={closeReader}
-              accessibilityRole="button"
-              accessibilityLabel="Quran home"
-              style={[capsule, { width: 44, height: 44, borderRadius: 22 }]}
-            >
-              <View
-                style={{
-                  flex: 1,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+            {!hidden ? (
+              <PressableScale
+                haptic="select"
+                onPress={closeReader}
+                accessibilityRole="button"
+                accessibilityLabel="Quran home"
+                style={[capsule, { width: 44, height: 44, borderRadius: 22 }]}
               >
-                <SymbolView
-                  name="chevron.backward"
-                  size={16}
-                  tintColor={t.c.text}
-                  style={{ width: 20, height: 20 }}
-                />
-              </View>
-            </PressableScale>
+                <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                  <SymbolView name="chevron.backward" size={16} tintColor={t.c.text} style={{ width: 20, height: 20 }} />
+                </View>
+              </PressableScale>
+            ) : null}
             <PressableScale
               haptic="select"
               onPress={() => setPickerOpen(true)}
               accessibilityRole="button"
-              accessibilityLabel={`${surah.transliteration}, Juz ${juz}, page ${page}`}
+              accessibilityLabel={`${pageTitle}, Juz ${juz}, page ${page}`}
               accessibilityHint="Opens the surah index and search"
               style={[capsule, { flex: 1, height: 44, borderRadius: 22 }]}
             >
-              <View
-                style={{
-                  flex: 1,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingHorizontal: t.spacing.lg,
-                  gap: t.spacing.sm,
-                }}
-              >
+              <View style={{ flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}>
                 <View style={{ flex: 1 }}>
-                  <Text
-                    variant="subhead"
-                    numberOfLines={1}
-                    style={{ fontWeight: "600" }}
-                    maxFontSizeMultiplier={1.3}
-                  >
-                    {surah.transliteration}
-                  </Text>
-                  <Text
-                    variant="caption"
-                    color="textSecondary"
-                    numberOfLines={1}
-                    maxFontSizeMultiplier={1.3}
-                  >
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Text variant="subhead" numberOfLines={1} style={{ fontWeight: "600", flexShrink: 1 }} maxFontSizeMultiplier={1.3}>
+                      {pageTitle}
+                    </Text>
+                    <SymbolView name="chevron.down" size={11} tintColor={t.c.textSecondary} />
+                  </View>
+                  <Text variant="caption" color="textSecondary" numberOfLines={1} maxFontSizeMultiplier={1.3}>
                     Juz {juz}
                   </Text>
                 </View>
-                <Text
-                  variant="subhead"
-                  color="textSecondary"
-                  style={{ fontVariant: ["tabular-nums"] }}
-                  maxFontSizeMultiplier={1.3}
-                >
+                <Text variant="subhead" color="textSecondary" style={{ fontVariant: ["tabular-nums"] }} maxFontSizeMultiplier={1.3}>
                   {page}
                 </Text>
               </View>
             </PressableScale>
-            <NativeMenu
-              width={44}
-              height={44}
-              colorScheme={dark ? "dark" : "light"}
-              items={
-                <>
-                  <MenuToggle
-                    label="Dark page"
-                    systemImage="moon"
-                    isOn={dark}
-                    onIsOnChange={onDark}
-                  />
-                  <MenuDivider />
-                  {pageMark ? (
-                    <MenuButton
-                      label="Remove bookmark"
-                      systemImage="bookmark.slash"
-                      role="destructive"
-                      onPress={() => removeBookmark(pageMark)}
-                    />
-                  ) : (
-                    <MenuButton
-                      label="Bookmark this page"
-                      systemImage="bookmark"
-                      onPress={() => {
-                        const first = firstAyahOnPage(page);
-                        markPage({
-                          page,
-                          surahId: first?.surah ?? surah.id,
-                          ayah: first?.ayah ?? 1,
-                        });
-                      }}
-                    />
-                  )}
-                  <MenuButton
-                    label="Bookmarks"
-                    systemImage="list.bullet"
-                    onPress={() => setBookmarksOpen(true)}
-                  />
-                </>
-              }
-            >
-              <View
-                style={[
-                  capsule,
-                  {
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  },
-                ]}
-                accessibilityLabel="Page options"
-              >
-                <SymbolView
-                  name="ellipsis"
-                  size={17}
-                  tintColor={t.c.text}
-                  style={{ width: 22, height: 22 }}
-                />
-              </View>
-            </NativeMenu>
-          </Animated.View>
+            {!hidden ? (
+              <NativeMenu width={44} height={44} colorScheme={dark ? "dark" : "light"} items={pageMenu}>
+                <View
+                  style={[capsule, { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" }]}
+                  accessibilityLabel="Page options"
+                >
+                  <SymbolView name="ellipsis" size={17} tintColor={t.c.text} style={{ width: 22, height: 22 }} />
+                </View>
+              </NativeMenu>
+            ) : null}
+          </View>
 
-          {/* The player, floating over the foot of the page. */}
-          <Animated.View
-            pointerEvents={pointer}
-            style={{
-              position: "absolute",
-              left: t.spacing.md,
-              right: t.spacing.md,
-              bottom: insets.bottom + t.spacing.sm,
-              opacity: controls,
-            }}
-          >
-            <PagePlayer
-              onPlayPage={playPage}
-              onMeaning={() => r.surahId && setMeaningAyah({ surah: r.surahId, ayah: r.ayahIndex + 1 })}
-            />
-          </Animated.View>
+          {/* The player over the foot of the page; focused, a small capsule of search, the page's
+              options and play. */}
+          {!hidden ? (
+            <View pointerEvents="box-none" style={{ position: "absolute", left: t.spacing.md, right: t.spacing.md, bottom: insets.bottom + t.spacing.sm }}>
+              <PagePlayer
+                onPlayPage={playPage}
+                onMeaning={() => r.surahId && setMeaningAyah({ surah: r.surahId, ayah: r.ayahIndex + 1 })}
+              />
+            </View>
+          ) : (
+            <View pointerEvents="box-none" style={{ position: "absolute", left: 0, right: 0, bottom: insets.bottom + t.spacing.sm, alignItems: "center" }}>
+              <View style={[capsule, { height: 56, borderRadius: 28, flexDirection: "row", alignItems: "center", paddingHorizontal: t.spacing.sm, gap: t.spacing.xs }]}>
+                <PressableScale haptic="select" onPress={() => setPickerOpen(true)} accessibilityRole="button" accessibilityLabel="Search">
+                  <View style={{ width: 52, height: 48, alignItems: "center", justifyContent: "center" }}>
+                    <SymbolView name="magnifyingglass" size={19} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
+                  </View>
+                </PressableScale>
+                <NativeMenu width={52} height={48} colorScheme={dark ? "dark" : "light"} items={pageMenu}>
+                  <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }} accessibilityLabel="Page options">
+                    <SymbolView name="slider.horizontal.3" size={19} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
+                  </View>
+                </NativeMenu>
+                <PressableScale
+                  haptic="light"
+                  onPress={() => (r.surahId ? r.togglePlay() : playPage())}
+                  accessibilityRole="button"
+                  accessibilityLabel={r.isPlaying ? "Pause" : "Listen"}
+                >
+                  <View style={{ height: 48, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: t.spacing.md }}>
+                    <SymbolView name={r.isPlaying ? "pause.fill" : "play.fill"} size={17} tintColor={t.c.text} style={{ width: 22, height: 22 }} />
+                    <Text variant="body" style={{ fontWeight: "600" }}>
+                      {r.isPlaying ? "Pause" : "Listen"}
+                    </Text>
+                  </View>
+                </PressableScale>
+              </View>
+            </View>
+          )}
 
           {/* The left edge: swipe in to go back. */}
           <View

@@ -30,3 +30,15 @@ export function pageForAyah(surah: number, ayah: number): number {
   }
   return lo + 1;
 }
+
+/** Every surah printed on a page, in order (a page can end one surah and begin the next). */
+export function surahsOnPage(page: number): number[] {
+  const start = STARTS[page - 1];
+  if (!start) return [];
+  const next = STARTS[page];
+  // The page runs up to where the next one starts; a surah beginning there isn't on this page.
+  const lastSurah = !next ? 114 : next[1] === 1 && next[2] === 1 ? next[0] - 1 : next[0];
+  const out: number[] = [];
+  for (let s = start[0]; s <= Math.max(start[0], lastSurah); s++) out.push(s);
+  return out;
+}
