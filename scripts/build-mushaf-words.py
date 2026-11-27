@@ -90,6 +90,12 @@ for p, verses in enumerate(raw, start=1):
     if p <= 2:
         # The opening pages sit in lines 8 to 15 of this edition's grid: as eight lines of their own.
         lines = {n - 7: ws for n, ws in lines.items()}
+    # The API puts some ayahs' end markers at the start of the next line (573 times); the printed page
+    # never starts a line with one: each goes back to the end of the line its ayah ends on.
+    for n in sorted(lines):
+        ws = lines[n]
+        while len(ws) > 1 and ws[0][2] == 0 and (n - 1) in lines:
+            lines[n - 1].append(ws.pop(0))
     out = []
     missing = [n for n in range(1, total + 1) if n not in lines]
     # Each run of missing lines is a surah's header (and Bismillah), for the surah that follows it.
