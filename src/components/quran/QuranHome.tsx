@@ -11,7 +11,7 @@ import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { bookmarkColor, type Bookmark } from '../../hooks/useBookmarks';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
-import { firstAyahOnPage } from '../../quran/pageLayout';
+import { firstAyahOnPage, surahsOnPage } from '../../quran/pageLayout';
 import type { QuranProgress } from '../../quran/useQuranProgress';
 import { QURAN_FONT } from '../../recitation/format';
 import { GoalRings } from './GoalRings';
@@ -69,7 +69,7 @@ export function QuranHome({
   const tabBar = useTabBarHeight();
   const { width } = useWindowDimensions();
   const gutter = width <= 375 ? t.spacing.lg : t.spacing.xl;
-  const surah = getSurah(surahForPage(lastPage))!;
+  const surah = getSurah(surahsOnPage(lastPage).slice(-1)[0] ?? surahForPage(lastPage))!;
   const ayah = firstAyahOnPage(lastPage);
   const today = progress.statuses.filter((s) => s.today);
   const open = today.filter((s) => !s.done).length;

@@ -716,7 +716,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
       }
     }
     .onChange(of: props.view) { newValue in
-      if newValue != "mushaf" { openFlow(at: page) }
+      if newValue != "mushaf" { openFlow(at: recitedPage ?? page) }
       zoom = 1
     }
     .onChange(of: props.pageNonce) { _ in
@@ -745,6 +745,11 @@ struct QuranReaderView: ExpoSwiftUI.View {
   }
 
   private func clampPage(_ n: Int) -> Int { min(max(n, 1), 604) }
+
+  /// The page the recited ayah is on, during a recitation.
+  private var recitedPage: Int? {
+    props.highlighting ? MushafStore.shared.ayahPage[props.curSurah * 1000 + props.curAyah] : nil
+  }
 
   private var currentOrder: Int {
     props.highlighting ? MushafWord.order(props.curSurah, props.curAyah, props.curWord) : -1
@@ -888,12 +893,16 @@ struct QuranReaderView: ExpoSwiftUI.View {
         }
       }
       .onAppear {
-        // After the first layout pass, or the scroll has nothing to go to yet.
-        let onWord = props.highlighting && props.follow
+        // Straight to the word being recited, if a recitation is on; otherwise the page's top. Once
+        // after the first layout pass, and again when the pages around it have settled their heights.
+        let onWord = props.highlighting
         let target: Int = onWord ? currentOrder : -page
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        DispatchQueue.main.async {
           proxy.scrollTo(target, anchor: onWord ? .center : .top)
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { flowSettled = true }
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            proxy.scrollTo(target, anchor: onWord ? .center : .top)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { flowSettled = true }
+          }
         }
       }
       .onChange(of: currentOrder) { order in
@@ -937,7 +946,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
         }
         let next = min(max(zoom * value, 1), maxZoom)
         let wasZoomed = zoom > 1.001
-        if !wasZoomed && next >= 1.12 { openFlow(at: page) }
+        // Zooming in during a recitation opens on the page being recited.
+        if !wasZoomed && next >= 1.12 { openFlow(at: recitedPage ?? page) }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
           zoom = next < 1.12 ? 1 : next
           pinch = 1

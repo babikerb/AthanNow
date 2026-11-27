@@ -12,7 +12,7 @@ import { SegmentedControl } from '../../design/SegmentedControl';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { Toggle } from '../../design/Toggle';
-import { TEXT_SCALES, type Display } from '../../quran/display';
+import { type Display } from '../../quran/display';
 import { QURAN_FONT } from '../../recitation/format';
 import { RECITERS } from '../../recitation/reciters';
 import { useRecitation, type RepeatMode } from '../../recitation/RecitationProvider';
@@ -38,8 +38,8 @@ const VIEWS: { id: ReaderView; name: string; detail: string; icon: SFSymbol }[] 
 ];
 
 /**
- * The reader's display panel, floating over the foot of the page: how it reads (page and text colour,
- * text size), how it's laid out (Mushaf, Translation, Word by word) and the recitation's options.
+ * The reader's display panel, floating over the foot of the page: how it reads (page and text colour;
+ * pinch for text size), how it's laid out (Mushaf, Translation, Word by word) and the recitation's options.
  */
 export function DisplayPanel({ display, onClose }: { display: Display; onClose: () => void }) {
   const t = useTheme();
@@ -99,7 +99,6 @@ function Label({ children }: { children: string }) {
 
 function ReadingTab({ display }: { display: Display }) {
   const t = useTheme();
-  const step = TEXT_SCALES.reduce((best, v, i) => (Math.abs(v - display.textScale) < Math.abs(TEXT_SCALES[best] - display.textScale) ? i : best), 0);
   return (
     <View>
       <Label>Page colour</Label>
@@ -153,32 +152,6 @@ function ReadingTab({ display }: { display: Display }) {
         })}
       </View>
 
-      <Label>Text size</Label>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }} accessible accessibilityRole="adjustable" accessibilityLabel="Text size" accessibilityValue={{ min: 1, max: TEXT_SCALES.length, now: step + 1 }} accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]} onAccessibilityAction={(e) => {
-        const next = Math.max(0, Math.min(TEXT_SCALES.length - 1, step + (e.nativeEvent.actionName === 'increment' ? 1 : -1)));
-        display.set({ textScale: TEXT_SCALES[next] });
-      }}>
-        <RNText style={{ fontFamily: QURAN_FONT, fontSize: 16, color: t.c.textSecondary }}>ع</RNText>
-        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44 }}>
-          <View style={{ position: 'absolute', left: 8, right: 8, height: 4, borderRadius: 2, backgroundColor: t.c.surface2 }} />
-          {TEXT_SCALES.map((v, i) => (
-            <Pressable key={v} onPress={() => display.set({ textScale: v })} hitSlop={8} accessible={false}>
-              <View
-                style={{
-                  width: i === step ? 26 : 8,
-                  height: i === step ? 26 : 8,
-                  borderRadius: 13,
-                  backgroundColor: i === step ? t.c.text : t.c.glyphQuiet,
-                }}
-              />
-            </Pressable>
-          ))}
-        </View>
-        <RNText style={{ fontFamily: QURAN_FONT, fontSize: 28, color: t.c.text }}>ع</RNText>
-      </View>
-      <Text variant="caption" color="textSecondary">
-        For Translation, Word by word, and the page when pinched larger.
-      </Text>
     </View>
   );
 }
