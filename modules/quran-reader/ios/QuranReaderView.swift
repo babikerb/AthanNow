@@ -232,14 +232,10 @@ struct WordView: View {
             .padding(.horizontal, -size * 0.2)
             .padding(.vertical, size * 0.16)
             .matchedGeometryEffect(id: "highlight", in: ctx.ns)
-        } else if ctx.inFocus(word) {
-          // Being explained in the Meaning sheet: fainter than the recitation's highlight.
-          Capsule(style: .continuous)
-            .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.16 : 0.08))
-            .padding(.horizontal, -size * 0.1)
-            .padding(.vertical, size * 0.16)
         }
       }
+      // Being explained in the Meaning sheet: reported to the page, which draws one band per line.
+      .anchorPreference(key: FocusRectsKey.self, value: .bounds) { ctx.inFocus(word) ? [$0] : [] }
   }
 }
 
@@ -793,6 +789,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
         VStack(spacing: 0) {
           Spacer(minLength: 0)
           PageView(page: p, size: size, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
+            .focusBands(dark: theme.dark)
           Spacer(minLength: 0)
         }
         .padding(.top, CGFloat(props.topInset))
@@ -853,6 +850,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
                 FlowPage(page: p, size: size, width: area.width, ctx: ctx, qcf: metrics, qcfSize: qs)
               }
             }
+              .focusBands(dark: theme.dark)
               .onAppear {
                 if p.number == recitedPage { recitedBuilt = true }
                 // Near the end of what's laid out: lay out more.
