@@ -80,8 +80,10 @@ export function pauseRecitation() {
 
 const ARTWORK = Image.resolveAssetSource(require('../../assets/icon.png')).uri;
 const AUDIO_MODE = { playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix' } as const;
-// A repeated ayah loops back this close to its end, so the next ayah's first sound never slips in.
-const LOOP_EARLY_MS = 60;
+// A repeated ayah's loop is timed once it's this close to its end (statuses arrive every 100 ms, too
+// coarse to catch the end itself), and fires this far before it, so the next ayah never slips in.
+const LOOP_LEAD_MS = 300;
+const LOOP_EARLY_MS = 40;
 
 /**
  * iOS's media server can restart under pressure, and native calls made in that window throw instead
@@ -130,7 +132,13 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     AsyncStorage.getItem(STATE_KEY)
-      .then((raw) => raw && setSaved({ ...DEFAULTS, ...(JSON.parse(raw) as Partial<Saved>) }))
+      .then((raw) => {
+        if (!raw) return;
+        const restored = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Saved>) };
+        // Repeating one ayah is for the moment it's chosen, not something to wake up to.
+        if (restored.repeat === 'ayah') restored.repeat = 'off';
+        setSaved(restored);
+      })
       .catch(() => {})
       .finally(() => setReady(true));
   }, []);
@@ -154,6 +162,11 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   rateRef.current = rate;
   // When a repeated ayah last looped, so the statuses that arrive mid-seek don't loop it again.
   const loopedAt = useRef(0);
+  const loopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelLoop = () => {
+    if (loopTimer.current) clearTimeout(loopTimer.current);
+    loopTimer.current = null;
+  };
 
   // What the status listener needs, without waiting for a render.
   const live = useRef({ surahId, ayahIndex, repeat, autoplay });
@@ -253,12 +266,19 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       if (!st.playing) return;
       if (L.repeat === 'ayah') {
         const [from, to] = have.audio.ayahs[L.ayahIndex] ?? [0, 0];
-        if (ms >= to - LOOP_EARLY_MS && Date.now() - loopedAt.current > 800) {
-          loopedAt.current = Date.now();
-          seek(from / 1000);
+        const left = to - ms;
+        if (left <= LOOP_LEAD_MS && !loopTimer.current && Date.now() - loopedAt.current > 600) {
+          const index = L.ayahIndex;
+          loopTimer.current = setTimeout(() => {
+            loopTimer.current = null;
+            if (live.current.repeat !== 'ayah' || live.current.ayahIndex !== index) return;
+            loopedAt.current = Date.now();
+            seek(from / 1000);
+          }, Math.max(0, (left - LOOP_EARLY_MS) / rateRef.current));
         }
         return;
       }
+      cancelLoop();
       const index = ayahIndexAt(have.audio, ms);
       if (index !== L.ayahIndex) patch({ ayahIndex: index });
     });

@@ -160,17 +160,14 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   // ---- Playback on the page ----
   const playingPage = r.surahId ? pageForAyah(r.surahId, r.ayahIndex + 1) : undefined;
   const [from, setFrom] = useState<WordRef | null>(null);
-  // The pages turn with the recitation while the reader stays on the page being recited; once they
-  // turn away to read elsewhere, it carries on without pulling them back.
-  const followed = useRef<number | undefined>(undefined);
+  // While a recitation plays the reader stays with it: pressing play, or the recitation moving on
+  // to an ayah on another page, brings the reader back to the page being recited.
   const pageRef = useRef(page);
   pageRef.current = page;
   useEffect(() => {
-    const before = followed.current;
-    followed.current = playingPage;
-    if (!playingPage || !r.isPlaying || playingPage === pageRef.current) return;
-    if (before === pageRef.current) jumpTo(playingPage);
-  }, [playingPage]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!reading || !playingPage || !r.isPlaying || playingPage === pageRef.current) return;
+    jumpTo(playingPage);
+  }, [playingPage, r.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!r.surahId) setFrom(null);
   }, [r.surahId]);
@@ -192,7 +189,6 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   const playFrom = useCallback(
     (ref: AyahRef, onPage: number) => {
       haptic.light();
-      followed.current = onPage;
       setFrom({ surah: ref.surah, ayah: ref.ayah, word: 1 });
       r.playSurah(ref.surah, ref.ayah - 1);
     },
@@ -200,8 +196,10 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
   );
   const playPage = useCallback(() => {
     const first = firstAyahOnPage(pageRef.current);
-    if (first) playFrom(first, pageRef.current);
-  }, [playFrom]);
+    if (!first) return;
+    if (r.repeat === 'ayah') r.setRepeat('off');
+    playFrom(first, pageRef.current);
+  }, [playFrom, r]);
 
   // ---- Bookmarks ----
   const markPage = useCallback(
@@ -299,7 +297,7 @@ function Reader({ dark, onDark }: { dark: boolean; onDark: (on: boolean) => void
           page={target.page}
           nonce={target.nonce}
           from={from}
-          follow={!!playingPage && page === playingPage}
+          follow={!!playingPage && r.isPlaying}
           topInset={topInset}
           bottomInset={bottomInset}
           bookmarkedPages={bookmarkedPages}

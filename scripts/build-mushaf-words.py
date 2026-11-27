@@ -20,7 +20,7 @@ import uharfbuzz as hb
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, 'modules', 'quran-reader', 'ios', 'QuranReaderResources')
 FONT = os.path.join(RES, 'UthmanicHafs.ttf')
-CACHE = os.path.join(os.environ.get('TEMP', '/tmp'), 'mushaf-pages-v2')
+CACHE = os.path.join(os.environ.get('TEMP', '/tmp'), 'mushaf-pages-qdc-v2')
 os.makedirs(CACHE, exist_ok=True)
 
 
@@ -30,7 +30,10 @@ def fetch_page(p):
         return json.load(open(path, encoding='utf-8'))
     verses, page = [], 1
     while True:
-        url = f'https://api.quran.com/api/v4/verses/by_page/{p}?words=true&word_fields=text_qpc_hafs,code_v2,v2_page,line_number&per_page=50&page={page}'
+        # quran.com's own endpoint, for the 1421 Madani edition (mushaf 1, QCF V2): its pages and
+        # line numbers. The public v4 endpoint groups pages and lines by the 1405 edition (v1),
+        # which breaks pages in other places.
+        url = f'https://api.qurancdn.com/api/qdc/verses/by_page/{p}?words=true&mushaf=1&word_fields=text_qpc_hafs,code_v2,v2_page,line_number&per_page=all&page={page}'
         for attempt in range(5):
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'mushaf-builder'})
@@ -75,11 +78,15 @@ for p, verses in enumerate(raw, start=1):
         for w in v['words']:
             if w['char_type_name'] not in ('word', 'end'):
                 continue
-            n = w['position'] if w['char_type_name'] == 'word' else 0
-            # An ayah that runs across two pages comes back with both pages: keep this page's words.
+            # An ayah number is the end marker, even where the API labels it a word (2:181 does).
+            is_end = w['char_type_name'] == 'end' or all('٠' <= c <= '٩' for c in w['text_qpc_hafs'])
+            n = 0 if is_end else w['position']
             if w.get('v2_page') != p:
-                continue
+                raise SystemExit(f'page {p}: word printed on page {w.get("v2_page")}')
             lines.setdefault(w['line_number'], []).append([s, a, n, w['text_qpc_hafs'], w['code_v2']])
+    if p <= 2:
+        # The opening pages sit in lines 8 to 15 of this edition's grid: as eight lines of their own.
+        lines = {n - 7: ws for n, ws in lines.items()}
     out = []
     missing = [n for n in range(1, total + 1) if n not in lines]
     # Each run of missing lines is a surah's header (and Bismillah), for the surah that follows it.
@@ -136,3 +143,10 @@ for pg in pages:
     starts.append([first[0], first[1], first[2] or 999])
 json.dump({'pageStarts': starts}, open(os.path.join(ROOT, 'src', 'data', 'mushafIndex.json'), 'w'), separators=(',', ':'))
 print('index pages', len(starts))
+
+# Every page of this edition starts on an ayah's first word and ends on an ayah's end.
+for i, pg in enumerate(pages, start=1):
+    ws = [w for l in pg if 'w' in l for w in l['w']]
+    if ws[0][2] != 1 or ws[-1][2] != 0:
+        raise SystemExit(f'page {i} starts at {ws[0][:3]} and ends at {ws[-1][:3]}')
+print('every page starts and ends on whole ayahs')
