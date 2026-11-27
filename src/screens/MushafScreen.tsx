@@ -667,7 +667,7 @@ function ReaderSurface(props: {
   const r = useRecitation();
   const { word } = useRecitationProgress();
   const current: WordRef | null = r.surahId
-    ? { surah: r.surahId, ayah: r.ayahIndex + 1, word: Math.max(1, word) }
+    ? { surah: r.surahId, ayah: r.ayahIndex + 1, word }
     : null;
   // The recited run starts where play began, or earlier if the recitation has gone back before it.
   const order = (w: WordRef) => w.surah * 1_000_000 + w.ayah * 1000 + w.word;

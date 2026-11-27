@@ -64,14 +64,30 @@ struct ReaderContext {
   let from: Int
   /// The page the recited ayah is on: only that page shows what's recited and what's to come.
   let currentPage: Int
+  /// The recited ayah (`ayahKey`), and whether the recording's timing goes down to the word. Without
+  /// it the whole ayah is lit while it's recited.
+  let currentAyah: Int
+  let wordLevel: Bool
   let ns: Namespace.ID
   let titles: [String]
   let bookmarked: Set<Int>
   let interactive: Bool
   let act: (String, MushafWord, Int) -> Void
 
+  /// Whether this word is the one being recited (or, without word timing, in the ayah being recited).
+  func isCurrent(_ word: MushafWord) -> Bool {
+    guard playing else { return false }
+    return wordLevel ? word.order == current : word.ayahKey == currentAyah
+  }
+
   func color(_ word: MushafWord, page: Int) -> Color {
     guard playing, page == currentPage else { return theme.ink }
+    if !wordLevel {
+      let key = word.ayahKey
+      if key == currentAyah { return theme.ink }
+      if key > currentAyah { return theme.quiet }
+      return key >= from / 1000 ? theme.recited : theme.ink
+    }
     let order = word.order
     if order == current { return theme.ink }
     if order > current { return theme.quiet }
@@ -129,7 +145,7 @@ struct WordView: View {
   }
 
   private var label: some View {
-    let isCurrent = ctx.playing && word.order == ctx.current
+    let isCurrent = ctx.isCurrent(word)
     return Text(useGlyph ? word.glyph : word.text)
       .font(.custom(font, size: size))
       .foregroundColor(ctx.color(word, page: page))
@@ -137,11 +153,19 @@ struct WordView: View {
       .background {
         if isCurrent {
           // A soft pill of the recited colour behind the word: rounded all round, no outline.
-          Capsule(style: .continuous)
-            .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.3 : 0.15))
-            .padding(.horizontal, -size * 0.2)
-            .padding(.vertical, size * 0.16)
-            .matchedGeometryEffect(id: "highlight", in: ctx.ns)
+          if ctx.wordLevel {
+            Capsule(style: .continuous)
+              .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.3 : 0.15))
+              .padding(.horizontal, -size * 0.2)
+              .padding(.vertical, size * 0.16)
+              .matchedGeometryEffect(id: "highlight", in: ctx.ns)
+          } else {
+            // The whole ayah: one soft band, word to word.
+            Capsule(style: .continuous)
+              .fill(ctx.theme.recited.opacity(ctx.theme.dark ? 0.24 : 0.12))
+              .padding(.horizontal, -size * 0.1)
+              .padding(.vertical, size * 0.16)
+          }
         }
       }
   }
@@ -558,6 +582,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
       current: currentOrder,
       from: MushafWord.order(props.fromSurah, props.fromAyah, props.fromWord),
       currentPage: props.highlighting ? (MushafStore.shared.ayahPage[props.curSurah * 1000 + props.curAyah] ?? -1) : -1,
+      currentAyah: props.curSurah * 1000 + props.curAyah,
+      wordLevel: props.curWord > 0,
       ns: ns,
       titles: props.surahTitles,
       bookmarked: Set(props.bookmarkedPages),

@@ -33,7 +33,7 @@ interface Response_ {
  * device after the first load; the audio streams, and iOS keeps what it has played.
  */
 export async function loadSurahAudio(reciter: Reciter, surahId: number): Promise<SurahAudio> {
-  const id = `${reciter.qdc}:${surahId}`;
+  const id = reciter.mp3quran ? `mp3q${reciter.mp3quran.read}:${surahId}` : `${reciter.qdc}:${surahId}`;
   const hit = memory.get(id);
   if (hit) return hit;
   try {
@@ -45,6 +45,12 @@ export async function loadSurahAudio(reciter: Reciter, surahId: number): Promise
     }
   } catch {
     // fetch it instead
+  }
+  if (reciter.mp3quran) {
+    const audio = await loadMp3Quran(reciter.mp3quran, surahId);
+    memory.set(id, audio);
+    AsyncStorage.setItem(KEY + id, JSON.stringify(audio)).catch(() => {});
+    return audio;
   }
   const res = await fetchWithTimeout(`https://api.qurancdn.com/api/qdc/audio/reciters/${reciter.qdc}/audio_files?chapter=${surahId}&segments=true`);
   if (!res.ok) throw new Error(`audio ${res.status}`);
@@ -66,6 +72,19 @@ export async function loadSurahAudio(reciter: Reciter, surahId: number): Promise
   memory.set(id, audio);
   AsyncStorage.setItem(KEY + id, JSON.stringify(audio)).catch(() => {});
   return audio;
+}
+
+/**
+ * mp3quran.net: the surah's recording from the reciter's folder, and each ayah's timing. Ayah 1 is
+ * taken from the very start, so the isti'adha and Bismillah before it play with it.
+ */
+async function loadMp3Quran(source: { read: number; folder: string }, surahId: number): Promise<SurahAudio> {
+  const res = await fetchWithTimeout(`https://www.mp3quran.net/api/v3/ayat_timing?surah=${surahId}&read=${source.read}`);
+  if (!res.ok) throw new Error(`timing ${res.status}`);
+  const rows = ((await res.json()) as { ayah: number; start_time: number; end_time: number }[]).filter((r) => r.ayah >= 1).sort((a, b) => a.ayah - b.ayah);
+  if (!rows.length) throw new Error('no timing');
+  const ayahs = rows.map((r, i) => [i === 0 ? 0 : r.start_time, r.end_time] as [number, number]);
+  return { url: `${source.folder}${String(surahId).padStart(3, '0')}.mp3`, ayahs, words: rows.map(() => []) };
 }
 
 /** The ayah index playing at `ms`. */
