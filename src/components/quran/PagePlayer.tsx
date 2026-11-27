@@ -73,7 +73,7 @@ export function PagePlayer({ onPlayPage }: { onPlayPage: () => void }) {
           </PressableScale>
         ) : (
           // Before anything plays, the strip is where the reciter is chosen.
-          <NativeMenu style={{ flex: 1 }} items={<ReciterItems />}>
+          <NativeMenu style={{ flex: 1 }} colorScheme={t.scheme} items={<ReciterItems />}>
             {label}
           </NativeMenu>
         )}
@@ -138,7 +138,7 @@ function Expanded({ onCollapse, style }: { onCollapse: () => void; style: object
     <View style={[style, { paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.sm, paddingBottom: t.spacing.sm }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
         <Icon name="chevron.down" label="Hide the player controls" onPress={onCollapse} size={17} />
-        <NativeMenu style={{ flex: 1 }} items={<ReciterItems />}>
+        <NativeMenu style={{ flex: 1 }} colorScheme={t.scheme} items={<ReciterItems />}>
           <View style={{ alignItems: 'center', minHeight: 44, justifyContent: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600', flexShrink: 1 }} maxFontSizeMultiplier={1.4}>
@@ -181,6 +181,7 @@ function Expanded({ onCollapse, style }: { onCollapse: () => void; style: object
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.xs }}>
         <NativeMenu
+          colorScheme={t.scheme}
           items={
             <Section title="Speed">
               {PLAYBACK_RATES.map((rate) => (

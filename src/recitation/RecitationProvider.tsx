@@ -6,7 +6,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 import { getSurah } from '../data/surahs';
 import { getReciter, type Reciter } from './reciters';
-import { ayahIndexAt, loadSurahAudio, type SurahAudio } from './surahAudio';
+import { ayahIndexAt, loadSurahAudio, wordAt, type SurahAudio } from './surahAudio';
 
 export type RepeatMode = 'off' | 'ayah' | 'surah';
 export const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5] as const;
@@ -63,6 +63,8 @@ export interface RecitationProgress {
   /** Length of the current ayah in seconds. */
   duration: number;
   buffering: boolean;
+  /** The word (from 1) of the current ayah being recited, or 0 without word timing. */
+  word: number;
   /** Seeks within the current ayah. */
   seekTo: (fraction: number) => void;
 }
@@ -138,7 +140,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
 
   // Created once with no source; sources change only through replace(), as Expo documents.
   // keepAudioSessionActive keeps the lock screen controls answering after an in-app pause.
-  const player = useAudioPlayer(null, { updateInterval: 200, keepAudioSessionActive: true });
+  const player = useAudioPlayer(null, { updateInterval: 100, keepAudioSessionActive: true });
   const status = useAudioPlayerStatus(player);
 
   // The recording on the player, and a position waiting for it to be ready.
@@ -410,7 +412,8 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     [ready, surahId, ayahIndex, loading, error, isPlaying, reciter, repeat, autoplay, rate, start, goToAyah, next, previous, pause, stop, patch],
   );
 
-  const span = loaded.current?.audio.ayahs[ayahIndex];
+  const audioNow = loaded.current?.audio;
+  const span = audioNow?.ayahs[ayahIndex];
   const progress = useMemo<RecitationProgress>(() => {
     const from = span ? span[0] / 1000 : 0;
     const seconds = span ? (span[1] - span[0]) / 1000 : 0;
@@ -418,11 +421,12 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       currentTime: span ? Math.min(seconds, Math.max(0, status.currentTime - from)) : 0,
       duration: seconds,
       buffering: loading || status.isBuffering,
+      word: audioNow && span ? wordAt(audioNow, ayahIndex, status.currentTime * 1000) : 0,
       seekTo: (fraction) => {
         if (span) seek(from + fraction * seconds).then(() => setSeekTick((x) => x + 1));
       },
     };
-  }, [status.currentTime, status.isBuffering, loading, span, seek]);
+  }, [status.currentTime, status.isBuffering, loading, span, seek, audioNow, ayahIndex]);
 
   return (
     <Ctx.Provider value={value}>

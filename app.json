@@ -18,7 +18,9 @@
       "infoPlist": {
         "CADisableMinimumFrameDurationOnPhone": true,
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "AthanNow uses your location to calculate prayer times and the Qibla direction. You can search for a city instead."
+        "NSLocationWhenInUseUsageDescription": "AthanNow uses your location to calculate prayer times and the Qibla direction. You can search for a city instead.",
+        "NSMicrophoneUsageDescription": "AthanNow listens while you recite, to follow along word by word. Your voice stays on your iPhone.",
+        "NSSpeechRecognitionUsageDescription": "AthanNow recognises your recitation on your iPhone to follow along word by word."
       },
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true,
@@ -74,7 +76,8 @@
       [
         "expo-audio",
         {
-          "enableBackgroundPlayback": true
+          "enableBackgroundPlayback": true,
+          "microphonePermission": "AthanNow listens while you recite, to follow along word by word. Your voice stays on your iPhone."
         }
       ]
     ],

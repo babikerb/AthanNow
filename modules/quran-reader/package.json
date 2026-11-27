@@ -1,0 +1,12 @@
+{
+  "name": "quran-reader",
+  "version": "1.0.0",
+  "description": "The Quran reader: the Madani mushaf set word by word in KFGQPC Hafs, as a native SwiftUI view with pinch zoom, a glass highlight on the recited word and native menus. iOS only.",
+  "main": "index.tsx",
+  "types": "index.tsx",
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "expo": "*"
+  }
+}
