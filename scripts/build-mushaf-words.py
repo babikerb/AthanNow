@@ -8,10 +8,11 @@ out. Also measures every line in the bundled font, so the reader can size the pa
 Writes modules/quran-reader/ios/QuranReaderResources/mushaf.json:
   { "ref": em width the page is sized to, "names": Arabic surah names,
     "pages": [ [ line, ... ] x15 (8 on pages 1 and 2) ] }
-  line = {"h": surah} | {"b": 1} | {"w": [[surah, ayah, word, text, glyph], ...], "e": em width}
+  line = {"h": surah} | {"b": 1} | {"w": [[surah, ayah, word, text, glyph, meaning, translit], ...], "e": em width}
   word 0 is an ayah's end marker (its number). text is KFGQPC Hafs (for the flowing, zoomed view);
   glyph is the word's single glyph in quran.com's QCF V2 font for that page, which draws the
-  printed Madani page exactly (fonts are downloaded per page by the reader).
+  printed Madani page exactly (fonts are downloaded per page by the reader). meaning and translit
+  are the word's English meaning and transliteration (quran.com), for the word-by-word view.
 """
 import json, os, sys, time, urllib.request, concurrent.futures as cf
 
@@ -20,7 +21,7 @@ import uharfbuzz as hb
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, 'modules', 'quran-reader', 'ios', 'QuranReaderResources')
 FONT = os.path.join(RES, 'UthmanicHafs.ttf')
-CACHE = os.path.join(os.environ.get('TEMP', '/tmp'), 'mushaf-pages-qdc-v2')
+CACHE = os.path.join(os.environ.get('TEMP', '/tmp'), 'mushaf-pages-qdc-v2-en')
 os.makedirs(CACHE, exist_ok=True)
 
 
@@ -33,7 +34,7 @@ def fetch_page(p):
         # quran.com's own endpoint, for the 1421 Madani edition (mushaf 1, QCF V2): its pages and
         # line numbers. The public v4 endpoint groups pages and lines by the 1405 edition (v1),
         # which breaks pages in other places.
-        url = f'https://api.qurancdn.com/api/qdc/verses/by_page/{p}?words=true&mushaf=1&word_fields=text_qpc_hafs,code_v2,v2_page,line_number&per_page=all&page={page}'
+        url = f'https://api.qurancdn.com/api/qdc/verses/by_page/{p}?words=true&mushaf=1&word_fields=text_qpc_hafs,code_v2,v2_page,line_number&word_translation_language=en&per_page=all&page={page}'
         for attempt in range(5):
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'mushaf-builder'})
@@ -83,7 +84,9 @@ for p, verses in enumerate(raw, start=1):
             n = 0 if is_end else w['position']
             if w.get('v2_page') != p:
                 raise SystemExit(f'page {p}: word printed on page {w.get("v2_page")}')
-            lines.setdefault(w['line_number'], []).append([s, a, n, w['text_qpc_hafs'], w['code_v2']])
+            meaning = '' if is_end else ((w.get('translation') or {}).get('text') or '')
+            translit = '' if is_end else ((w.get('transliteration') or {}).get('text') or '')
+            lines.setdefault(w['line_number'], []).append([s, a, n, w['text_qpc_hafs'], w['code_v2'], meaning, translit])
     if p <= 2:
         # The opening pages sit in lines 8 to 15 of this edition's grid: as eight lines of their own.
         lines = {n - 7: ws for n, ws in lines.items()}

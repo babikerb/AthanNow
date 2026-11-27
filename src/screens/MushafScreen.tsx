@@ -470,7 +470,8 @@ function Reader({
         onContinue={() => jumpTo(page)}
         onOpenPage={jumpTo}
         onOpenGoals={() => setGoalsOpen(true)}
-        onOpenGoal={openGoal}
+        onPlayPage={playPage}
+        onMeaning={() => r.surahId && setMeaningAyah({ surah: r.surahId, ayah: r.ayahIndex + 1 })}
       />
       {reading ? (
         <Animated.View

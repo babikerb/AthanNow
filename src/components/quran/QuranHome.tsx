@@ -1,27 +1,42 @@
-import { SymbolView } from "expo-symbols";
-import { QuranReader } from "quran-reader";
-import React from "react";
-import { ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SymbolView } from 'expo-symbols';
+import { QuranReader } from 'quran-reader';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, ScrollView, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getSurah } from "../../data/surahs";
-import { surahForPage } from "../../data/surahPages";
-import { PressableScale } from "../../design/PressableScale";
-import { Text } from "../../design/Text";
-import { useTheme } from "../../design/theme";
-import { bookmarkColor, type Bookmark } from "../../hooks/useBookmarks";
-import { useTabBarHeight } from "../../hooks/useTabBarHeight";
-import { todaySummary, type Goal } from "../../quran/goals";
-import { firstAyahOnPage } from "../../quran/pageLayout";
-import type { QuranProgress } from "../../quran/useQuranProgress";
-import { QURAN_FONT } from "../../recitation/format";
-import { GoalRings, ringColors } from "./GoalRings";
+import { getSurah } from '../../data/surahs';
+import { surahForPage } from '../../data/surahPages';
+import { PressableScale } from '../../design/PressableScale';
+import { Text } from '../../design/Text';
+import { useTheme } from '../../design/theme';
+import { bookmarkColor, type Bookmark } from '../../hooks/useBookmarks';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { firstAyahOnPage } from '../../quran/pageLayout';
+import type { QuranProgress } from '../../quran/useQuranProgress';
+import { QURAN_FONT } from '../../recitation/format';
+import { GoalRings } from './GoalRings';
+import { PagePlayer } from './PagePlayer';
 
 const NO_PAGES: number[] = [];
 
+/** Hadith on reciting and listening to the Quran, shown in turn on the home. */
+const HADITH: { text: string; source: string }[] = [
+  {
+    text: 'The person who recites the Qur’an and masters it by heart will be with the noble righteous scribes in Heaven.',
+    source: 'Sahih al-Bukhari 4937',
+  },
+  {
+    text: 'The person who exerts himself to learn the Qur’an by heart and recites it with great difficulty will have a double reward.',
+    source: 'Sahih al-Bukhari 4937',
+  },
+  { text: 'Whoever recites a verse will have a light on the Day of Resurrection.', source: 'Musnad Ahmad 8494' },
+  { text: 'Whoever listens to a verse from the Book of Allah Almighty will have a multiplied reward.', source: 'Musnad Ahmad 8494' },
+];
+const HADITH_MS = 6000;
+
 /**
- * The Quran tab's first screen: where you left off, today's goals, and your bookmarks. One tap on
- * Continue and you're on the page.
+ * The Quran tab's home: the title with goals at its right, a hadith on reciting and listening, and
+ * where you left off (the page, one tap back to it, and the player), then bookmarks.
  */
 export function QuranHome({
   dark,
@@ -31,7 +46,8 @@ export function QuranHome({
   onContinue,
   onOpenPage,
   onOpenGoals,
-  onOpenGoal,
+  onPlayPage,
+  onMeaning,
 }: {
   dark: boolean;
   lastPage: number;
@@ -40,76 +56,70 @@ export function QuranHome({
   onContinue: () => void;
   onOpenPage: (page: number) => void;
   onOpenGoals: () => void;
-  onOpenGoal: (goal: Goal) => void;
+  /** Plays from the top of the last page read. */
+  onPlayPage: () => void;
+  onMeaning: () => void;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const tabBar = useTabBarHeight();
+  const { width } = useWindowDimensions();
+  const gutter = width <= 375 ? t.spacing.lg : t.spacing.xl;
   const surah = getSurah(surahForPage(lastPage))!;
   const ayah = firstAyahOnPage(lastPage);
   const today = progress.statuses.filter((s) => s.today);
-  const colors = ringColors(dark);
-  const pill = dark
-    ? { bg: "#E4E2FF", ink: "#17121F" }
-    : { bg: "#4338CA", ink: "#FFFFFF" };
+  const open = today.filter((s) => !s.done).length;
+  const pill = dark ? { bg: '#E4E2FF', ink: '#17121F' } : { bg: '#4338CA', ink: '#FFFFFF' };
   const friday = new Date().getDay() === 5;
-  const kahfGoal = progress.statuses.find(
-    (s) => s.goal.target.kind === "surah" && s.goal.target.surah === 18,
-  );
+  const kahfGoal = progress.statuses.find((s) => s.goal.target.kind === 'surah' && s.goal.target.surah === 18);
 
   return (
     <View style={{ flex: 1, backgroundColor: t.c.bg }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingTop: insets.top + t.spacing.lg,
-          paddingHorizontal: t.spacing.xl,
-          paddingBottom: tabBar + t.spacing.xxxl,
+      {/* The title and its one action, as on Calendar and Settings. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: t.spacing.md,
+          paddingTop: insets.top + t.spacing.sm,
+          paddingBottom: t.spacing.sm,
+          paddingHorizontal: gutter,
+          backgroundColor: t.c.bg,
         }}
-        contentInsetAdjustmentBehavior="never"
       >
-        <Text
-          variant="title1"
-          header
-          style={{ fontSize: 32, lineHeight: 38 }}
-          maxFontSizeMultiplier={1.3}
-        >
-          Salaam
+        <Text variant="title1" header maxFontSizeMultiplier={1.3} numberOfLines={1}>
+          Quran
         </Text>
-        <Text
-          variant="subhead"
-          color="textSecondary"
-          style={{ marginTop: t.spacing.xs }}
+        <PressableScale
+          haptic="select"
+          onPress={onOpenGoals}
+          accessibilityRole="button"
+          accessibilityLabel={progress.goals.length ? `Goals, ${open ? `${open} to go today` : 'all done today'}` : 'Goals'}
+          accessibilityHint="Opens your reading goals"
         >
-          {todaySummary(progress.statuses)}
-        </Text>
+          <View style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: t.spacing.md, borderRadius: t.radii.control, backgroundColor: t.c.surface2 }}>
+            {today.length ? (
+              <GoalRings progress={today.map((s) => s.progress)} size={24} stroke={3.5} dark={dark} />
+            ) : (
+              <SymbolView name="target" size={17} tintColor={t.c.text} style={{ width: 20, height: 20 }} />
+            )}
+            <Text variant="subhead" style={{ fontWeight: '600' }}>
+              Goals
+            </Text>
+          </View>
+        </PressableScale>
+      </View>
 
-        {/* Where you left off: the page itself, then one tap back to it. */}
-        <View
-          style={{
-            marginTop: t.spacing.xl,
-            borderRadius: t.radii.feature,
-            borderCurve: "continuous",
-            backgroundColor: t.c.surface1,
-            padding: t.spacing.md,
-          }}
-        >
-          <PressableScale
-            scaleTo={0.99}
-            onPress={onContinue}
-            accessibilityRole="button"
-            accessibilityLabel={`Continue reading ${surah.transliteration}, page ${lastPage}`}
-          >
-            <View
-              pointerEvents="none"
-              style={{
-                height: 150,
-                borderRadius: t.radii.card,
-                borderCurve: "continuous",
-                overflow: "hidden",
-                backgroundColor: dark ? "#000000" : "#F8F8FC",
-              }}
-            >
+      <ScrollView contentContainerStyle={{ paddingHorizontal: gutter, paddingTop: t.spacing.sm, paddingBottom: tabBar + t.spacing.xxxl }} contentInsetAdjustmentBehavior="never">
+        <HadithCard />
+
+        <Text variant="title2" header style={{ marginTop: t.spacing.xxl, marginBottom: t.spacing.sm }}>
+          Continue where you left off
+        </Text>
+        <View style={{ borderRadius: t.radii.feature, borderCurve: 'continuous', backgroundColor: t.c.surface1, padding: t.spacing.md }}>
+          <PressableScale scaleTo={0.99} onPress={onContinue} accessibilityRole="button" accessibilityLabel={`Continue reading ${surah.transliteration}, page ${lastPage}`}>
+            <View pointerEvents="none" style={{ height: 150, borderRadius: t.radii.card, borderCurve: 'continuous', overflow: 'hidden', backgroundColor: dark ? '#000000' : '#F8F8FC' }}>
               <QuranReader
                 style={{ flex: 1 }}
                 preview
@@ -127,16 +137,7 @@ export function QuranHome({
               />
             </View>
           </PressableScale>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: t.spacing.md,
-              paddingHorizontal: t.spacing.xs,
-              marginTop: t.spacing.md,
-            }}
-          >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: t.spacing.md, paddingHorizontal: t.spacing.xs, marginTop: t.spacing.md }}>
             <View style={{ flex: 1 }}>
               <Text variant="title3" numberOfLines={1}>
                 {surah.transliteration}
@@ -145,279 +146,46 @@ export function QuranHome({
                 Ayah {ayah?.ayah ?? 1}, Page {lastPage}
               </Text>
             </View>
-            <Text
-              style={{
-                fontFamily: QURAN_FONT,
-                fontSize: 26,
-                lineHeight: 48,
-                color: t.c.text,
-              }}
-            >
-              {surah.arabicName}
-            </Text>
+            <Text style={{ fontFamily: QURAN_FONT, fontSize: 26, lineHeight: 48, color: t.c.text }}>{surah.arabicName}</Text>
           </View>
-          <PressableScale
-            haptic="light"
-            onPress={onContinue}
-            accessibilityRole="button"
-            accessibilityLabel="Continue"
-            style={{ marginTop: t.spacing.sm }}
-          >
-            <View
-              style={{
-                height: 50,
-                borderRadius: 25,
-                backgroundColor: pill.bg,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text
-                variant="body"
-                style={{ color: pill.ink, fontWeight: "600" }}
-              >
+          <PressableScale haptic="light" onPress={onContinue} accessibilityRole="button" accessibilityLabel="Continue" style={{ marginTop: t.spacing.sm }}>
+            <View style={{ height: 50, borderRadius: 25, backgroundColor: pill.bg, alignItems: 'center', justifyContent: 'center' }}>
+              <Text variant="body" style={{ color: pill.ink, fontWeight: '600' }}>
                 Continue
               </Text>
             </View>
           </PressableScale>
         </View>
+        <View style={{ marginTop: t.spacing.sm }}>
+          <PagePlayer onPlayPage={onPlayPage} onMeaning={onMeaning} />
+        </View>
 
         {friday && !(kahfGoal && kahfGoal.done) ? (
-          <PressableScale
-            scaleTo={0.99}
-            onPress={() => onOpenPage(293)}
-            accessibilityRole="button"
-            accessibilityLabel="It's Friday. Read Al-Kahf"
-            style={{ marginTop: t.spacing.md }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: t.spacing.md,
-                borderRadius: t.radii.card,
-                borderCurve: "continuous",
-                backgroundColor: t.c.surface1,
-                padding: t.spacing.lg,
-              }}
-            >
+          <PressableScale scaleTo={0.99} onPress={() => onOpenPage(293)} accessibilityRole="button" accessibilityLabel="It's Friday. Read Al-Kahf" style={{ marginTop: t.spacing.xxl }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: t.c.surface1, padding: t.spacing.lg }}>
               <View style={{ flex: 1 }}>
-                <Text
-                  variant="caption"
-                  color="textSecondary"
-                  style={{ textTransform: "uppercase", letterSpacing: 0.8 }}
-                >
+                <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
                   It’s Friday
                 </Text>
                 <Text variant="headline">Al-Kahf</Text>
               </View>
-              <Text
-                style={{
-                  fontFamily: QURAN_FONT,
-                  fontSize: 24,
-                  lineHeight: 44,
-                  color: t.c.text,
-                }}
-              >
-                الكهف
-              </Text>
-              <SymbolView
-                name="chevron.right"
-                size={13}
-                tintColor={t.c.glyphQuiet}
-              />
+              <Text style={{ fontFamily: QURAN_FONT, fontSize: 24, lineHeight: 44, color: t.c.text }}>الكهف</Text>
+              <SymbolView name="chevron.right" size={13} tintColor={t.c.glyphQuiet} />
             </View>
           </PressableScale>
         ) : null}
 
-        {/* Today: a ring per goal due, and where each stands. */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            marginTop: t.spacing.xxl,
-            marginBottom: t.spacing.sm,
-          }}
-        >
-          <Text variant="title2" header>
-            Today
-          </Text>
-          {progress.goals.length ? (
-            <PressableScale
-              haptic="select"
-              onPress={onOpenGoals}
-              accessibilityRole="button"
-              accessibilityLabel="All goals"
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 4,
-                  minHeight: 32,
-                }}
-              >
-                <Text
-                  variant="subhead"
-                  color="textSecondary"
-                  style={{ fontWeight: "600" }}
-                >
-                  All Goals
-                </Text>
-                <SymbolView
-                  name="chevron.right"
-                  size={11}
-                  tintColor={t.c.textSecondary}
-                />
-              </View>
-            </PressableScale>
-          ) : null}
-        </View>
-        {progress.goals.length ? (
-          <PressableScale
-            scaleTo={0.99}
-            onPress={onOpenGoals}
-            accessibilityRole="button"
-            accessibilityLabel="Today's goals"
-            accessibilityHint="Opens all goals"
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: t.spacing.xl,
-                borderRadius: t.radii.feature,
-                borderCurve: "continuous",
-                backgroundColor: t.c.surface1,
-                padding: t.spacing.lg,
-              }}
-            >
-              <GoalRings
-                progress={today.map((s) => s.progress)}
-                size={112}
-                dark={dark}
-              />
-              <View style={{ flex: 1, gap: t.spacing.sm }}>
-                {(today.length ? today : progress.statuses)
-                  .slice(0, 3)
-                  .map((s, i) => (
-                    <View key={s.goal.id}>
-                      <Text
-                        variant="caption"
-                        numberOfLines={1}
-                        style={{
-                          color: today.length ? colors[i] : t.c.textSecondary,
-                          fontWeight: "600",
-                        }}
-                      >
-                        {s.title}
-                      </Text>
-                      <Text
-                        variant="subhead"
-                        numberOfLines={1}
-                        style={{ fontWeight: "700" }}
-                      >
-                        {s.done ? "Done" : s.detail}
-                      </Text>
-                    </View>
-                  ))}
-              </View>
-            </View>
-          </PressableScale>
-        ) : (
-          <View
-            style={{
-              borderRadius: t.radii.feature,
-              borderCurve: "continuous",
-              backgroundColor: t.c.surface1,
-              padding: t.spacing.lg,
-              gap: t.spacing.md,
-            }}
-          >
-            <Text variant="subhead" color="textSecondary">
-              A little each day goes a long way. Choose a few pages a day, a
-              surah each night, or the whole Quran.
-            </Text>
-            <PressableScale
-              haptic="select"
-              onPress={onOpenGoals}
-              accessibilityRole="button"
-              accessibilityLabel="Add a goal"
-            >
-              <View
-                style={{
-                  height: 46,
-                  borderRadius: 23,
-                  borderWidth: 1,
-                  borderColor: t.c.hairline,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexDirection: "row",
-                  gap: 6,
-                }}
-              >
-                <SymbolView
-                  name="plus"
-                  size={14}
-                  tintColor={t.c.text}
-                  style={{ width: 16, height: 16 }}
-                />
-                <Text variant="body" style={{ fontWeight: "600" }}>
-                  Add a Goal
-                </Text>
-              </View>
-            </PressableScale>
-          </View>
-        )}
-
         {bookmarks.length ? (
           <>
-            <Text
-              variant="title2"
-              header
-              style={{ marginTop: t.spacing.xxl, marginBottom: t.spacing.sm }}
-            >
+            <Text variant="title2" header style={{ marginTop: t.spacing.xxl, marginBottom: t.spacing.sm }}>
               Bookmarks
             </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: t.spacing.sm }}
-              style={{ marginHorizontal: -t.spacing.xl }}
-            >
-              <View style={{ width: t.spacing.xl - t.spacing.sm }} />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: t.spacing.sm, paddingHorizontal: gutter }} style={{ marginHorizontal: -gutter }}>
               {bookmarks.slice(0, 12).map((b) => (
-                <PressableScale
-                  key={`${b.page}-${b.createdAt}`}
-                  scaleTo={0.97}
-                  onPress={() => b.page && onOpenPage(b.page)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${b.surahName}, page ${b.page}`}
-                >
-                  <View
-                    style={{
-                      minWidth: 120,
-                      borderRadius: t.radii.card,
-                      borderCurve: "continuous",
-                      backgroundColor: t.c.surface1,
-                      padding: t.spacing.md,
-                      gap: 4,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 5,
-                        backgroundColor: bookmarkColor(b),
-                      }}
-                    />
-                    <Text
-                      variant="subhead"
-                      numberOfLines={1}
-                      style={{ fontWeight: "600" }}
-                    >
+                <PressableScale key={`${b.page}-${b.createdAt}`} scaleTo={0.97} onPress={() => b.page && onOpenPage(b.page)} accessibilityRole="button" accessibilityLabel={`${b.surahName}, page ${b.page}`}>
+                  <View style={{ minWidth: 120, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: t.c.surface1, padding: t.spacing.md, gap: 4 }}>
+                    <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: bookmarkColor(b) }} />
+                    <Text variant="subhead" numberOfLines={1} style={{ fontWeight: '600' }}>
                       {b.surahName}
                     </Text>
                     <Text variant="caption" color="textSecondary">
@@ -426,23 +194,64 @@ export function QuranHome({
                   </View>
                 </PressableScale>
               ))}
-              <View style={{ width: t.spacing.xl - t.spacing.sm }} />
             </ScrollView>
           </>
         ) : null}
       </ScrollView>
-      {/* Solid behind the status bar, so the page scrolls under it cleanly. */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: insets.top,
-          backgroundColor: t.c.bg,
-        }}
-      />
     </View>
+  );
+}
+
+/** One hadith at a time, fading to the next every few seconds; tap for the next. Still under Reduce Motion. */
+function HadithCard() {
+  const t = useTheme();
+  const [index, setIndex] = useState(0);
+  const fade = useRef(new Animated.Value(1)).current;
+
+  const go = (next: number) => {
+    if (t.reduceMotion) {
+      setIndex(next);
+      return;
+    }
+    Animated.timing(fade, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
+      setIndex(next);
+      Animated.timing(fade, { toValue: 1, duration: 320, useNativeDriver: true }).start();
+    });
+  };
+
+  useEffect(() => {
+    if (t.reduceMotion) return;
+    const id = setInterval(() => go((index + 1) % HADITH.length), HADITH_MS);
+    return () => clearInterval(id);
+  }, [index, t.reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const h = HADITH[index];
+  return (
+    <PressableScale
+      scaleTo={0.99}
+      onPress={() => go((index + 1) % HADITH.length)}
+      accessibilityRole="button"
+      accessibilityLabel={`${h.text} ${h.source}`}
+      accessibilityHint="Shows the next hadith"
+    >
+      <View style={{ borderRadius: t.radii.feature, borderCurve: 'continuous', backgroundColor: t.c.surface1, padding: t.spacing.lg, minHeight: 150 }}>
+        <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+          The Prophet ﷺ said
+        </Text>
+        <Animated.View style={{ opacity: fade, flex: 1, justifyContent: 'space-between' }}>
+          <Text variant="headline" style={{ marginTop: t.spacing.sm, lineHeight: 26 }}>
+            “{h.text}”
+          </Text>
+          <Text variant="footnote" color="textSecondary" style={{ marginTop: t.spacing.md }}>
+            {h.source}
+          </Text>
+        </Animated.View>
+        <View style={{ flexDirection: 'row', gap: 6, marginTop: t.spacing.md }}>
+          {HADITH.map((_, i) => (
+            <View key={i} style={{ width: i === index ? 16 : 6, height: 6, borderRadius: 3, backgroundColor: i === index ? t.c.text : t.c.hairline }} />
+          ))}
+        </View>
+      </View>
+    </PressableScale>
   );
 }
