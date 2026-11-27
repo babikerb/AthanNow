@@ -11,9 +11,10 @@ import { Text } from "../../design/Text";
 import { useTheme } from "../../design/theme";
 import { bookmarkColor, type Bookmark } from "../../hooks/useBookmarks";
 import { useTabBarHeight } from "../../hooks/useTabBarHeight";
-import { firstAyahOnPage, surahsOnPage } from "../../quran/pageLayout";
+import { firstAyahOnPage, pageForAyah, surahsOnPage } from "../../quran/pageLayout";
 import type { QuranProgress } from "../../quran/useQuranProgress";
 import { QURAN_FONT } from "../../recitation/format";
+import { useRecitation, useRecitationProgress } from "../../recitation/RecitationProvider";
 import { GoalRings } from "./GoalRings";
 
 const NO_PAGES: number[] = [];
@@ -65,15 +66,8 @@ export function QuranHome({
   const tabBar = useTabBarHeight();
   const { width } = useWindowDimensions();
   const gutter = width <= 375 ? t.spacing.lg : t.spacing.xl;
-  const surah = getSurah(
-    surahsOnPage(lastPage).slice(-1)[0] ?? surahForPage(lastPage),
-  )!;
-  const ayah = firstAyahOnPage(lastPage);
   const today = progress.statuses.filter((s) => s.today);
   const open = today.filter((s) => !s.done).length;
-  const pill = dark
-    ? { bg: "#E4E2FF", ink: "#17121F" }
-    : { bg: "#4338CA", ink: "#FFFFFF" };
   const friday = new Date().getDay() === 5;
   const kahfGoal = progress.statuses.find(
     (s) => s.goal.target.kind === "surah" && s.goal.target.surah === 18,
@@ -156,111 +150,7 @@ export function QuranHome({
       >
         <HadithCard />
 
-        <Text
-          variant="headline"
-          header
-          style={{ marginTop: t.spacing.lg, marginBottom: t.spacing.sm }}
-        >
-          Continue where you left off
-        </Text>
-        <View
-          style={{
-            borderRadius: t.radii.feature,
-            borderCurve: "continuous",
-            backgroundColor: t.c.surface1,
-            padding: t.spacing.sm,
-          }}
-        >
-          <PressableScale
-            scaleTo={0.99}
-            onPress={onContinue}
-            accessibilityRole="button"
-            accessibilityLabel={`Continue reading ${surah.transliteration}, page ${lastPage}`}
-          >
-            <View
-              pointerEvents="none"
-              style={{
-                height: 112,
-                borderRadius: t.radii.card,
-                borderCurve: "continuous",
-                overflow: "hidden",
-                backgroundColor: t.c.bg,
-              }}
-            >
-              <QuranReader
-                style={{ flex: 1 }}
-                preview
-                backgroundHex={t.c.bg}
-                inkHex={t.c.text}
-                accentHex={t.c.accent}
-                page={lastPage}
-                pageNonce={lastPage}
-                dark={dark}
-                follow={false}
-                topInset={0}
-                bottomInset={0}
-                surahTitles={[]}
-                bookmarkedPages={NO_PAGES}
-                onPageChange={() => {}}
-                onTap={() => {}}
-                onAction={() => {}}
-              />
-            </View>
-          </PressableScale>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: t.spacing.md,
-              paddingHorizontal: t.spacing.xs,
-              marginTop: t.spacing.xs,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text variant="headline" numberOfLines={1}>
-                {surah.transliteration}
-              </Text>
-              <Text variant="footnote" color="textSecondary">
-                Ayah {ayah?.ayah ?? 1}, Page {lastPage}
-              </Text>
-            </View>
-            <Text
-              style={{
-                fontFamily: QURAN_FONT,
-                fontSize: 22,
-                lineHeight: 40,
-                color: t.c.text,
-              }}
-            >
-              {surah.arabicName}
-            </Text>
-          </View>
-          <PressableScale
-            haptic="light"
-            onPress={onContinue}
-            accessibilityRole="button"
-            accessibilityLabel="Continue"
-            style={{ marginTop: t.spacing.xs }}
-          >
-            <View
-              style={{
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: pill.bg,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Text
-                variant="body"
-                style={{ color: pill.ink, fontWeight: "600" }}
-              >
-                Continue
-              </Text>
-            </View>
-          </PressableScale>
-        </View>
+        <ContinueCard dark={dark} lastPage={lastPage} onContinue={onContinue} onOpenPage={onOpenPage} />
 
         {friday && !(kahfGoal && kahfGoal.done) ? (
           <PressableScale
@@ -374,6 +264,85 @@ export function QuranHome({
         ) : null}
       </ScrollView>
     </View>
+  );
+}
+
+/**
+ * Where you left off: the last page read, and one tap back to it. While a recitation is playing it
+ * becomes Listening now: the page being recited, its word lit as it goes, a way back to it, and pause.
+ */
+function ContinueCard({ dark, lastPage, onContinue, onOpenPage }: { dark: boolean; lastPage: number; onContinue: () => void; onOpenPage: (page: number) => void }) {
+  const t = useTheme();
+  const r = useRecitation();
+  const { word } = useRecitationProgress();
+  const listening = !!r.surahId && r.isPlaying;
+  const page = listening ? pageForAyah(r.surahId!, r.ayahIndex + 1) : lastPage;
+  const surah = getSurah(listening ? r.surahId! : (surahsOnPage(page).slice(-1)[0] ?? surahForPage(page)))!;
+  const ayah = listening ? r.ayahIndex + 1 : (firstAyahOnPage(page)?.ayah ?? 1);
+  const open = () => (listening ? onOpenPage(page) : onContinue());
+  const current = listening ? { surah: r.surahId!, ayah: r.ayahIndex + 1, word: Math.max(word, r.reciter.qdc ? 1 : 0) } : null;
+
+  return (
+    <>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: t.spacing.lg, marginBottom: t.spacing.sm }}>
+        {listening ? <SymbolView name="waveform" size={15} tintColor={t.c.accent} /> : null}
+        <Text variant="headline" header>
+          {listening ? "Listening now" : "Continue where you left off"}
+        </Text>
+      </View>
+      <View style={{ borderRadius: t.radii.feature, borderCurve: "continuous", backgroundColor: t.c.surface1, padding: t.spacing.sm }}>
+        <PressableScale scaleTo={0.99} onPress={open} accessibilityRole="button" accessibilityLabel={listening ? `Back to the recitation, ${surah.transliteration}, ayah ${ayah}` : `Continue reading ${surah.transliteration}, page ${page}`}>
+          <View pointerEvents="none" style={{ height: 112, borderRadius: t.radii.card, borderCurve: "continuous", overflow: "hidden", backgroundColor: t.c.bg }}>
+            <QuranReader
+              style={{ flex: 1 }}
+              preview
+              backgroundHex={t.c.bg}
+              inkHex={t.c.text}
+              accentHex={t.c.accent}
+              page={page}
+              pageNonce={page}
+              dark={dark}
+              current={current}
+              follow={false}
+              topInset={0}
+              bottomInset={0}
+              surahTitles={[]}
+              bookmarkedPages={NO_PAGES}
+              onPageChange={() => {}}
+              onTap={() => {}}
+              onAction={() => {}}
+            />
+          </View>
+        </PressableScale>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: t.spacing.md, paddingHorizontal: t.spacing.xs, marginTop: t.spacing.xs }}>
+          <View style={{ flex: 1 }}>
+            <Text variant="headline" numberOfLines={1}>
+              {surah.transliteration}
+            </Text>
+            <Text variant="footnote" color="textSecondary" numberOfLines={1}>
+              {listening ? `Ayah ${ayah}, ${r.reciter.name}` : `Ayah ${ayah}, Page ${page}`}
+            </Text>
+          </View>
+          <Text style={{ fontFamily: QURAN_FONT, fontSize: 22, lineHeight: 40, color: t.c.text }}>{surah.arabicName}</Text>
+        </View>
+        <View style={{ flexDirection: "row", gap: t.spacing.sm, marginTop: t.spacing.xs }}>
+          <PressableScale haptic="light" onPress={open} accessibilityRole="button" accessibilityLabel={listening ? "Back to the recitation" : "Continue"} style={{ flex: 1 }}>
+            <View style={{ height: 44, borderRadius: 22, backgroundColor: t.c.accent, alignItems: "center", justifyContent: "center" }}>
+              <Text variant="body" style={{ color: t.c.onAccent, fontWeight: "600" }}>
+                {listening ? "Back to the recitation" : "Continue"}
+              </Text>
+            </View>
+          </PressableScale>
+          {listening ? (
+            <PressableScale haptic="light" onPress={r.togglePlay} accessibilityRole="button" accessibilityLabel="Pause">
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.c.surface2, alignItems: "center", justifyContent: "center" }}>
+                <SymbolView name="pause.fill" size={17} tintColor={t.c.text} style={{ width: 22, height: 22 }} />
+              </View>
+            </PressableScale>
+          ) : null}
+        </View>
+      </View>
+    </>
   );
 }
 
