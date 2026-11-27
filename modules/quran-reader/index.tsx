@@ -1,3 +1,4 @@
+import { Host } from '@expo/ui/swift-ui';
 import { requireNativeView } from 'expo';
 import React from 'react';
 import { Platform, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -51,24 +52,28 @@ type NativeProps = Omit<QuranReaderProps, 'current' | 'from' | 'onPageChange' | 
 const NativeReader: React.ComponentType<NativeProps> | null = Platform.OS === 'ios' ? requireNativeView('QuranReader') : null;
 
 /** The native mushaf (modules/quran-reader/ios). iOS only. */
-export function QuranReader({ current, from, onPageChange, onTap, onAction, onZoomChange, ...rest }: QuranReaderProps) {
-  if (!NativeReader) return <View style={rest.style} />;
+export function QuranReader({ current, from, onPageChange, onTap, onAction, onZoomChange, style, ...rest }: QuranReaderProps) {
+  if (!NativeReader) return <View style={style} />;
   const cur = current ?? null;
   const start = from ?? cur;
+  // A SwiftUI view mounts inside @expo/ui's Host, which hosts it in the React Native tree. The Host
+  // ignores the safe area: the reader gets its insets from the screen instead.
   return (
-    <NativeReader
-      {...rest}
-      highlighting={!!cur}
-      curSurah={cur?.surah ?? 0}
-      curAyah={cur?.ayah ?? 0}
-      curWord={cur?.word ?? 0}
-      fromSurah={start?.surah ?? 0}
-      fromAyah={start?.ayah ?? 0}
-      fromWord={start?.word ?? 0}
-      onPageChange={(e) => onPageChange(e.nativeEvent.page)}
-      onTap={() => onTap()}
-      onAction={(e) => onAction(e.nativeEvent.action, e.nativeEvent.surah, e.nativeEvent.ayah, e.nativeEvent.page)}
-      onZoomChange={(e) => onZoomChange?.(e.nativeEvent.zoomed)}
-    />
+    <Host style={style} ignoreSafeArea="all">
+      <NativeReader
+        {...rest}
+        highlighting={!!cur}
+        curSurah={cur?.surah ?? 0}
+        curAyah={cur?.ayah ?? 0}
+        curWord={cur?.word ?? 0}
+        fromSurah={start?.surah ?? 0}
+        fromAyah={start?.ayah ?? 0}
+        fromWord={start?.word ?? 0}
+        onPageChange={(e) => onPageChange(e.nativeEvent.page)}
+        onTap={() => onTap()}
+        onAction={(e) => onAction(e.nativeEvent.action, e.nativeEvent.surah, e.nativeEvent.ayah, e.nativeEvent.page)}
+        onZoomChange={(e) => onZoomChange?.(e.nativeEvent.zoomed)}
+      />
+    </Host>
   );
 }
