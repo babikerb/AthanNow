@@ -104,6 +104,9 @@ struct WordView: View {
   let page: Int
   let size: CGFloat
   let ctx: ReaderContext
+  /// The page's QCF V2 font (the word's glyph), or KFGQPC Hafs (the word's text).
+  var font: String = MushafFont.name
+  var useGlyph: Bool = false
 
   var body: some View {
     if ctx.interactive {
@@ -120,8 +123,8 @@ struct WordView: View {
 
   private var label: some View {
     let isCurrent = ctx.playing && word.order == ctx.current
-    return Text(word.text)
-      .font(.custom(MushafFont.name, size: size))
+    return Text(useGlyph ? word.glyph : word.text)
+      .font(.custom(font, size: size))
       .foregroundColor(ctx.color(word))
       .fixedSize()
       .background {
@@ -214,41 +217,75 @@ struct BismillahLine: View {
   }
 }
 
-/// One printed page: its 15 lines (8 on the first two), justified as in the mushaf.
+/// One printed page: its 15 lines (8 on the first two). With the page's QCF V2 font it is the
+/// printed Madani page; until that font has downloaded, the same lines in KFGQPC Hafs.
 struct PageView: View {
   let page: MushafPage
   let size: CGFloat
   let width: CGFloat
   let lineHeight: CGFloat
   let ctx: ReaderContext
+  var qcf: PageFonts.Metrics? = nil
+
+  /// Each line, with its index among the page's word lines (-1 for headers and Bismillahs).
+  private var rows: [(line: MushafLine, index: Int)] {
+    var n = -1
+    return page.lines.map { (line: MushafLine) -> (line: MushafLine, index: Int) in
+      if case .words = line {
+        n += 1
+        return (line: line, index: n)
+      }
+      return (line: line, index: -1)
+    }
+  }
+
+  /// The QCF size that brings the widest line to the full width, kept within the line's height.
+  private var qcfSize: CGFloat {
+    guard let q = qcf else { return size }
+    return min(width * 0.985 / max(q.widest, 1) * 100, lineHeight * 0.72)
+  }
 
   var body: some View {
     VStack(spacing: 0) {
-      ForEach(Array(page.lines.enumerated()), id: \.offset) { _, line in
-        lineView(line)
+      ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+        lineView(row.line, row.index)
           .frame(width: width, height: lineHeight)
       }
     }
   }
 
   @ViewBuilder
-  private func lineView(_ line: MushafLine) -> some View {
+  private func lineView(_ line: MushafLine, _ index: Int) -> some View {
     switch line {
     case .header(let surah):
       SurahHeader(surah: surah, size: size, theme: ctx.theme).frame(width: width)
     case .bismillah:
       BismillahLine(size: size, theme: ctx.theme)
     case .words(let words, let em):
-      let gap = size * 0.25
-      let natural = CGFloat(em) * size + gap * CGFloat(max(0, words.count - 1))
-      let squeeze = natural > width ? width / natural : 1
-      JustifiedLine(gap: gap, justify: natural > width * 0.72) {
-        ForEach(words, id: \.order) { word in
-          WordView(word: word, page: page.number, size: size * squeeze, ctx: ctx)
+      if let q = qcf, index >= 0, index < q.lines.count {
+        // The printed page: each line's glyphs nearly fill it; the rest is shared between words.
+        // Short lines (the opening pages, a surah's last line) sit in the middle, as printed.
+        let qs = qcfSize
+        let natural = q.lines[index] * qs / 100
+        JustifiedLine(gap: qs * 0.06, justify: natural > width * 0.8) {
+          ForEach(words, id: \.order) { word in
+            WordView(word: word, page: page.number, size: qs, ctx: ctx, font: q.name, useGlyph: true)
+          }
         }
+        .frame(width: width)
+        .accessibilityElement(children: .combine)
+      } else {
+        let gap = size * 0.25
+        let natural = CGFloat(em) * size + gap * CGFloat(max(0, words.count - 1))
+        let squeeze = natural > width ? width / natural : 1
+        JustifiedLine(gap: gap, justify: natural > width * 0.72) {
+          ForEach(words, id: \.order) { word in
+            WordView(word: word, page: page.number, size: size * squeeze, ctx: ctx)
+          }
+        }
+        .frame(width: width)
+        .accessibilityElement(children: .combine)
       }
-      .frame(width: width)
-      .accessibilityElement(children: .combine)
     }
   }
 }
@@ -318,6 +355,13 @@ struct QuranReaderView: ExpoSwiftUI.View {
   @State private var zoom: CGFloat = 1
   @State private var pinch: CGFloat = 1
   @State private var flowTarget: Int? = nil
+  @ObservedObject private var fonts = PageFonts.shared
+  /// The pages laid out when zoomed in: a couple before the page being read and more after it, grown
+  /// as the reader scrolls on. All 604 at once can't be scrolled to reliably.
+  @State private var flowFirst = 1
+  @State private var flowLast = 8
+  /// Page reports from the zoomed scroll are ignored until it has reached the page being read.
+  @State private var flowSettled = false
 
   private let maxZoom: CGFloat = 3.2
   private let sidePadding: CGFloat = 14
@@ -354,17 +398,26 @@ struct QuranReaderView: ExpoSwiftUI.View {
     .animation(.spring(response: 0.32, dampingFraction: 0.86), value: currentOrder)
     .onAppear {
       page = clampPage(props.page)
-      if !ready {
+      if ready {
+        PageFonts.shared.prepare(around: page)
+      } else {
         DispatchQueue.global(qos: .userInitiated).async {
           MushafStore.shared.load()
-          DispatchQueue.main.async { ready = true }
+          DispatchQueue.main.async {
+            ready = true
+            PageFonts.shared.prepare(around: page)
+          }
         }
       }
     }
     .onChange(of: props.pageNonce) { _ in
       let target = clampPage(props.page)
-      if zoom > 1.001 { flowTarget = target }
+      if zoom > 1.001 {
+        openFlow(at: target)
+        flowTarget = target
+      }
       page = target
+      if ready { PageFonts.shared.prepare(around: target) }
     }
   }
 
@@ -406,7 +459,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
     let size = width / CGFloat(MushafStore.shared.ref)
     return VStack(spacing: 0) {
       if let p = MushafStore.shared.page(clampPage(props.page)) {
-        PageView(page: p, size: size, width: width, lineHeight: size * 1.9, ctx: context(theme))
+        PageView(page: p, size: size, width: width, lineHeight: size * 1.9, ctx: context(theme), qcf: fonts.metrics(p.number))
       }
       Spacer(minLength: 0)
     }
@@ -425,7 +478,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
       ForEach(MushafStore.shared.pages) { p in
         VStack(spacing: 0) {
           Spacer(minLength: 0)
-          PageView(page: p, size: size, width: area.width, lineHeight: lineHeight, ctx: ctx)
+          PageView(page: p, size: size, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
           Spacer(minLength: 0)
         }
         .padding(.top, CGFloat(props.topInset))
@@ -444,19 +497,39 @@ struct QuranReaderView: ExpoSwiftUI.View {
     .environment(\.layoutDirection, .rightToLeft)
     .onChange(of: page) { newValue in
       props.onPageChange(["page": newValue])
+      PageFonts.shared.prepare(around: newValue)
     }
   }
 
+  /// Lays out the zoomed scroll around a page, from a little before it.
+  private func openFlow(at target: Int) {
+    flowFirst = max(1, target - 2)
+    flowLast = min(604, target + 6)
+    flowSettled = false
+  }
+
   // MARK: Zoomed in
+
+  private var flowPages: [MushafPage] {
+    let all = MushafStore.shared.pages
+    guard !all.isEmpty else { return [] }
+    let first = max(1, min(flowFirst, all.count))
+    let last = max(first, min(flowLast, all.count))
+    return Array(all[(first - 1)..<last])
+  }
 
   private func flowMode(area: CGSize, size: CGFloat, theme: ReaderTheme, full: CGSize) -> some View {
     let ctx = context(theme)
     return ScrollViewReader { proxy in
       ScrollView(.vertical, showsIndicators: false) {
         LazyVStack(spacing: size * 1.2) {
-          ForEach(MushafStore.shared.pages) { p in
+          ForEach(flowPages) { p in
             FlowPage(page: p, size: size, width: area.width, ctx: ctx)
               .id(-p.number)
+              .onAppear {
+                // Near the end of what's laid out: lay out more.
+                if p.number >= flowLast - 1 && flowLast < 604 { flowLast = min(604, flowLast + 6) }
+              }
               .background(
                 GeometryReader { g in
                   Color.clear.preference(key: PageOffsetsKey.self, value: [p.number: g.frame(in: .named("flow")).minY])
@@ -475,6 +548,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
       .coordinateSpace(name: "flow")
       .environment(\.layoutDirection, .leftToRight)
       .onPreferenceChange(PageOffsetsKey.self) { offsets in
+        guard flowSettled else { return }
         // The page whose top has most recently passed a third of the way down is the one being read.
         let line = full.height * 0.35
         if let reading = offsets.filter({ $0.value <= line }).max(by: { $0.value < $1.value })?.key, reading != page {
@@ -483,9 +557,13 @@ struct QuranReaderView: ExpoSwiftUI.View {
         }
       }
       .onAppear {
+        // After the first layout pass, or the scroll has nothing to go to yet.
         let onWord = props.highlighting && props.follow
         let target: Int = onWord ? currentOrder : -page
-        proxy.scrollTo(target, anchor: onWord ? .center : .top)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+          proxy.scrollTo(target, anchor: onWord ? .center : .top)
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { flowSettled = true }
+        }
       }
       .onChange(of: currentOrder) { order in
         guard props.follow, order > 0 else { return }
@@ -495,8 +573,11 @@ struct QuranReaderView: ExpoSwiftUI.View {
       }
       .onChange(of: flowTarget) { target in
         guard let target else { return }
-        proxy.scrollTo(-target, anchor: .top)
-        flowTarget = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+          proxy.scrollTo(-target, anchor: .top)
+          flowTarget = nil
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { flowSettled = true }
+        }
       }
     }
   }
@@ -514,6 +595,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
       .onEnded { value in
         let next = min(max(zoom * value, 1), maxZoom)
         let wasZoomed = zoom > 1.001
+        if !wasZoomed && next >= 1.12 { openFlow(at: page) }
         withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
           zoom = next < 1.12 ? 1 : next
           pinch = 1

@@ -8,6 +8,8 @@ struct MushafWord: Hashable {
   let ayah: Int
   let word: Int
   let text: String
+  /// The word's glyph in quran.com's QCF V2 font for its page (one to a few characters).
+  let glyph: String
 
   /// Reading order across the whole Quran. The end marker comes after the ayah's words.
   var order: Int { MushafWord.order(surah, ayah, word) }
@@ -106,12 +108,12 @@ final class MushafStore {
           var lineWords: [MushafWord] = []
           lineWords.reserveCapacity(list.count)
           for item in list {
-            guard item.count == 4,
+            guard item.count >= 4,
                   let s = (item[0] as? NSNumber)?.intValue,
                   let a = (item[1] as? NSNumber)?.intValue,
                   let w = (item[2] as? NSNumber)?.intValue,
                   let t = item[3] as? String else { continue }
-            let word = MushafWord(surah: s, ayah: a, word: w, text: t)
+            let word = MushafWord(surah: s, ayah: a, word: w, text: t, glyph: item.count > 4 ? (item[4] as? String ?? "") : "")
             lineWords.append(word)
             words[word.ayahKey, default: []].append(t)
           }
@@ -131,5 +133,74 @@ final class MushafStore {
 
   func name(_ surah: Int) -> String {
     surah >= 1 && surah <= names.count ? names[surah - 1] : ""
+  }
+}
+
+/// quran.com's QCF V2 fonts, one per page, which draw the printed Madani page exactly: each word is
+/// one glyph made to fill its line. Downloaded the first time a page is opened and kept in Caches;
+/// until then the page is set in KFGQPC Hafs instead.
+final class PageFonts: ObservableObject {
+  static let shared = PageFonts()
+
+  struct Metrics {
+    let name: String
+    /// Each word line's width at 100 pt, in the page's order.
+    let lines: [CGFloat]
+    var widest: CGFloat { lines.max() ?? 1 }
+  }
+
+  @Published private(set) var fonts: [Int: Metrics] = [:]
+  private var loading = Set<Int>()
+  private let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("qcf-v2", isDirectory: true)
+
+  func metrics(_ page: Int) -> Metrics? { fonts[page] }
+
+  /// This page and the ones either side, nearest first.
+  func prepare(around page: Int) {
+    for p in [page, page - 1, page + 1, page - 2, page + 2] { ensure(p) }
+  }
+
+  func ensure(_ page: Int) {
+    guard page >= 1, page <= 604, fonts[page] == nil, !loading.contains(page) else { return }
+    loading.insert(page)
+    let file = dir.appendingPathComponent("p\(page).ttf")
+    let dir = self.dir
+    DispatchQueue.global(qos: .userInitiated).async {
+      try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      if !FileManager.default.fileExists(atPath: file.path) {
+        guard let url = URL(string: "https://verses.quran.foundation/fonts/quran/hafs/v2/ttf/p\(page).ttf"),
+              let data = try? Data(contentsOf: url), data.count > 10_000 else {
+          DispatchQueue.main.async { self.loading.remove(page) }
+          return
+        }
+        try? data.write(to: file, options: .atomic)
+      }
+      let metrics = PageFonts.register(file, page: page)
+      if metrics == nil { try? FileManager.default.removeItem(at: file) }
+      DispatchQueue.main.async {
+        self.loading.remove(page)
+        if let metrics { self.fonts[page] = metrics }
+      }
+    }
+  }
+
+  private static func register(_ url: URL, page: Int) -> Metrics? {
+    guard let provider = CGDataProvider(url: url as CFURL),
+          let font = CGFont(provider),
+          let postScript = font.postScriptName else { return nil }
+    let name = postScript as String
+    // Registering again (a second reader, a reload) fails harmlessly; the font is already there.
+    CTFontManagerRegisterGraphicsFont(font, nil)
+    guard let ui = UIFont(name: name, size: 100), let data = MushafStore.shared.page(page) else { return nil }
+    var lines: [CGFloat] = []
+    for line in data.lines {
+      if case .words(let words, _) = line {
+        let width = words.reduce(CGFloat(0)) { sum, word in
+          sum + (word.glyph as NSString).size(withAttributes: [.font: ui]).width
+        }
+        lines.append(width)
+      }
+    }
+    return Metrics(name: name, lines: lines)
   }
 }

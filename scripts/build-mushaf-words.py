@@ -8,8 +8,10 @@ out. Also measures every line in the bundled font, so the reader can size the pa
 Writes modules/quran-reader/ios/QuranReaderResources/mushaf.json:
   { "ref": em width the page is sized to, "names": Arabic surah names,
     "pages": [ [ line, ... ] x15 (8 on pages 1 and 2) ] }
-  line = {"h": surah} | {"b": 1} | {"w": [[surah, ayah, word, text], ...], "e": em width}
-  word 0 is an ayah's end marker (its number).
+  line = {"h": surah} | {"b": 1} | {"w": [[surah, ayah, word, text, glyph], ...], "e": em width}
+  word 0 is an ayah's end marker (its number). text is KFGQPC Hafs (for the flowing, zoomed view);
+  glyph is the word's single glyph in quran.com's QCF V2 font for that page, which draws the
+  printed Madani page exactly (fonts are downloaded per page by the reader).
 """
 import json, os, sys, time, urllib.request, concurrent.futures as cf
 
@@ -18,7 +20,7 @@ import uharfbuzz as hb
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, 'modules', 'quran-reader', 'ios', 'QuranReaderResources')
 FONT = os.path.join(RES, 'UthmanicHafs.ttf')
-CACHE = os.path.join(os.environ.get('TEMP', '/tmp'), 'mushaf-pages')
+CACHE = os.path.join(os.environ.get('TEMP', '/tmp'), 'mushaf-pages-v2')
 os.makedirs(CACHE, exist_ok=True)
 
 
@@ -28,7 +30,7 @@ def fetch_page(p):
         return json.load(open(path, encoding='utf-8'))
     verses, page = [], 1
     while True:
-        url = f'https://api.quran.com/api/v4/verses/by_page/{p}?words=true&word_fields=text_qpc_hafs,line_number&per_page=50&page={page}'
+        url = f'https://api.quran.com/api/v4/verses/by_page/{p}?words=true&word_fields=text_qpc_hafs,code_v2,v2_page,line_number&per_page=50&page={page}'
         for attempt in range(5):
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'mushaf-builder'})
@@ -74,7 +76,10 @@ for p, verses in enumerate(raw, start=1):
             if w['char_type_name'] not in ('word', 'end'):
                 continue
             n = w['position'] if w['char_type_name'] == 'word' else 0
-            lines.setdefault(w['line_number'], []).append([s, a, n, w['text_qpc_hafs']])
+            # An ayah that runs across two pages comes back with both pages: keep this page's words.
+            if w.get('v2_page') != p:
+                continue
+            lines.setdefault(w['line_number'], []).append([s, a, n, w['text_qpc_hafs'], w['code_v2']])
     out = []
     missing = [n for n in range(1, total + 1) if n not in lines]
     # Each run of missing lines is a surah's header (and Bismillah), for the surah that follows it.
@@ -123,10 +128,11 @@ print('pages', len(pages), 'ref em', round(ref, 3), 'max', widths[-1], 'min', wi
 unk = [(i + 1, j + 1) for i, pg in enumerate(pages) for j, l in enumerate(pg) if l.get('h') == 0]
 print('unfilled lines', unk[:20])
 
-# The JS side only needs where each page starts: the first ayah printed on it (src/data/mushafIndex.json).
+# The JS side only needs where each page starts: the first word printed on it, as [surah, ayah, word]
+# (src/data/mushafIndex.json). A page can begin partway through an ayah.
 starts = []
 for pg in pages:
     first = next(w for l in pg if 'w' in l for w in l['w'])
-    starts.append([first[0], first[1]])
+    starts.append([first[0], first[1], first[2] or 999])
 json.dump({'pageStarts': starts}, open(os.path.join(ROOT, 'src', 'data', 'mushafIndex.json'), 'w'), separators=(',', ':'))
 print('index pages', len(starts))
