@@ -20,7 +20,8 @@ import { LocationProvider } from './src/context/LocationContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 import { ThemeProvider as DesignThemeProvider, useTheme as useDesignTheme } from './src/design/theme';
-import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+// The one weight used, from its own path: the package's index would bundle all eighteen.
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces/600SemiBold';
 import { LaunchSplash, SPLASH_BG } from './src/components/LaunchSplash';
 import { Onboarding } from './src/components/Onboarding';
 import { navigationRef } from './src/navigation/navigationRef';

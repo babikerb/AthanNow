@@ -470,8 +470,8 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
       setPlaying(null);
       return;
     }
-    if (v.source == null) return;
-    const ok = playAthanPreview(v.source, () => setPlaying(null));
+    if (!v.file) return;
+    const ok = playAthanPreview(v.file, () => setPlaying(null));
     setPreviewsUnavailable(!ok);
     setPlaying(ok ? v.id : null);
   };
@@ -504,7 +504,7 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
           />
           {ATHAN_VOICES.map((v, i) => {
             const isPlaying = playing === v.id;
-            const available = !!v.file && v.source != null;
+            const available = !!v.file;
             const isDefault = i === 0;
             const label = [v.name, v.region, isDefault ? 'default' : null, available ? null : 'coming soon'].filter(Boolean).join(', ');
             return (
