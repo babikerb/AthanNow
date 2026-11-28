@@ -3,7 +3,7 @@
     "name": "AthanNow",
     "slug": "AthanNow",
     "version": "4.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "primaryColor": "#121316",
@@ -14,6 +14,7 @@
         "tinted": "./assets/icon-tinted.png"
       },
       "supportsTablet": false,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.bbabiker.AthanNow",
       "infoPlist": {
         "CADisableMinimumFrameDurationOnPhone": true,
@@ -34,6 +35,7 @@
     },
     "plugins": [
       "expo-location",
+      ["expo-screen-orientation", { "initialOrientation": "PORTRAIT_UP" }],
       [
         "expo-notifications",
         {

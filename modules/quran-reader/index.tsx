@@ -27,6 +27,8 @@ export interface QuranReaderProps {
   /** Zoomed in, keep the recited word in view. */
   follow: boolean;
   topInset: number;
+  /** The safe area at the sides (landscape's notch and corners). */
+  sideInset?: number;
   bottomInset: number;
   surahTitles: string[];
   bookmarkedPages: number[];

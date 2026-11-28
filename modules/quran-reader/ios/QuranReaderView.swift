@@ -22,6 +22,8 @@ final class QuranReaderProps: ExpoSwiftUI.ViewProps {
   @Field var follow: Bool = true
   @Field var topInset: Double = 0
   @Field var bottomInset: Double = 0
+  /// The safe area at the sides (the notch and rounded corners in landscape).
+  @Field var sideInset: Double = 0
   /// English surah names for the menus, Al-Fatihah first.
   @Field var surahTitles: [String] = []
   @Field var bookmarkedPages: [Int] = []
@@ -339,8 +341,9 @@ struct GlyphShape: Shape {
 
 /// A surah's opening header, as the printed mushaf draws it: an arabesque frame with a medallion
 /// either side and a cartouche at its middle (the Quranic Universal Library common font's header
-/// glyph), drawn in fine line, and the surah's name in calligraphy in the cartouche (its surah name
-/// font; Al-Fatihah, which that font lacks, in KFGQPC Hafs).
+/// glyph), drawn in fine line, the surah's name in calligraphy in the cartouche (its surah name font;
+/// Al-Fatihah, which that font lacks, in KFGQPC Hafs), its number in the right medallion and its
+/// place in the order of revelation in the left.
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
@@ -351,6 +354,14 @@ struct SurahHeader: View {
 
   /// The frame's width to its height.
   private static let aspect: CGFloat = 8240 / 1016
+
+  /// Each surah's place in the order of revelation, 1 to 114 (from quran.com's chapter data).
+  static let revelationOrder: [Int] = [5, 87, 89, 92, 112, 55, 39, 88, 113, 51, 52, 53, 96, 72, 54, 70, 50, 69, 44, 45, 73, 103, 74, 102, 42, 47, 48, 49, 85, 84, 57, 75, 90, 58, 43, 41, 56, 38, 59, 60, 61, 62, 63, 64, 65, 66, 95, 111, 106, 34, 67, 76, 23, 37, 97, 46, 94, 105, 101, 91, 109, 110, 104, 108, 99, 107, 77, 2, 78, 79, 71, 40, 3, 4, 31, 98, 33, 80, 81, 24, 7, 82, 86, 83, 27, 36, 8, 68, 10, 35, 26, 9, 11, 12, 28, 1, 25, 100, 93, 14, 30, 16, 13, 32, 19, 29, 17, 15, 18, 114, 6, 22, 20, 21]
+
+  /// A number in Arabic-Indic digits.
+  private static func arabic(_ n: Int) -> String {
+    String(String(n).compactMap { c in c.wholeNumberValue.flatMap { UnicodeScalar(0x0660 + $0).map(Character.init) } })
+  }
 
   var body: some View {
     // The full width of the line, as printed, unless the line is too short for it.
@@ -373,6 +384,19 @@ struct SurahHeader: View {
       .lineLimit(1)
       .minimumScaleFactor(0.5)
       .frame(width: w * 0.42)
+      // The medallions: the surah's number in the right one, its place in the order of revelation
+      // in the left.
+      if surah >= 1 && surah <= 114 {
+        ForEach(Array([(0.794, surah), (0.206, SurahHeader.revelationOrder[surah - 1])].enumerated()), id: \.offset) { _, m in
+          Text(SurahHeader.arabic(m.1))
+            .font(.custom(MushafFont.name, size: h * 0.27))
+            .foregroundColor(theme.ink.opacity(0.85))
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .frame(width: h * 0.46)
+            .position(x: w * m.0, y: h * 0.53)
+        }
+      }
     }
     .frame(width: w, height: h)
     // A printed line's height on the page; its own height where it flows.
@@ -704,7 +728,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
   @State private var recitedBuilt = false
 
   private let maxZoom: CGFloat = 3.2
-  private let sidePadding: CGFloat = 8
+  private var sidePadding: CGFloat { max(8, CGFloat(props.sideInset)) }
 
   init(props: QuranReaderProps) {
     self.props = props
@@ -857,17 +881,33 @@ struct QuranReaderView: ExpoSwiftUI.View {
 
   private func pageMode(area: CGSize, size: CGFloat, theme: ReaderTheme, full: CGSize) -> some View {
     let ctx = context(theme)
-    let lineHeight = area.height / 15
+    // In landscape a page is set to the width, larger than the screen is tall, and scrolls down
+    // within itself; pages still turn one at a time, left and right.
+    let landscape = full.width > full.height
+    let lineHeight = landscape ? area.width / 8.2 : area.height / 15
+    let pageSize = landscape ? area.width / CGFloat(MushafStore.shared.ref) : size
     return TabView(selection: $page) {
       ForEach(MushafStore.shared.pages) { p in
-        VStack(spacing: 0) {
-          Spacer(minLength: 0)
-          PageView(page: p, size: size, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
-            .focusBands(dark: theme.dark)
-          Spacer(minLength: 0)
+        Group {
+          if landscape {
+            ScrollView(.vertical, showsIndicators: false) {
+              PageView(page: p, size: pageSize, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
+                .focusBands(dark: theme.dark)
+                .padding(.top, CGFloat(props.topInset))
+                .padding(.bottom, CGFloat(props.bottomInset))
+                .frame(maxWidth: .infinity)
+            }
+          } else {
+            VStack(spacing: 0) {
+              Spacer(minLength: 0)
+              PageView(page: p, size: size, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
+                .focusBands(dark: theme.dark)
+              Spacer(minLength: 0)
+            }
+            .padding(.top, CGFloat(props.topInset))
+            .padding(.bottom, CGFloat(props.bottomInset))
+          }
         }
-        .padding(.top, CGFloat(props.topInset))
-        .padding(.bottom, CGFloat(props.bottomInset))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .onTapGesture { props.onTap() }

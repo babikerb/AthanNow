@@ -10,6 +10,15 @@ import {
   useNavigation,
 } from "@react-navigation/native";
 import { setStatusBarHidden, setStatusBarStyle } from "expo-status-bar";
+
+// Screen orientation, where the build has it (it came with 4.0.0 build 26): only the reader turns.
+const Orientation: typeof import("expo-screen-orientation") | null = (() => {
+  try {
+    return require("expo-screen-orientation");
+  } catch {
+    return null;
+  }
+})();
 import { SymbolView } from "expo-symbols";
 import { QuranReader, type ReaderAction, type WordRef } from "quran-reader";
 import React, {
@@ -298,6 +307,12 @@ function Reader({ display }: { display: Display }) {
     if (focused)
       setStatusBarStyle((reading ? dark : appDark) ? "light" : "dark", true);
   }, [focused, reading, dark, appDark]);
+  // Only the open mushaf turns to landscape; everywhere else stays upright.
+  useEffect(() => {
+    if (!Orientation) return;
+    const free = focused && reading;
+    (free ? Orientation.unlockAsync() : Orientation.lockAsync(Orientation.OrientationLock.PORTRAIT_UP)).catch(() => {});
+  }, [focused, reading]);
   // With the page alone, the status bar goes too, as on a printed page.
   useEffect(() => {
     setStatusBarHidden(focused && reading && hidden, "fade");
@@ -429,6 +444,9 @@ function Reader({ display }: { display: Display }) {
   // that place when the controls hide.
   // The status bar is hidden with the page alone; its height still clears the island.
   const topInset = Math.max(insets.top - 6, 12) + HEAD + PAGE_GAP;
+  // Clear of the notch and rounded corners at the sides in landscape.
+  const sideInset = Math.max(insets.left, insets.right);
+  const gutter = Math.max(t.spacing.md, sideInset);
   const bottomInset = Math.max(insets.bottom - 6, 6) + FOOT + PAGE_GAP;
   const capsule = {
     backgroundColor: dark ? "rgba(26, 27, 31, 0.94)" : "rgba(255, 253, 248, 0.94)",
@@ -561,6 +579,7 @@ function Reader({ display }: { display: Display }) {
                     follow={!!playingPage && r.isPlaying}
                     topInset={topInset}
                     bottomInset={bottomInset}
+                    sideInset={sideInset}
                     bookmarkedPages={bookmarkedPages}
                     focus={focus}
                     display={display}
@@ -592,8 +611,8 @@ function Reader({ display }: { display: Display }) {
                     style={{
                       position: "absolute",
                       top: Math.max(insets.top - 6, 12),
-                      left: t.spacing.lg,
-                      right: t.spacing.lg,
+                      left: gutter,
+                      right: gutter,
                       height: HEAD,
                       flexDirection: "row",
                       alignItems: "center",
@@ -619,8 +638,8 @@ function Reader({ display }: { display: Display }) {
                   style={{
                     position: "absolute",
                     top: insets.top + 4,
-                    left: t.spacing.md,
-                    right: t.spacing.md,
+                    left: gutter,
+                    right: gutter,
                     flexDirection: "row",
                     alignItems: "center",
                     gap: t.spacing.sm,
@@ -739,8 +758,8 @@ function Reader({ display }: { display: Display }) {
                     pointerEvents="box-none"
                     style={{
                       position: "absolute",
-                      left: t.spacing.md,
-                      right: t.spacing.md,
+                      left: gutter,
+                      right: gutter,
                       bottom: insets.bottom + t.spacing.sm,
                       gap: t.spacing.sm,
                     }}
@@ -779,7 +798,7 @@ function Reader({ display }: { display: Display }) {
                       height: FOOT,
                       alignItems: "flex-end",
                       justifyContent: "center",
-                      paddingHorizontal: t.spacing.lg,
+                      paddingHorizontal: gutter,
                     }}
                   >
                     {/* A small double frame, like the printed page's. */}
@@ -838,6 +857,7 @@ function ReaderSurface(props: {
   from: WordRef | null;
   follow: boolean;
   topInset: number;
+  sideInset: number;
   bottomInset: number;
   bookmarkedPages: number[];
   focus: { from: number; to: number } | null;
@@ -886,6 +906,7 @@ function ReaderSurface(props: {
       bismillahSurah={r.inBismillah && r.surahId ? r.surahId : 0}
       follow={props.follow}
       topInset={props.topInset}
+      sideInset={props.sideInset}
       bottomInset={props.bottomInset}
       surahTitles={TITLES}
       bookmarkedPages={props.bookmarkedPages}
