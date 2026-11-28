@@ -785,13 +785,6 @@ function Reader({ display }: { display: Display }) {
                     <PagePlayer
                       onPlayPage={playPage}
                       onBackToRecitation={offRecitation ? () => playingPage && jumpTo(playingPage) : undefined}
-                      onMeaning={() =>
-                        r.surahId &&
-                        setMeaningAyah({
-                          surah: r.surahId,
-                          ayah: r.ayahIndex + 1,
-                        })
-                      }
                     />
                     {/* Every page as a strip, and search. */}
                     <View style={{ flexDirection: "row", alignItems: "center", gap: t.spacing.sm }}>

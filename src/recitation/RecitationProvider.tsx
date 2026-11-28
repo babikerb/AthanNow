@@ -151,8 +151,8 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
         const restored = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Saved>) };
         // Repeating one ayah is for the moment it's chosen, not something to wake up to.
         if (restored.repeat === 'ayah') restored.repeat = 'off';
-        // Always the reciter's own pace (there's no speed control).
-        restored.rate = 1;
+        // The speed chosen last time, if it's one the player offers.
+        if (!(PLAYBACK_RATES as readonly number[]).includes(restored.rate)) restored.rate = 1;
         setSaved(restored);
       })
       .catch(() => {})
