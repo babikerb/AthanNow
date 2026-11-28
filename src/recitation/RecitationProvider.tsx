@@ -71,6 +71,12 @@ export interface RecitationProgress {
 
 const Ctx = createContext<Recitation | null>(null);
 const ProgressCtx = createContext<RecitationProgress | null>(null);
+/** The word being recited and whether it's buffering: changes a few times a second at most. */
+export interface RecitationWord {
+  word: number;
+  buffering: boolean;
+}
+const WordCtx = createContext<RecitationWord>({ word: 0, buffering: false });
 
 // Lets other audio in the app (the athan preview in Settings) pause the recitation first.
 let pauseHandler: (() => void) | null = null;
@@ -507,11 +513,22 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
     };
   }, [status.currentTime, status.isBuffering, loading, span, seek, audioNow, ayahIndex, inBismillah]);
 
+  // The word and buffering on their own, so what shows only those (the page, the play buttons, the
+  // home's preview) redraws when they change, not with every position update ten times a second.
+  const wordValue = useMemo<RecitationWord>(() => ({ word: progress.word, buffering: progress.buffering }), [progress.word, progress.buffering]);
+
   return (
     <Ctx.Provider value={value}>
-      <ProgressCtx.Provider value={progress}>{children}</ProgressCtx.Provider>
+      <WordCtx.Provider value={wordValue}>
+        <ProgressCtx.Provider value={progress}>{children}</ProgressCtx.Provider>
+      </WordCtx.Provider>
     </Ctx.Provider>
   );
+}
+
+/** The word being recited and whether it's buffering, without the position's constant updates. */
+export function useRecitationWord(): RecitationWord {
+  return useContext(WordCtx);
 }
 
 export function useRecitation(): Recitation {

@@ -12,7 +12,7 @@ import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { clock } from '../../recitation/format';
 import { RECITERS } from '../../recitation/reciters';
-import { useRecitation, useRecitationProgress } from '../../recitation/RecitationProvider';
+import { useRecitation, useRecitationProgress, useRecitationWord } from '../../recitation/RecitationProvider';
 import { NativeMenu } from '../NativeMenu';
 import { SheetIconButton } from '../Sheet';
 import { Scrubber } from '../recitation/Scrubber';
@@ -89,7 +89,7 @@ export function PagePlayer({ onPlayPage, onMeaning }: { onPlayPage: () => void; 
 function PlayButton({ onPlayPage, size = 44, filled = false }: { onPlayPage: () => void; size?: number; filled?: boolean }) {
   const t = useTheme();
   const r = useRecitation();
-  const { buffering } = useRecitationProgress();
+  const { buffering } = useRecitationWord();
   const ink = filled ? t.c.onAccent : t.c.text;
   return (
     <TapTarget
@@ -245,7 +245,7 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
 function BigPlay() {
   const t = useTheme();
   const r = useRecitation();
-  const { buffering } = useRecitationProgress();
+  const { buffering } = useRecitationWord();
   return (
     <TapTarget size={64} haptic="light" onPress={r.togglePlay} accessibilityRole="button" accessibilityLabel={r.isPlaying ? 'Pause' : 'Play'}>
       {r.isPlaying && buffering ? (

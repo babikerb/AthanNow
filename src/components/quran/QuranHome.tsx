@@ -14,7 +14,7 @@ import { useTabBarHeight } from "../../hooks/useTabBarHeight";
 import { firstAyahOnPage, pageForAyah, surahsOnPage } from "../../quran/pageLayout";
 import type { QuranProgress } from "../../quran/useQuranProgress";
 import { QURAN_FONT } from "../../recitation/format";
-import { useRecitation, useRecitationProgress } from "../../recitation/RecitationProvider";
+import { useRecitation, useRecitationWord } from "../../recitation/RecitationProvider";
 import { AyahOfTheDay } from "./AyahOfTheDay";
 import { GoalRings } from "./GoalRings";
 
@@ -283,7 +283,7 @@ export function QuranHome({
 function ContinueCard({ dark, lastPage, started, onContinue, onOpenPage }: { dark: boolean; lastPage: number; started: boolean; onContinue: () => void; onOpenPage: (page: number) => void }) {
   const t = useTheme();
   const r = useRecitation();
-  const { word } = useRecitationProgress();
+  const { word } = useRecitationWord();
   const listening = !!r.surahId && r.isPlaying;
   // Nothing read yet: the card offers the Quran from its first page.
   const fresh = !started && !listening;

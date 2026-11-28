@@ -67,7 +67,7 @@ import {
 import { useQuranProgress } from "../quran/useQuranProgress";
 import {
   useRecitation,
-  useRecitationProgress,
+  useRecitationWord,
 } from "../recitation/RecitationProvider";
 import { darkPalette, lightPalette } from "../theme/colors";
 import { juzForPage } from "../utils/mushaf";
@@ -854,7 +854,7 @@ function ReaderSurface(props: {
   ) => void;
 }) {
   const r = useRecitation();
-  const { word } = useRecitationProgress();
+  const { word } = useRecitationWord();
   // The word being recited. While it isn't known (the recording still loading, or a recitation
   // paused from an earlier session), it stays on the last word recited in this ayah, or the ayah's
   // first: one highlight, where it left off. Reciters timed only by the ayah light the ayah instead.
