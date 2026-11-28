@@ -341,9 +341,9 @@ struct GlyphShape: Shape {
 
 /// A surah's opening header, as the printed mushaf draws it: an arabesque frame with a medallion
 /// either side and a cartouche at its middle (the Quranic Universal Library common font's header
-/// glyph), drawn in fine line, the surah's name in calligraphy in the cartouche (its surah name font;
-/// Al-Fatihah, which that font lacks, in KFGQPC Hafs), its number in the right medallion and its
-/// place in the order of revelation in the left.
+/// glyph), drawn in fine line, the surah's name in calligraphy in the cartouche (its surah name font
+/// v2), its number in the right medallion, and in the left its place in the order of revelation and
+/// whether it is Makki or Madani.
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
@@ -358,12 +358,22 @@ struct SurahHeader: View {
   /// Each surah's place in the order of revelation, 1 to 114 (from quran.com's chapter data).
   static let revelationOrder: [Int] = [5, 87, 89, 92, 112, 55, 39, 88, 113, 51, 52, 53, 96, 72, 54, 70, 50, 69, 44, 45, 73, 103, 74, 102, 42, 47, 48, 49, 85, 84, 57, 75, 90, 58, 43, 41, 56, 38, 59, 60, 61, 62, 63, 64, 65, 66, 95, 111, 106, 34, 67, 76, 23, 37, 97, 46, 94, 105, 101, 91, 109, 110, 104, 108, 99, 107, 77, 2, 78, 79, 71, 40, 3, 4, 31, 98, 33, 80, 81, 24, 7, 82, 86, 83, 27, 36, 8, 68, 10, 35, 26, 9, 11, 12, 28, 1, 25, 100, 93, 14, 30, 16, 13, 32, 19, 29, 17, 15, 18, 114, 6, 22, 20, 21]
 
+  /// Whether each surah was revealed in Madinah (1) or Makkah (0), 1 to 114 (quran.com's chapter data).
+  static let madani = Array("011110011000100000000101000000001000000000000011100000101111111111000000000100000000000000000000011000000000010000").map { $0 == "1" }
+
   /// A number in Arabic-Indic digits.
   private static func arabic(_ n: Int) -> String {
     String(String(n).compactMap { c in c.wholeNumberValue.flatMap { UnicodeScalar(0x0660 + $0).map(Character.init) } })
   }
 
   var body: some View {
+    if surah >= 1 && surah <= 114 { header } else {
+      // An empty line in the printed grid (under Al-Fatihah's header, where a Bismillah would be).
+      Color.clear.frame(width: width, height: maxHeight.isFinite ? maxHeight : 0)
+    }
+  }
+
+  @ViewBuilder private var header: some View {
     // The full width of the line, as printed, unless the line is too short for it.
     let w = min(width * 0.98, maxHeight * 0.95 * SurahHeader.aspect)
     let h = w / SurahHeader.aspect
@@ -371,32 +381,33 @@ struct SurahHeader: View {
     ZStack {
       frame.fill(theme.ink.opacity(theme.dark ? 0.05 : 0.04))
       frame.stroke(theme.ink.opacity(theme.dark ? 0.55 : 0.6), lineWidth: max(0.5, h * 0.011))
-      Group {
-        if surah >= 2 && surah <= 114 {
-          Text(String(UnicodeScalar(UInt32(0xE000 + surah)).map(Character.init) ?? " "))
-            .font(.custom(MushafFont.surahName, size: h * 0.62))
-        } else {
-          Text("سُورَةُ \(MushafStore.shared.name(surah))")
-            .font(.custom(MushafFont.name, size: h * 0.36))
-        }
-      }
+      Text(String(UnicodeScalar(UInt32(0xE000 + surah)).map(Character.init) ?? " "))
+        .font(.custom(MushafFont.surahName, size: h * 0.56))
       .foregroundColor(theme.ink)
       .lineLimit(1)
       .minimumScaleFactor(0.5)
       .frame(width: w * 0.42)
-      // The medallions: the surah's number in the right one, its place in the order of revelation
-      // in the left.
-      if surah >= 1 && surah <= 114 {
-        ForEach(Array([(0.794, surah), (0.206, SurahHeader.revelationOrder[surah - 1])].enumerated()), id: \.offset) { _, m in
-          Text(SurahHeader.arabic(m.1))
-            .font(.custom(MushafFont.name, size: h * 0.27))
-            .foregroundColor(theme.ink.opacity(0.85))
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
-            .frame(width: h * 0.46)
-            .position(x: w * m.0, y: h * 0.53)
-        }
+      // The medallions: the surah's number in the right one; in the left, its place in the order of
+      // revelation over where it was revealed, مكية or مدنية.
+      Text(SurahHeader.arabic(surah))
+        .font(.custom(MushafFont.name, size: h * 0.5))
+        .foregroundColor(theme.ink.opacity(0.88))
+        .lineLimit(1)
+        .minimumScaleFactor(0.5)
+        .frame(width: h * 0.5)
+        .position(x: w * 0.794, y: h * 0.55)
+      VStack(spacing: -h * 0.06) {
+        Text(SurahHeader.arabic(SurahHeader.revelationOrder[surah - 1]))
+          .font(.custom(MushafFont.name, size: h * 0.4))
+        Text(SurahHeader.madani[surah - 1] ? "مدنية" : "مكية")
+          .font(.custom(MushafFont.name, size: h * 0.17))
+          .foregroundColor(theme.ink.opacity(0.7))
       }
+      .foregroundColor(theme.ink.opacity(0.88))
+      .lineLimit(1)
+      .minimumScaleFactor(0.5)
+      .frame(width: h * 0.5)
+      .position(x: w * 0.206, y: h * 0.53)
     }
     .frame(width: w, height: h)
     // A printed line's height on the page; its own height where it flows.

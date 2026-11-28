@@ -134,6 +134,9 @@ for p, verses in enumerate(raw, start=1):
             out.append({'w': ws, 'e': round(sum(em(w[3]) for w in ws), 3)})
         else:
             out.append(filled.get(n, {'h': 0}))
+    if p == 1 and out and out[0].get('h') == 1:
+        # Al-Fatihah's Bismillah is its first ayah: the printed page leaves its line empty instead.
+        out.insert(1, {'h': 0})
     pages.append(out)
 
 widths = sorted(max((l['e'] + 0.25 * (len(l['w']) - 1)) for l in pg if 'w' in l) for pg in pages[2:])
@@ -142,7 +145,7 @@ chapters = json.load(urllib.request.urlopen(urllib.request.Request('https://api.
 names = [c['name_arabic'] for c in sorted(chapters, key=lambda c: c['id'])]
 json.dump({'ref': round(ref, 3), 'names': names, 'pages': pages}, open(os.path.join(RES, 'mushaf.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print('pages', len(pages), 'ref em', round(ref, 3), 'max', widths[-1], 'min', widths[0])
-unk = [(i + 1, j + 1) for i, pg in enumerate(pages) for j, l in enumerate(pg) if l.get('h') == 0]
+unk = [(i + 1, j + 1) for i, pg in enumerate(pages) for j, l in enumerate(pg) if l.get('h') == 0 and (i, j) != (0, 1)]
 print('unfilled lines', unk[:20])
 
 # The JS side only needs where each page starts: the first word printed on it, as [surah, ayah, word]

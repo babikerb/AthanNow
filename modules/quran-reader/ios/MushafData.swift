@@ -85,11 +85,11 @@ enum MushafResources {
 
 /// The bundled fonts, registered for this process: KFGQPC HAFS Uthmanic Script v18 (the text when
 /// a page's own font isn't there yet), and two from the Quranic Universal Library: its common font
-/// (the surah header's frame, and the line-wide Bismillah) and its surah name font (each surah's
-/// name in calligraphy, CC BY 4.0).
+/// (the surah header's frame, and the line-wide Bismillah) and its surah name font v2 (each surah's
+/// name, with سورة, in calligraphy).
 enum MushafFont {
   private(set) static var name = "KFGQPCHAFSUthmanicScript-Regula"
-  private(set) static var surahName = "header-surah-name"
+  private(set) static var surahName = "surah-name-v2"
   /// The Quranic Universal Library's common font: its U+FDFD is the printed page's line-wide Bismillah.
   private(set) static var common = "quran-common"
   private static var registered = false
