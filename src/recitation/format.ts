@@ -17,4 +17,5 @@ export function rateLabel(rate: number): string {
 }
 
 /** The family name the Uthmani Quran face is loaded under (App.tsx). */
-export const QURAN_FONT = 'AmiriQuran';
+/** All Arabic in the app is set in the mushaf's own KFGQPC Hafs, which the Quran reader registers. */
+export const QURAN_FONT = 'KFGQPCHAFSUthmanicScript-Regula';

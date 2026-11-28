@@ -129,8 +129,6 @@ function MainTabs() {
 function Root() {
   const { ready } = useSettings();
   const [fontsLoaded] = useFonts({
-    // Uthmani text in the Quran tab (src/recitation/format.ts QURAN_FONT).
-    AmiriQuran: require('./assets/fonts/AmiriQuran-Regular.ttf'),
     // Display face (BRAND.md): static SemiBold, family name matches design/tokens.json.
     'Fraunces-SemiBold': Fraunces_600SemiBold,
   });

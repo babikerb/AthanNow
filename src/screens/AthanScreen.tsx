@@ -1,6 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Linking, PanResponder, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { QURAN_FONT } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationSheet } from '../components/LocationSheet';
@@ -420,7 +421,7 @@ export default function AthanScreen() {
                     <Text maxFontSizeMultiplier={maxScale} variant={isNext ? 'bodyEmph' : 'body'} style={strength}>
                       {name}
                     </Text>
-                    <Text variant="footnote" maxFontSizeMultiplier={maxScale} numberOfLines={1} style={ink3}>
+                    <Text variant="footnote" maxFontSizeMultiplier={maxScale} numberOfLines={1} style={[ink3, { fontFamily: QURAN_FONT, fontSize: 16, lineHeight: 26 }]}>
                       {name === 'Jumu’ah' ? 'الجمعة' : getCelestialConfig(row.id).arabicName}
                     </Text>
                   </View>

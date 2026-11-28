@@ -56,7 +56,7 @@ import { haptic } from "../design/haptics";
 import { PressableScale } from "../design/PressableScale";
 import { Text } from "../design/Text";
 import { useTheme } from "../design/theme";
-import { useDisplaySettings, type Display } from "../quran/display";
+import { PAGE_PALETTES, useDisplaySettings, type Display, type PagePalette } from "../quran/display";
 import { ReaderSettingsSheet } from "../components/quran/ReaderSettingsSheet";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import {
@@ -115,7 +115,13 @@ function Reader({ display }: { display: Display }) {
   const t = useTheme();
   // The mushaf follows the app's appearance and accent, like every other tab.
   const appDark = t.scheme === "dark";
+  // The top bar and player keep the app's look; the page has its own colour, if one is chosen.
   const dark = appDark;
+  const pagePalette: PagePalette =
+    display.pageColor === "system"
+      ? { bg: t.c.bg, text: t.c.text, accent: t.c.accent, recited: t.c.info, dark: appDark }
+      : PAGE_PALETTES[display.pageColor];
+  const pageBg = pagePalette.bg;
   const r = useRecitation();
   const insets = useSafeAreaInsets();
   const { bookmarks, bookmarkForPage, setPageBookmark, removeBookmark } =
@@ -306,7 +312,7 @@ function Reader({ display }: { display: Display }) {
   );
   useEffect(() => {
     if (focused)
-      setStatusBarStyle((reading ? dark : appDark) ? "light" : "dark", true);
+      setStatusBarStyle((reading ? pagePalette.dark : appDark) ? "light" : "dark", true);
   }, [focused, reading, dark, appDark]);
   // Only the open mushaf turns to landscape; everywhere else stays upright.
   useEffect(() => {
@@ -328,17 +334,16 @@ function Reader({ display }: { display: Display }) {
   // to an ayah on another page, brings the reader back to the page being recited.
   const pageRef = useRef(page);
   pageRef.current = page;
+  // The reader is never pulled back to the recitation. Reading along on the recited page, it turns
+  // with the recitation onto the next; anywhere else, the player offers a way back.
+  const lastPlayingPage = useRef<number | undefined>(undefined);
   useEffect(() => {
-    if (
-      !reading ||
-      !playingPage ||
-      !r.isPlaying ||
-      playingPage === pageRef.current
-    )
-      return;
-    jumpTo(playingPage);
-    // Every new ayah, not only a new page: reading elsewhere, the next ayah brings you back.
-  }, [r.surahId, r.ayahIndex, r.isPlaying]); // eslint-disable-line react-hooks/exhaustive-deps
+    const before = lastPlayingPage.current;
+    lastPlayingPage.current = playingPage;
+    if (!reading || !r.isPlaying || !playingPage || !before || playingPage === before) return;
+    if (pageRef.current === before) jumpTo(playingPage);
+  }, [playingPage]); // eslint-disable-line react-hooks/exhaustive-deps
+  const offRecitation = !!playingPage && playingPage !== page;
   useEffect(() => {
     if (!r.surahId) setFrom(null);
   }, [r.surahId]);
@@ -559,7 +564,7 @@ function Reader({ display }: { display: Display }) {
                 style={[
                   StyleSheet.absoluteFill,
                   {
-                    backgroundColor: t.c.bg,
+                    backgroundColor: pageBg,
                     transform: [
                       {
                         translateX: push.interpolate({
@@ -573,11 +578,11 @@ function Reader({ display }: { display: Display }) {
               >
                 {restored ? (
                   <ReaderSurface
-                    dark={dark}
+                    dark={pagePalette.dark}
                     page={target.page}
                     nonce={target.nonce}
                     from={from}
-                    follow={!!playingPage && r.isPlaying}
+                    follow={!!playingPage && r.isPlaying && playingPage === page}
                     topInset={topInset}
                     bottomInset={bottomInset}
                     sideInset={sideInset}
@@ -585,7 +590,7 @@ function Reader({ display }: { display: Display }) {
                     focus={focus}
                     display={display}
                     onZoomChange={setZoomed}
-                    colors={{ bg: t.c.bg, text: t.c.text, accent: t.c.accent, recited: t.c.info }}
+                    colors={{ bg: pagePalette.bg, text: pagePalette.text, accent: pagePalette.accent, recited: pagePalette.recited }}
                     onPageChange={onReaderPage}
                     onTap={() => {
                       LayoutAnimation.configureNext(
@@ -600,12 +605,13 @@ function Reader({ display }: { display: Display }) {
                 {/* Flowing text fades out under the bars instead of running behind them. */}
                 {display.view !== "mushaf" || zoomed || landscape ? (
                   <>
-                    <EdgeFade edge="top" color={t.c.bg} height={hidden ? topInset + 18 : insets.top + TOP_BAR + 36} solid={hidden ? topInset - 6 : insets.top + TOP_BAR - 4} />
-                    <EdgeFade edge="bottom" color={t.c.bg} height={hidden ? bottomInset + 18 : insets.bottom + 170} solid={hidden ? bottomInset - 6 : insets.bottom + 128} />
+                    {/* In landscape the page's own head and number scroll with it: a soft fade at each edge. */}
+                    <EdgeFade edge="top" color={pageBg} height={landscape && hidden ? 44 : hidden ? topInset + 18 : insets.top + TOP_BAR + 36} solid={landscape && hidden ? 4 : hidden ? topInset - 6 : insets.top + TOP_BAR - 4} />
+                    <EdgeFade edge="bottom" color={pageBg} height={landscape && hidden ? insets.bottom + 44 : hidden ? bottomInset + 18 : insets.bottom + 170} solid={landscape && hidden ? insets.bottom + 4 : hidden ? bottomInset - 6 : insets.bottom + 128} />
                   </>
                 ) : null}
 
-                {hidden ? (
+                {hidden && landscape ? null : hidden ? (
                   // The page alone: its running head, as printed. The surahs on the page, and the juz.
                   <View
                     pointerEvents="none"
@@ -623,10 +629,10 @@ function Reader({ display }: { display: Display }) {
                     accessible
                     accessibilityLabel={`${runningHead}, Juz ${juz}, page ${page}`}
                   >
-                    <Text variant="footnote" color="textTertiary" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ flexShrink: 1, fontWeight: "500" }}>
+                    <Text variant="footnote" numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ flexShrink: 1, fontWeight: "500", color: pagePalette.text, opacity: 0.55 }}>
                       {runningHead}
                     </Text>
-                    <Text variant="footnote" color="textTertiary" maxFontSizeMultiplier={1.2} style={{ fontWeight: "500" }}>
+                    <Text variant="footnote" maxFontSizeMultiplier={1.2} style={{ fontWeight: "500", color: pagePalette.text, opacity: 0.55 }}>
                       Juz {juz}
                     </Text>
                   </View>
@@ -767,6 +773,7 @@ function Reader({ display }: { display: Display }) {
                   >
                     <PagePlayer
                       onPlayPage={playPage}
+                      onBackToRecitation={offRecitation ? () => playingPage && jumpTo(playingPage) : undefined}
                       onMeaning={() =>
                         r.surahId &&
                         setMeaningAyah({
@@ -787,7 +794,7 @@ function Reader({ display }: { display: Display }) {
                       </PressableScale>
                     </View>
                   </View>
-                ) : (
+                ) : landscape ? null : (
                   // The page alone: its number at the foot, as printed.
                   <View
                     pointerEvents="none"
@@ -803,7 +810,7 @@ function Reader({ display }: { display: Display }) {
                     }}
                   >
                     {/* A small double frame, like the printed page's. */}
-                    <View style={{ padding: 2, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: t.c.textTertiary }}>
+                    <View style={{ padding: 2, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: pagePalette.text + "66" }}>
                       <View
                         style={{
                           minWidth: 46,
@@ -811,12 +818,12 @@ function Reader({ display }: { display: Display }) {
                           paddingHorizontal: t.spacing.sm,
                           borderRadius: 10,
                           borderWidth: 1,
-                          borderColor: t.c.textTertiary,
+                          borderColor: pagePalette.text + "66",
                           alignItems: "center",
                           justifyContent: "center",
                         }}
                       >
-                        <Text variant="footnote" maxFontSizeMultiplier={1.2} style={{ fontWeight: "600", fontVariant: ["tabular-nums"] }}>
+                        <Text variant="footnote" maxFontSizeMultiplier={1.2} style={{ fontWeight: "600", fontVariant: ["tabular-nums"], color: pagePalette.text }}>
                           {page}
                         </Text>
                       </View>
@@ -878,12 +885,12 @@ function ReaderSurface(props: {
   const { word } = useRecitationWord();
   // The word being recited. While it isn't known (the recording still loading, or a recitation
   // paused from an earlier session), it stays on the last word recited in this ayah, or the ayah's
-  // first: one highlight, where it left off. Reciters timed only by the ayah light the ayah instead.
+  // first: one highlight, where it left off.
   const last = useRef({ key: "", word: 0 });
   const key = `${r.surahId}:${r.ayahIndex}`;
   let shown = word;
   if (word > 0) last.current = { key, word };
-  else if (r.reciter.qdc)
+  else
     shown = last.current.key === key ? last.current.word : 1;
   const current: WordRef | null = r.surahId
     ? { surah: r.surahId, ayah: r.ayahIndex + 1, word: shown }

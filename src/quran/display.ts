@@ -12,9 +12,31 @@ export interface DisplaySettings {
   textScale: number;
   translit: boolean;
   keepAwake: boolean;
+  /** The page's colour, for the mushaf alone: the app's own (system), or a page of its own. */
+  pageColor: PageColour;
 }
 
-const DEFAULTS: DisplaySettings = { view: 'mushaf', textScale: 1.6, translit: false, keepAwake: true };
+export type PageColour = 'system' | 'white' | 'cream' | 'charcoal' | 'midnight';
+
+export interface PagePalette {
+  bg: string;
+  text: string;
+  /** The highlight on the word being recited. */
+  accent: string;
+  /** The colour recited words turn. */
+  recited: string;
+  dark: boolean;
+}
+
+/** Each page colour with text and accents chosen to read well on it. */
+export const PAGE_PALETTES: Record<Exclude<PageColour, 'system'>, PagePalette> = {
+  white: { bg: '#FFFFFF', text: '#1B1C20', accent: '#1F3A5F', recited: '#2F6286', dark: false },
+  cream: { bg: '#F4EDDC', text: '#2B251C', accent: '#8A6420', recited: '#3B6584', dark: false },
+  charcoal: { bg: '#121316', text: '#F3EEE2', accent: '#E2B456', recited: '#7FA7C7', dark: true },
+  midnight: { bg: '#000000', text: '#ECE6D8', accent: '#E2B456', recited: '#86AECD', dark: true },
+};
+
+const DEFAULTS: DisplaySettings = { view: 'mushaf', textScale: 1.6, translit: false, keepAwake: true, pageColor: 'system' };
 
 export function useDisplaySettings() {
   const [s, setS] = useState<DisplaySettings>(DEFAULTS);
@@ -25,7 +47,7 @@ export function useDisplaySettings() {
       .then((raw) => {
         if (!raw) return;
         const saved = JSON.parse(raw) as Partial<DisplaySettings>;
-        setS({ view: saved.view ?? DEFAULTS.view, textScale: saved.textScale ?? DEFAULTS.textScale, translit: saved.translit ?? false, keepAwake: saved.keepAwake ?? true });
+        setS({ ...DEFAULTS, ...saved });
       })
       .catch(() => {})
       .finally(() => setReady(true));

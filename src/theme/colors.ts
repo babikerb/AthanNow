@@ -169,5 +169,5 @@ export const prayerStatusBarLight: Record<string, boolean> = Object.fromEntries(
   Object.entries(skyStages).map(([k, v]) => [k, v.statusBarLight]),
 );
 
-/** The Quran mushaf typeface (Amiri Quran, loaded via expo-font). */
-export const QURAN_FONT = 'AmiriQuran';
+/** All Arabic in the app: the mushaf's own KFGQPC Hafs, which the Quran reader registers. */
+export const QURAN_FONT = 'KFGQPCHAFSUthmanicScript-Regula';

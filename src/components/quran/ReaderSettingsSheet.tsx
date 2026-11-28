@@ -18,7 +18,7 @@ import type { ReaderView } from 'quran-reader';
 import React from 'react';
 
 import { useTheme } from '../../design/theme';
-import type { Display } from '../../quran/display';
+import type { Display, PageColour } from '../../quran/display';
 import { RECITERS } from '../../recitation/reciters';
 import { useRecitation, type RepeatMode } from '../../recitation/RecitationProvider';
 
@@ -26,6 +26,13 @@ const LAYOUTS: { id: ReaderView; name: string }[] = [
   { id: 'mushaf', name: 'Page' },
   { id: 'translation', name: 'Ayah by ayah' },
   { id: 'words', name: 'Word by word' },
+];
+const PAGE_COLOURS: { id: PageColour; name: string }[] = [
+  { id: 'system', name: 'Match the app' },
+  { id: 'white', name: 'White' },
+  { id: 'cream', name: 'Cream' },
+  { id: 'charcoal', name: 'Charcoal' },
+  { id: 'midnight', name: 'Midnight' },
 ];
 const REPEAT: { id: RepeatMode; name: string }[] = [
   { id: 'off', name: 'Off' },
@@ -62,6 +69,13 @@ export function ReaderSettingsSheet({ open, onClose, display }: { open: boolean;
                 {LAYOUTS.map((l) => (
                   <SwiftText key={l.id} modifiers={[tag(l.id)]}>
                     {l.name}
+                  </SwiftText>
+                ))}
+              </Picker>
+              <Picker label="Page colour" systemImage="paintpalette" selection={display.pageColor} onSelectionChange={(v: string) => display.set({ pageColor: v as PageColour })} modifiers={[pickerStyle('menu')]}>
+                {PAGE_COLOURS.map((c) => (
+                  <SwiftText key={c.id} modifiers={[tag(c.id)]}>
+                    {c.name}
                   </SwiftText>
                 ))}
               </Picker>

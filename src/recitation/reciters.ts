@@ -2,8 +2,8 @@ export interface Reciter {
   id: string;
   /** quran.com's audio reciter id: one continuous recording per surah, with every ayah's and word's timing. */
   qdc?: number;
-  /** Or mp3quran.net's: a recording per surah with each ayah's timing (no word timing). */
-  mp3quran?: { read: number; folder: string };
+  /** Or the Quranic Universal Library's recitation id: the same, for reciters quran.com doesn't carry. */
+  qul?: number;
   name: string;
   arabic: string;
   origin: string;
@@ -12,7 +12,7 @@ export interface Reciter {
 
 export const RECITERS: Reciter[] = [
   { id: 'mishary', qdc: 7, name: 'Mishary Alafasy', arabic: 'مشاري العفاسي', origin: 'Kuwait', style: 'Murattal' },
-  { id: 'mahermuaiqly', mp3quran: { read: 133, folder: 'https://cdn.mp3quran.net/audio/maher-muaiqly/r3/' }, name: 'Maher Al-Muaiqly', arabic: 'ماهر المعيقلي', origin: 'Saudi Arabia', style: 'Murattal' },
+  { id: 'mahermuaiqly', qul: 159, name: 'Maher Al-Muaiqly', arabic: 'ماهر المعيقلي', origin: 'Saudi Arabia', style: 'Murattal' },
   { id: 'sudais', qdc: 3, name: 'Abdur-Rahman As-Sudais', arabic: 'عبد الرحمن السديس', origin: 'Saudi Arabia', style: 'Murattal' },
   { id: 'saoodshuraym', qdc: 10, name: 'Saud Ash-Shuraim', arabic: 'سعود الشريم', origin: 'Saudi Arabia', style: 'Murattal' },
   { id: 'dossary', qdc: 97, name: 'Yasser Ad-Dossary', arabic: 'ياسر الدوسري', origin: 'Saudi Arabia', style: 'Murattal' },

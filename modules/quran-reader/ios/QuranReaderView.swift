@@ -807,6 +807,26 @@ struct QuranReaderView: ExpoSwiftUI.View {
 
   // MARK: Sizing
 
+  /// The first page of each juz.
+  static let juzStarts = [1, 22, 42, 62, 82, 102, 121, 142, 162, 182, 201, 222, 242, 262, 282, 302, 322, 342, 362, 382, 402, 422, 442, 462, 482, 502, 522, 542, 562, 582]
+
+  static func juz(_ page: Int) -> Int { juzStarts.lastIndex { $0 <= page }.map { $0 + 1 } ?? 1 }
+
+  /// Every surah on a page, as the running head names them: "Al-Isra' and Al-Kahf".
+  private func runningHead(_ page: MushafPage, ctx: ReaderContext) -> String {
+    var ids: [Int] = []
+    for line in page.lines {
+      switch line {
+      case .header(let s) where s > 0: if !ids.contains(s) { ids.append(s) }
+      case .words(let words, _): for w in words where !ids.contains(w.surah) { ids.append(w.surah) }
+      default: break
+      }
+    }
+    let names = ids.map { ctx.title($0) }
+    guard let last = names.last else { return "" }
+    return names.count == 1 ? last : names.dropLast().joined(separator: ", ") + " and " + last
+  }
+
   /// The size a line of text takes up: the page's lines fill the width, and all 15 fit the height.
   private func baseSize(_ area: CGSize) -> CGFloat {
     let byWidth = area.width / CGFloat(MushafStore.shared.ref)
@@ -889,12 +909,36 @@ struct QuranReaderView: ExpoSwiftUI.View {
       ForEach(MushafStore.shared.pages) { p in
         Group {
           if landscape {
+            // The running head and the page number are part of the page here, as printed: the head
+            // scrolls away as the page is read down, and the number comes at its foot.
             ScrollView(.vertical, showsIndicators: false) {
-              PageView(page: p, size: pageSize, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
-                .focusBands(dark: theme.dark)
-                .padding(.top, CGFloat(props.topInset))
-                .padding(.bottom, CGFloat(props.bottomInset))
-                .frame(maxWidth: .infinity)
+              VStack(spacing: lineHeight * 0.2) {
+                HStack {
+                  Text(runningHead(p, ctx: ctx))
+                    .lineLimit(1)
+                  Spacer(minLength: 12)
+                  Text("Juz \(QuranReaderView.juz(p.number))")
+                }
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(theme.ink.opacity(0.5))
+                .environment(\.layoutDirection, .leftToRight)
+                PageView(page: p, size: pageSize, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
+                  .focusBands(dark: theme.dark)
+                HStack {
+                  Spacer()
+                  Text("\(p.number)")
+                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    .foregroundColor(theme.ink.opacity(0.85))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 4)
+                    .overlay(Capsule().stroke(theme.ink.opacity(0.35), lineWidth: 1))
+                }
+                .environment(\.layoutDirection, .leftToRight)
+              }
+              .padding(.top, 16)
+              .padding(.bottom, CGFloat(props.bottomInset))
+              .frame(width: area.width)
+              .frame(maxWidth: .infinity)
             }
           } else {
             VStack(spacing: 0) {

@@ -174,6 +174,9 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   // Just after a new recording goes on, statuses can still describe the last one (its position, its
   // end): they're set aside until one describes the new recording.
   const settling = useRef<{ since: number; expected: number } | null>(null);
+  // The recording last asked for. Until it's on, the one before still reports where it is; those
+  // reports are set aside (they switched the Bismillah off the moment it was asked for).
+  const wanted = useRef<string | null>(null);
   const request = useRef(0);
   const playingRef = useRef(isPlaying);
   playingRef.current = isPlaying;
@@ -220,58 +223,76 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       setError(null);
       setIsPlaying(true);
       patch({ surahId: surah, ayahIndex: index });
-      const bismillahFirst = index === 0 && !afterBismillah && !who.mp3quran && opensWithBismillah(surah);
-      // Straight from the Bismillah into ayah 1, the line stays lit until the surah is playing.
-      if (!afterBismillah) setInBismillah(bismillahFirst);
-      const source = bismillahFirst ? 1 : surah;
-      const key = bismillahFirst ? `${who.id}:1:bismillah` : `${who.id}:${surah}`;
-      const then = bismillahFirst ? { surah, who } : undefined;
-      // The surah's timings, ready for when the Bismillah ends.
-      if (bismillahFirst) loadSurahAudio(who, surah).catch(() => {});
-      const have = loaded.current;
-      if (have && have.key === key && !pendingSeek.current) {
-        have.then = then;
-        const from = (have.audio.ayahs[bismillahFirst ? 0 : index]?.[0] ?? 0) / 1000;
-        seek(from).then((ok) => {
-          if (ok) startPlayback(player, aborted);
-        });
+      // Nothing playing now is what was asked for: its reports are set aside until the new one is on.
+      wanted.current = `pending:${n}`;
+      const fail = () => {
+        if (aborted()) return;
+        loaded.current = null;
+        pendingSeek.current = null;
+        setInBismillah(false);
+        setError('Could not load this recitation. Check your connection and try again.');
+        setIsPlaying(false);
+        setLoading(false);
+      };
+
+      /** Puts `source` on the player from ayah `at` (a seek if it's already there). */
+      const play = (source: number, at: number, then?: { surah: number; who: Reciter }) => {
+        const key = then ? `${who.id}:1:bismillah` : `${who.id}:${source}`;
+        wanted.current = key;
+        const have = loaded.current;
+        if (have && have.key === key && !pendingSeek.current) {
+          have.then = then;
+          setLoading(false);
+          seek((have.audio.ayahs[at]?.[0] ?? 0) / 1000).then((ok) => {
+            if (ok) startPlayback(player, aborted);
+          });
+          return;
+        }
+        setLoading(true);
+        loadSurahAudio(who, source)
+          .then((audio) => {
+            if (aborted()) return;
+            loaded.current = { key, audio, then };
+            const seconds = (audio.ayahs[at]?.[0] ?? 0) / 1000;
+            // From the very start (a surah's opening, the Bismillah), the recording just plays from
+            // 0:00: a playing player carries straight on into a new source, so waiting to seek to 0:00
+            // once it had loaded jumped it back a second in. Anywhere else it's paused first, so it
+            // doesn't start from 0:00 before the seek to its ayah.
+            const fromStart = seconds < 0.05;
+            pendingSeek.current = fromStart ? null : { seconds, since: Date.now() };
+            settling.current = { since: Date.now(), expected: audio.ayahs[audio.ayahs.length - 1][1] / 1000 };
+            const prepare = fromStart ? Promise.resolve(true) : retry(() => player.pause(), aborted);
+            return prepare
+              .then(() => retry(() => player.replace({ uri: audio.url }), aborted))
+              .then((ok) => {
+                if (!ok) throw new Error('replace');
+                player.setPlaybackRate(rateRef.current);
+                setLoadedTick((x) => x + 1);
+                if (fromStart) {
+                  setLoading(false);
+                  if (playingRef.current) startPlayback(player, aborted);
+                }
+              });
+          })
+          .catch(fail);
+      };
+
+      // From a surah's start, its Bismillah first: the reciter's own, where the recording opens with
+      // it (lit until ayah 1 begins), or else theirs from Al-Fatihah, played before the surah.
+      const wantsBismillah = index === 0 && !afterBismillah && opensWithBismillah(surah);
+      if (!afterBismillah) setInBismillah(wantsBismillah);
+      if (!wantsBismillah) {
+        play(surah, index);
         return;
       }
       setLoading(true);
-      loadSurahAudio(who, source)
+      loadSurahAudio(who, surah)
         .then((audio) => {
           if (aborted()) return;
-          loaded.current = { key, audio, then };
-          const seconds = (audio.ayahs[bismillahFirst ? 0 : index]?.[0] ?? 0) / 1000;
-          // From the very start (a surah's opening, the Bismillah), the recording just plays from 0:00:
-          // a playing player carries straight on into a new source, so waiting to seek to 0:00 once it
-          // had loaded jumped it back a second in. Anywhere else it's paused first, so it doesn't start
-          // from 0:00 before the seek to its ayah.
-          const fromStart = seconds < 0.05;
-          pendingSeek.current = fromStart ? null : { seconds, since: Date.now() };
-          settling.current = { since: Date.now(), expected: audio.ayahs[audio.ayahs.length - 1][1] / 1000 };
-          const prepare = fromStart ? Promise.resolve(true) : retry(() => player.pause(), aborted);
-          return prepare
-            .then(() => retry(() => player.replace({ uri: audio.url }), aborted))
-            .then((ok) => {
-              if (!ok) throw new Error('replace');
-              player.setPlaybackRate(rateRef.current);
-              setLoadedTick((x) => x + 1);
-              if (fromStart) {
-                setLoading(false);
-                if (playingRef.current) startPlayback(player, aborted);
-              }
-            });
+          if (audio.intro != null) play(surah, 0);
+          else play(1, 0, { surah, who });
         })
-        .catch(() => {
-          if (aborted()) return;
-          loaded.current = null;
-          pendingSeek.current = null;
-          setInBismillah(false);
-          setError('Could not load this recitation. Check your connection and try again.');
-          setIsPlaying(false);
-          setLoading(false);
-        });
+        .catch(fail);
     },
     [reciter, patch, seek, player, setInBismillah],
   );
@@ -283,7 +304,7 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const sub = player.addListener('playbackStatusUpdate', (st) => {
       const have = loaded.current;
-      if (!have) return;
+      if (!have || (wanted.current && have.key !== wanted.current)) return;
       const L = live.current;
       const pending = pendingSeek.current;
       if (pending) {
@@ -312,14 +333,15 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       if (have.then) {
         const then = have.then;
         if (then.handed) return;
+        setInBismillah(true);
         // It ends where the Bismillah does: the end of 1:1, or sooner where 1:2's first word starts
         // (some timings run 1:1 into it). Statuses come a tenth of a second apart, and Al-Fatihah
         // would play on while the surah loads, so it's paused on a timer at that exact point.
         const a = have.audio;
-        // Where its last word ends (with a breath after it) where the timing knows; the ayah's end can
-        // run on into the start of the next.
+        // Where its last word ends, where the timing knows: the ayah's recorded end, and even a
+        // breath after the word, can hold the start of Al-hamdu.
         const lastWord = a.lastWordEnd?.[0];
-        const end = Math.min(a.ayahs[0][1] - 30, lastWord != null ? lastWord + 100 : Infinity, (a.words[1]?.[0] ?? Infinity) - 60);
+        const end = Math.min(a.ayahs[0][1] - 30, lastWord ?? Infinity, (a.words[1]?.[0] ?? Infinity) - 60);
         const hand = () => {
           if (handTimer.current) clearTimeout(handTimer.current);
           handTimer.current = null;

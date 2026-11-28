@@ -38,7 +38,7 @@ function ReciterItems() {
  * The player over the page: a slim strip with the reciter and play, which opens into a card with the
  * position, repeat and skip. The recitation plays at the reciter's own pace. Before anything has played, play starts at the top of the page.
  */
-export function PagePlayer({ onPlayPage, onMeaning }: { onPlayPage: () => void; onMeaning?: () => void }) {
+export function PagePlayer({ onPlayPage, onMeaning, onBackToRecitation }: { onPlayPage: () => void; onMeaning?: () => void; /** Shown when the reader is away from the page being recited: back to it. */ onBackToRecitation?: () => void }) {
   const t = useTheme();
   const r = useRecitation();
   const [open, setOpen] = useState(false);
@@ -53,7 +53,7 @@ export function PagePlayer({ onPlayPage, onMeaning }: { onPlayPage: () => void; 
     overflow: 'hidden' as const,
   };
 
-  if (open && surah) return <Expanded onCollapse={() => setOpen(false)} onMeaning={onMeaning} style={card} />;
+  if (open && surah) return <Expanded onCollapse={() => setOpen(false)} onMeaning={onMeaning} onBackToRecitation={onBackToRecitation} style={card} />;
 
   const label = (
     <View style={{ flex: 1, justifyContent: 'center' }}>
@@ -79,10 +79,26 @@ export function PagePlayer({ onPlayPage, onMeaning }: { onPlayPage: () => void; 
             {label}
           </NativeMenu>
         )}
+        {onBackToRecitation ? <ReturnButton onPress={onBackToRecitation} /> : null}
         <PlayButton onPlayPage={onPlayPage} />
       </View>
       {surah ? <ProgressLine /> : null}
     </View>
+  );
+}
+
+/** Back to the page being recited, when the reader has gone elsewhere. */
+function ReturnButton({ onPress, wide }: { onPress: () => void; wide?: boolean }) {
+  const t = useTheme();
+  return (
+    <PressableScale haptic="select" onPress={onPress} accessibilityRole="button" accessibilityLabel="Back to the recitation" accessibilityHint="Turns to the page being recited" hitSlop={{ top: 4, bottom: 4 }}>
+      <View style={{ height: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: t.spacing.md, borderRadius: 18, backgroundColor: t.c.accentSoft, alignSelf: wide ? 'stretch' : undefined }}>
+        <SymbolView name="arrow.uturn.backward" size={13} weight="semibold" tintColor={t.c.accentText} style={{ width: 16, height: 16 }} />
+        <Text variant="subhead" maxFontSizeMultiplier={1.2} style={{ fontWeight: '600', color: t.c.accentText }}>
+          {wide ? 'Back to the recitation' : 'Return'}
+        </Text>
+      </View>
+    </PressableScale>
   );
 }
 
@@ -134,7 +150,7 @@ function Icon({ name, label, onPress, active, disabled, size = 20 }: { name: SFS
  * with a Meaning button beside them, the ayah's position between its times, then the controls:
  * AirPlay, previous, play, next and repeat.
  */
-function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; onMeaning?: () => void; style: object }) {
+function Expanded({ onCollapse, onMeaning, onBackToRecitation, style }: { onCollapse: () => void; onMeaning?: () => void; onBackToRecitation?: () => void; style: object }) {
   const t = useTheme();
   const r = useRecitation();
   const p = useRecitationProgress();
@@ -228,6 +244,11 @@ function Expanded({ onCollapse, onMeaning, style }: { onCollapse: () => void; on
         </Text>
       </View>
 
+      {onBackToRecitation ? (
+        <View style={{ marginTop: t.spacing.sm }}>
+          <ReturnButton wide onPress={onBackToRecitation} />
+        </View>
+      ) : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: t.spacing.xs }}>
         <View style={{ width: 44, height: 44 }}>
           <AirPlayButton tint={t.c.text} />

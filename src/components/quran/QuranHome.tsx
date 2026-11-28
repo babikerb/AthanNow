@@ -291,7 +291,7 @@ function ContinueCard({ dark, lastPage, started, onContinue, onOpenPage }: { dar
   const surah = getSurah(listening ? r.surahId! : (surahsOnPage(page).slice(-1)[0] ?? surahForPage(page)))!;
   const ayah = listening ? r.ayahIndex + 1 : (firstAyahOnPage(page)?.ayah ?? 1);
   const open = () => (listening || fresh ? onOpenPage(page) : onContinue());
-  const current = listening ? { surah: r.surahId!, ayah: r.ayahIndex + 1, word: Math.max(word, r.reciter.qdc ? 1 : 0) } : null;
+  const current = listening ? { surah: r.surahId!, ayah: r.ayahIndex + 1, word: Math.max(word, 1) } : null;
 
   return (
     <>
