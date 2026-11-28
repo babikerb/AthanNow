@@ -144,6 +144,37 @@ struct FocusRectsKey: PreferenceKey {
   }
 }
 
+/// The bounds of the words of the ayah being held, for its grey band.
+struct PressRectsKey: PreferenceKey {
+  static let defaultValue: [Anchor<CGRect>] = []
+  static func reduce(value: inout [Anchor<CGRect>], nextValue: () -> [Anchor<CGRect>]) {
+    value.append(contentsOf: nextValue())
+  }
+}
+
+/// One rounded band per line across a set of words' bounds.
+private struct LineBands: View {
+  let rects: [CGRect]
+  let color: Color
+
+  var body: some View {
+    let lines: [CGRect] = rects.sorted { $0.midY < $1.midY }.reduce(into: []) { out, r in
+      if let last = out.last, abs(last.midY - r.midY) < min(last.height, r.height) * 0.5 {
+        out[out.count - 1] = last.union(r)
+      } else {
+        out.append(r)
+      }
+    }
+    ForEach(Array(lines.enumerated()), id: \.offset) { _, r in
+      let band = r.insetBy(dx: -r.height * 0.14, dy: r.height * 0.1)
+      RoundedRectangle(cornerRadius: band.height * 0.32, style: .continuous)
+        .fill(color)
+        .frame(width: band.width, height: band.height)
+        .position(x: band.midX, y: band.midY)
+    }
+  }
+}
+
 extension View {
   /// Draws, behind the page, one rounded band per line across the words being explained: the whole
   /// ayah (or passage) lit as one, in purple.
@@ -166,6 +197,13 @@ extension View {
             .frame(width: band.width, height: band.height)
             .position(x: band.midX, y: band.midY)
         }
+      }
+      .allowsHitTesting(false)
+    }
+    // The ayah being held: a grey band, shown at once.
+    .backgroundPreferenceValue(PressRectsKey.self) { anchors in
+      GeometryReader { g in
+        LineBands(rects: anchors.map { g[$0] }, color: Color.gray.opacity(dark ? 0.28 : 0.2))
       }
       .allowsHitTesting(false)
     }

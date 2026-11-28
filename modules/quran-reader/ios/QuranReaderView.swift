@@ -149,6 +149,9 @@ struct ReaderContext {
   let bookmarked: Set<Int>
   let interactive: Bool
   let act: (String, MushafWord, Int) -> Void
+  /// The ayah being pressed (a grey band shows round it until the menu opens); 0 for none.
+  var pressed: Int = 0
+  var press: (Int) -> Void = { _ in }
 
   /// Whether this word is the one being recited (or, without word timing, in the ayah being recited).
   func isCurrent(_ word: MushafWord) -> Bool {
@@ -211,6 +214,11 @@ struct WordView: View {
   var body: some View {
     if ctx.interactive {
       label
+        .anchorPreference(key: PressRectsKey.self, value: .bounds) { ctx.pressed == word.ayahKey ? [$0] : [] }
+        // Held: the whole ayah is boxed in grey at once, until the menu opens (or the finger lifts).
+        .onLongPressGesture(minimumDuration: 0.6, maximumDistance: 12, perform: {}, onPressingChanged: { pressing in
+          ctx.press(pressing ? word.ayahKey : 0)
+        })
         .contextMenu {
           WordMenu(word: word, page: page, ctx: ctx)
         } preview: {
@@ -374,7 +382,8 @@ struct SurahHeader: View {
 
   @ViewBuilder private var header: some View {
     // The full width of the line, as printed, unless the line is too short for it.
-    let w = min(width * 0.98, maxHeight * 0.95 * SurahHeader.aspect)
+    // The full width of the line, as long as the longest line of text.
+    let w = width
     let h = w / SurahHeader.aspect
     let frame = GlyphShape(font: MushafFont.common, character: 0xE000)
     ZStack {
@@ -499,7 +508,7 @@ struct PageView: View {
         // The V4 glyphs carry their own spacing: only a hair is added between words.
         JustifiedLine(gap: qs * 0.015, justify: page.number > 2) {
           ForEach(words, id: \.order) { word in
-            WordView(word: word, page: page.number, size: qs, ctx: ctx, font: q.name, useGlyph: true)
+            WordView(word: word, page: page.number, size: qs, ctx: ctx, font: q.name, useGlyph: true).id(word.order)
           }
         }
         .frame(width: width)
@@ -517,6 +526,21 @@ struct PageView: View {
         .accessibilityElement(children: .combine)
       }
     }
+  }
+}
+
+extension PageView: Equatable {
+  /// The same page drawn the same way: true unless what it shows has changed. The highlight's
+  /// position only matters to the page it's on (or was on), so the others skip redrawing as it moves.
+  static func == (a: PageView, b: PageView) -> Bool {
+    guard a.page.number == b.page.number, a.size == b.size, a.width == b.width, a.lineHeight == b.lineHeight,
+          a.qcf?.name == b.qcf?.name, a.ctx.theme.background == b.ctx.theme.background, a.ctx.theme.ink == b.ctx.theme.ink,
+          a.ctx.theme.dark == b.ctx.theme.dark, a.ctx.focusFrom == b.ctx.focusFrom, a.ctx.focusTo == b.ctx.focusTo,
+          a.ctx.pressed == b.ctx.pressed, a.ctx.interactive == b.ctx.interactive else { return false }
+    let n = a.page.number
+    guard a.ctx.currentPage == n || b.ctx.currentPage == n else { return true }
+    return a.ctx.playing == b.ctx.playing && a.ctx.current == b.ctx.current && a.ctx.from == b.ctx.from
+      && a.ctx.currentAyah == b.ctx.currentAyah && a.ctx.wordLevel == b.ctx.wordLevel && a.ctx.bismillah == b.ctx.bismillah
   }
 }
 
@@ -725,6 +749,8 @@ struct QuranReaderView: ExpoSwiftUI.View {
   @State private var flowSettled = false
   /// The recited page has been built in the zoomed scroll (so its words can be scrolled to).
   @State private var recitedBuilt = false
+  /// The ayah being held (see ReaderContext.pressed).
+  @State private var pressedAyah = 0
 
   private let maxZoom: CGFloat = 3.2
   private var sidePadding: CGFloat { max(8, CGFloat(props.sideInset)) }
@@ -760,7 +786,14 @@ struct QuranReaderView: ExpoSwiftUI.View {
             .id("flow-\(props.view)")
         }
       }
-      .simultaneousGesture(magnify)
+      // Landscape sets the page to the width already: no pinching there.
+      .simultaneousGesture(magnify, including: geo.size.width > geo.size.height ? .none : .all)
+      .onChange(of: geo.size.width > geo.size.height) { landscape in
+        if landscape && zoom > 1.001 {
+          zoom = 1
+          props.onZoomChange(["zoomed": false])
+        }
+      }
     }
     .ignoresSafeArea()
     .animation(.spring(response: 0.32, dampingFraction: 0.86), value: currentOrder)
@@ -875,7 +908,9 @@ struct QuranReaderView: ExpoSwiftUI.View {
       interactive: !props.preview,
       act: { action, word, page in
         props.onAction(["action": action, "surah": word.surah, "ayah": word.ayah, "page": page])
-      }
+      },
+      pressed: pressedAyah,
+      press: { key in withAnimation(.easeOut(duration: key == 0 ? 0.25 : 0.12)) { pressedAyah = key } }
     )
   }
 
@@ -911,6 +946,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
           if landscape {
             // The running head and the page number are part of the page here, as printed: the head
             // scrolls away as the page is read down, and the number comes at its foot.
+            ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
               VStack(spacing: lineHeight * 0.2) {
                 HStack {
@@ -940,10 +976,21 @@ struct QuranReaderView: ExpoSwiftUI.View {
               .frame(width: area.width)
               .frame(maxWidth: .infinity)
             }
+            // As when zoomed in: straight to the word being recited, and on with it.
+            .onAppear {
+              guard p.number == recitedPage else { return }
+              DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { proxy.scrollTo(recitedWord, anchor: .center) }
+            }
+            .onChange(of: recitedWord) { word in
+              guard props.follow, p.number == recitedPage, word > 0 else { return }
+              withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) { proxy.scrollTo(word, anchor: .center) }
+            }
+            }
           } else {
             VStack(spacing: 0) {
               Spacer(minLength: 0)
               PageView(page: p, size: size, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
+                .equatable()
                 .focusBands(dark: theme.dark)
               Spacer(minLength: 0)
             }
