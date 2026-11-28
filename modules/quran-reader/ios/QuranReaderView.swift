@@ -337,8 +337,10 @@ struct GlyphShape: Shape {
   }
 }
 
-/// A surah's opening header, as the printed mushaf draws it: the QCF surah header font's glyph for
-/// the surah. Its ornate frame drawn in fine outline, the name inside it filled in the page's ink.
+/// A surah's opening header, as the printed mushaf draws it: an arabesque frame with a medallion
+/// either side and a cartouche at its middle (the Quranic Universal Library common font's header
+/// glyph), drawn in fine line, and the surah's name in calligraphy in the cartouche (its surah name
+/// font; Al-Fatihah, which that font lacks, in KFGQPC Hafs).
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
@@ -347,30 +349,30 @@ struct SurahHeader: View {
   let width: CGFloat
   let maxHeight: CGFloat
 
-  /// The header font's character for each surah, 1 to 114.
-  static let codes: [UInt32] = [0xFC45, 0xFC46, 0xFC47, 0xFC4A, 0xFC4B, 0xFC4E, 0xFC4F, 0xFC51, 0xFC52, 0xFC53, 0xFC55, 0xFC56, 0xFC58, 0xFC5A, 0xFC5B, 0xFC5C, 0xFC5D, 0xFC5E, 0xFC61, 0xFC62, 0xFC64, 0xFB51, 0xFB52, 0xFB54, 0xFB55, 0xFB57, 0xFB58, 0xFB5A, 0xFB5B, 0xFB5D, 0xFB5E, 0xFB60, 0xFB61, 0xFB63, 0xFB64, 0xFB66, 0xFB67, 0xFB69, 0xFB6A, 0xFB6C, 0xFB6D, 0xFB6F, 0xFB70, 0xFB72, 0xFB73, 0xFB75, 0xFB76, 0xFB78, 0xFB79, 0xFB7B, 0xFB7C, 0xFB7E, 0xFB7F, 0xFB81, 0xFB82, 0xFB84, 0xFB85, 0xFB87, 0xFB88, 0xFB8A, 0xFB8B, 0xFB8D, 0xFB8E, 0xFB90, 0xFB91, 0xFB93, 0xFB94, 0xFB96, 0xFB97, 0xFB99, 0xFB9A, 0xFB9C, 0xFB9D, 0xFB9F, 0xFBA0, 0xFBA2, 0xFBA3, 0xFBA5, 0xFBA6, 0xFBA8, 0xFBA9, 0xFBAB, 0xFBAC, 0xFBAE, 0xFBAF, 0xFBB1, 0xFBB2, 0xFBB4, 0xFBB5, 0xFBB7, 0xFBB8, 0xFBBA, 0xFBBB, 0xFBBD, 0xFBBE, 0xFBC0, 0xFBC1, 0xFBD3, 0xFBD4, 0xFBD6, 0xFBD7, 0xFBD9, 0xFBDA, 0xFBDC, 0xFBDD, 0xFBDF, 0xFBE0, 0xFBE2, 0xFBE3, 0xFBE5, 0xFBE6, 0xFBE8, 0xFBE9, 0xFBEB]
-
-  /// The glyph's width to its height.
-  private static let aspect: CGFloat = 8116 / 980
+  /// The frame's width to its height.
+  private static let aspect: CGFloat = 8240 / 1016
 
   var body: some View {
-    let code = surah >= 1 && surah <= 114 ? SurahHeader.codes[surah - 1] : 0x20
-    let glyph = GlyphShape(font: MushafFont.surahHeader, character: code)
     // The full width of the line, as printed, unless the line is too short for it.
-    let w = min(width * 0.98, maxHeight * 0.92 * SurahHeader.aspect)
+    let w = min(width * 0.98, maxHeight * 0.95 * SurahHeader.aspect)
     let h = w / SurahHeader.aspect
-    let inside = CGSize(width: w * 0.62, height: h * 0.6)
+    let frame = GlyphShape(font: MushafFont.common, character: 0xE000)
     ZStack {
-      // The frame: every outline of the glyph, finely drawn, away from the name.
-      glyph.stroke(theme.ink.opacity(theme.dark ? 0.5 : 0.55), lineWidth: max(0.5, h * 0.012))
-        .mask {
-          Rectangle()
-            .overlay(Rectangle().frame(width: inside.width, height: inside.height).blendMode(.destinationOut))
-            .compositingGroup()
+      frame.fill(theme.ink.opacity(theme.dark ? 0.05 : 0.04))
+      frame.stroke(theme.ink.opacity(theme.dark ? 0.55 : 0.6), lineWidth: max(0.5, h * 0.011))
+      Group {
+        if surah >= 2 && surah <= 114 {
+          Text(String(UnicodeScalar(UInt32(0xE000 + surah)).map(Character.init) ?? " "))
+            .font(.custom(MushafFont.surahName, size: h * 0.62))
+        } else {
+          Text("سُورَةُ \(MushafStore.shared.name(surah))")
+            .font(.custom(MushafFont.name, size: h * 0.36))
         }
-      // The name: filled, at full ink.
-      glyph.fill(theme.ink)
-        .mask(Rectangle().frame(width: inside.width, height: inside.height))
+      }
+      .foregroundColor(theme.ink)
+      .lineLimit(1)
+      .minimumScaleFactor(0.5)
+      .frame(width: w * 0.42)
     }
     .frame(width: w, height: h)
     // A printed line's height on the page; its own height where it flows.

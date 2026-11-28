@@ -184,6 +184,8 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
   // When a repeated ayah last looped, so the statuses that arrive mid-seek don't loop it again.
   const loopedAt = useRef(0);
   const loopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The Bismillah's end, timed exactly (see the status listener).
+  const handTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelLoop = () => {
     if (loopTimer.current) clearTimeout(loopTimer.current);
     loopTimer.current = null;
@@ -302,10 +304,30 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
       const ms = st.currentTime * 1000;
       // The Bismillah from Al-Fatihah: at its end, on into the surah it opens.
       if (have.then) {
-        if (have.then.handed) return;
-        if (st.didJustFinish || (st.playing && ms >= have.audio.ayahs[0][1] - 40)) {
-          have.then.handed = true;
-          startRef.current(have.then.surah, 0, have.then.who, true);
+        const then = have.then;
+        if (then.handed) return;
+        // It ends where the Bismillah does: the end of 1:1, or sooner where 1:2's first word starts
+        // (some timings run 1:1 into it). Statuses come a tenth of a second apart, and Al-Fatihah
+        // would play on while the surah loads, so it's paused on a timer at that exact point.
+        const a = have.audio;
+        const end = Math.min(a.ayahs[0][1], a.ayahs[1]?.[0] ?? Infinity, a.words[1]?.[0] ?? Infinity) - 30;
+        const hand = () => {
+          if (handTimer.current) clearTimeout(handTimer.current);
+          handTimer.current = null;
+          // Gone stale: something else is playing now, or it was paused meanwhile (it's timed
+          // again when it resumes).
+          if (then.handed || loaded.current?.then !== then || !playingRef.current) return;
+          then.handed = true;
+          try {
+            player.pause();
+          } catch {
+            // already stopped
+          }
+          startRef.current(then.surah, 0, then.who, true);
+        };
+        if (st.didJustFinish || ms >= end) hand();
+        else if (st.playing && end - ms < 450 && !handTimer.current) {
+          handTimer.current = setTimeout(hand, Math.max(0, (end - ms) / rateRef.current));
         }
         return;
       }
