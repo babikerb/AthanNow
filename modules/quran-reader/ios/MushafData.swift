@@ -230,7 +230,7 @@ final class PageFonts: ObservableObject {
 
   @Published private(set) var fonts: [Int: Metrics] = [:]
   private var loading = Set<Int>()
-  private let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("qcf-v2", isDirectory: true)
+  private let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("qcf-v4", isDirectory: true)
 
   func metrics(_ page: Int) -> Metrics? { fonts[page] }
 
@@ -247,12 +247,15 @@ final class PageFonts: ObservableObject {
     DispatchQueue.global(qos: .userInitiated).async {
       try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
       if !FileManager.default.fileExists(atPath: file.path) {
-        guard let url = URL(string: "https://verses.quran.foundation/fonts/quran/hafs/v2/ttf/p\(page).ttf"),
+        // quran.com's QCF V4 page fonts: cut for the 1441 printing's lines, which this mushaf
+        // follows, so each line's words fill it as printed. They carry tajweed colours; those
+        // tables are switched off, so the page is drawn in its own ink.
+        guard let url = URL(string: "https://verses.quran.foundation/fonts/quran/hafs/v4/colrv1/ttf/p\(page).ttf"),
               let data = try? Data(contentsOf: url), data.count > 10_000 else {
           DispatchQueue.main.async { self.loading.remove(page) }
           return
         }
-        try? data.write(to: file, options: .atomic)
+        try? PageFonts.withoutColour(data).write(to: file, options: .atomic)
       }
       let metrics = PageFonts.register(file, page: page)
       if metrics == nil { try? FileManager.default.removeItem(at: file) }
@@ -261,6 +264,22 @@ final class PageFonts: ObservableObject {
         if let metrics { self.fonts[page] = metrics }
       }
     }
+  }
+
+  /// The font with its colour tables (COLR, CPAL) renamed so they're ignored: each glyph's plain
+  /// outline is drawn, in the text's colour. The renamed tags keep the table directory in order.
+  static func withoutColour(_ data: Data) -> Data {
+    var bytes = [UInt8](data)
+    guard bytes.count > 12 else { return data }
+    let count = Int(bytes[4]) << 8 | Int(bytes[5])
+    for i in 0..<count {
+      let at = 12 + i * 16
+      guard at + 4 <= bytes.count else { break }
+      let tag = String(bytes: bytes[at..<at + 4], encoding: .ascii)
+      if tag == "COLR" { bytes[at + 3] = UInt8(ascii: "Q") }
+      if tag == "CPAL" { bytes[at + 3] = UInt8(ascii: "K") }
+    }
+    return Data(bytes)
   }
 
   private static func register(_ url: URL, page: Int) -> Metrics? {

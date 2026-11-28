@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import CoreText
 import SwiftUI
 import UIKit
 
@@ -315,9 +316,29 @@ struct AyahPreview: View {
   }
 }
 
+/// One glyph of a font as a shape: its outline, scaled to the rect's width and centred in it.
+struct GlyphShape: Shape {
+  let font: String
+  let character: UInt32
+
+  func path(in rect: CGRect) -> Path {
+    let ct = CTFontCreateWithName(font as CFString, 1000, nil)
+    var chars = [UniChar](String(UnicodeScalar(character).map(Character.init) ?? " ").utf16)
+    var glyphs = [CGGlyph](repeating: 0, count: chars.count)
+    guard CTFontGetGlyphsForCharacters(ct, &chars, &glyphs, chars.count), let outline = CTFontCreatePathForGlyph(ct, glyphs[0], nil) else { return Path() }
+    let box = outline.boundingBoxOfPath
+    guard box.width > 0, box.height > 0 else { return Path() }
+    let scale = min(rect.width / box.width, rect.height / box.height)
+    // Glyph space runs upward; flip it, scale it, and centre it.
+    var t = CGAffineTransform(translationX: rect.midX, y: rect.midY)
+      .scaledBy(x: scale, y: -scale)
+      .translatedBy(x: -box.midX, y: -box.midY)
+    return Path(outline.copy(using: &t) ?? outline)
+  }
+}
+
 /// A surah's opening header, as the printed mushaf draws it: the QCF surah header font's glyph for
-/// the surah, its ornate frame and the name in calligraphy in one. The frame is drawn softly, the
-/// name in the page's ink.
+/// the surah. Its ornate frame drawn in fine outline, the name inside it filled in the page's ink.
 struct SurahHeader: View {
   let surah: Int
   let size: CGFloat
@@ -329,22 +350,31 @@ struct SurahHeader: View {
   /// The header font's character for each surah, 1 to 114.
   static let codes: [UInt32] = [0xFC45, 0xFC46, 0xFC47, 0xFC4A, 0xFC4B, 0xFC4E, 0xFC4F, 0xFC51, 0xFC52, 0xFC53, 0xFC55, 0xFC56, 0xFC58, 0xFC5A, 0xFC5B, 0xFC5C, 0xFC5D, 0xFC5E, 0xFC61, 0xFC62, 0xFC64, 0xFB51, 0xFB52, 0xFB54, 0xFB55, 0xFB57, 0xFB58, 0xFB5A, 0xFB5B, 0xFB5D, 0xFB5E, 0xFB60, 0xFB61, 0xFB63, 0xFB64, 0xFB66, 0xFB67, 0xFB69, 0xFB6A, 0xFB6C, 0xFB6D, 0xFB6F, 0xFB70, 0xFB72, 0xFB73, 0xFB75, 0xFB76, 0xFB78, 0xFB79, 0xFB7B, 0xFB7C, 0xFB7E, 0xFB7F, 0xFB81, 0xFB82, 0xFB84, 0xFB85, 0xFB87, 0xFB88, 0xFB8A, 0xFB8B, 0xFB8D, 0xFB8E, 0xFB90, 0xFB91, 0xFB93, 0xFB94, 0xFB96, 0xFB97, 0xFB99, 0xFB9A, 0xFB9C, 0xFB9D, 0xFB9F, 0xFBA0, 0xFBA2, 0xFBA3, 0xFBA5, 0xFBA6, 0xFBA8, 0xFBA9, 0xFBAB, 0xFBAC, 0xFBAE, 0xFBAF, 0xFBB1, 0xFBB2, 0xFBB4, 0xFBB5, 0xFBB7, 0xFBB8, 0xFBBA, 0xFBBB, 0xFBBD, 0xFBBE, 0xFBC0, 0xFBC1, 0xFBD3, 0xFBD4, 0xFBD6, 0xFBD7, 0xFBD9, 0xFBDA, 0xFBDC, 0xFBDD, 0xFBDF, 0xFBE0, 0xFBE2, 0xFBE3, 0xFBE5, 0xFBE6, 0xFBE8, 0xFBE9, 0xFBEB]
 
+  /// The glyph's width to its height.
+  private static let aspect: CGFloat = 8116 / 980
+
   var body: some View {
-    let glyph = surah >= 1 && surah <= 114 ? String(UnicodeScalar(SurahHeader.codes[surah - 1]).map(Character.init) ?? " ") : ""
-    // The glyph is 3.3 times as wide as its size and 0.39 times as tall: the full width of the line,
-    // as printed, unless the line is too short for it. A font's glyph, so sharp at any size.
-    let fontSize = min(width / 3.32, maxHeight / 0.41)
-    let header = Text(glyph).font(.custom(MushafFont.surahHeader, size: fontSize)).fixedSize()
+    let code = surah >= 1 && surah <= 114 ? SurahHeader.codes[surah - 1] : 0x20
+    let glyph = GlyphShape(font: MushafFont.surahHeader, character: code)
+    // The full width of the line, as printed, unless the line is too short for it.
+    let w = min(width * 0.98, maxHeight * 0.92 * SurahHeader.aspect)
+    let h = w / SurahHeader.aspect
+    let inside = CGSize(width: w * 0.62, height: h * 0.6)
     ZStack {
-      // The frame, soft.
-      header.foregroundColor(theme.ink.opacity(theme.dark ? 0.42 : 0.5))
-      // The name, at full ink: the same glyph, kept to the band's inside, its middle 62% across and
-      // 60% down, clear of the frame.
-      header.foregroundColor(theme.ink)
-        .mask(Rectangle().frame(width: fontSize * 3.27 * 0.62, height: fontSize * 0.39 * 0.6))
+      // The frame: every outline of the glyph, finely drawn, away from the name.
+      glyph.stroke(theme.ink.opacity(theme.dark ? 0.5 : 0.55), lineWidth: max(0.5, h * 0.012))
+        .mask {
+          Rectangle()
+            .overlay(Rectangle().frame(width: inside.width, height: inside.height).blendMode(.destinationOut))
+            .compositingGroup()
+        }
+      // The name: filled, at full ink.
+      glyph.fill(theme.ink)
+        .mask(Rectangle().frame(width: inside.width, height: inside.height))
     }
+    .frame(width: w, height: h)
     // A printed line's height on the page; its own height where it flows.
-    .frame(width: width, height: maxHeight.isFinite ? maxHeight : fontSize * 0.44)
+    .frame(width: width, height: maxHeight.isFinite ? maxHeight : h * 1.08)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Surah \(MushafStore.shared.name(surah))")
     .accessibilityAddTraits(.isHeader)
@@ -415,7 +445,7 @@ struct PageView: View {
   /// The QCF size that brings the widest line to the full width, kept within the line's height.
   private var qcfSize: CGFloat {
     guard let q = qcf else { return size }
-    return min(width * 0.985 / max(q.widest, 1) * 100, lineHeight * 0.8)
+    return min(width * 0.97 / max(q.widest, 1) * 100, lineHeight * 0.8)
   }
 
   var body: some View {
@@ -433,7 +463,7 @@ struct PageView: View {
     case .header(let surah):
       SurahHeader(surah: surah, size: size, theme: ctx.theme, width: width, maxHeight: lineHeight)
     case .bismillah(let s):
-      BismillahLine(surah: s, size: size, ctx: ctx, width: width, maxHeight: lineHeight * 0.82)
+      BismillahLine(surah: s, size: size, ctx: ctx, width: width, maxHeight: lineHeight * 0.55)
     case .words(let words, let em):
       if let q = qcf, index >= 0, index < q.lines.count {
         // The printed page: each line's glyphs nearly fill it; the rest is shared between words.
@@ -441,8 +471,8 @@ struct PageView: View {
         // lines sit in the middle. (The 1441 printing's lines group the words differently from the
         // 1421 edition the glyphs were cut for, so some fall short of the width and are spread.)
         let qs = qcfSize
-        let natural = q.lines[index] * qs / 100
-        JustifiedLine(gap: qs * 0.06, justify: page.number > 2) {
+        // The V4 glyphs carry their own spacing: only a hair is added between words.
+        JustifiedLine(gap: qs * 0.015, justify: page.number > 2) {
           ForEach(words, id: \.order) { word in
             WordView(word: word, page: page.number, size: qs, ctx: ctx, font: q.name, useGlyph: true)
           }
@@ -508,7 +538,7 @@ struct FlowPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme, width: width, maxHeight: .infinity)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, width: width, maxHeight: (qcf != nil && qcfSize > 0 ? qcfSize : size) * 1.6)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, width: width, maxHeight: (qcf != nil && qcfSize > 0 ? qcfSize : size) * 1.1)
         case .words(let words):
           if let q = qcf, qcfSize > 0 {
             FlowingLines(gap: qcfSize * 0.12, lineHeight: qcfSize * 1.75) {
@@ -554,7 +584,7 @@ struct TranslationPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme, width: width, maxHeight: .infinity)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, width: width, maxHeight: (qcf != nil && qcfSize > 0 ? qcfSize : size) * 1.6)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, width: width, maxHeight: (qcf != nil && qcfSize > 0 ? qcfSize : size) * 1.1)
         case .ayah(let key, let words):
           VStack(spacing: 10) {
             if let q = qcf, qcfSize > 0 {
@@ -618,7 +648,7 @@ struct WordsPage: View {
         case .header(let s):
           SurahHeader(surah: s, size: size * 0.8, theme: ctx.theme, width: width, maxHeight: .infinity)
         case .bismillah(let s):
-          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, width: width, maxHeight: (qcf != nil && qcfSize > 0 ? qcfSize : size) * 1.6)
+          BismillahLine(surah: s, size: size * 0.8, ctx: ctx, width: width, maxHeight: (qcf != nil && qcfSize > 0 ? qcfSize : size) * 1.1)
         case .ayah(_, let words):
           FlowingRows(gap: glyphSize * 0.45, rowSpacing: gloss * 0.9) {
             ForEach(words, id: \.order) { word in
