@@ -57,7 +57,7 @@ export function ReaderSettingsSheet({ open, onClose, display }: { open: boolean;
           <VStack spacing={0}>
           {/* The header every sheet has: the title at the left, a round close button at the right. */}
           <HStack modifiers={[padding({ leading: 20, trailing: 20, top: 22, bottom: 4 })]}>
-            <SwiftText modifiers={[font({ size: 20, weight: 'bold' }), foregroundColor(t.c.text)]}>Reading settings</SwiftText>
+            <SwiftText modifiers={[font({ family: 'Fraunces-SemiBold', size: 22 }), foregroundColor(t.c.text)]}>Reading settings</SwiftText>
             <Spacer />
             <Button
               label="Close"

@@ -23,7 +23,10 @@ export function SheetHeader({
   right,
   onClose,
   closeLabel = 'Close',
+  top,
 }: {
+  /** Room above the header: more where the system's own grabber sits over it. */
+  top?: number;
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
   right?: React.ReactNode;
@@ -32,12 +35,10 @@ export function SheetHeader({
 }) {
   const t = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, paddingHorizontal: t.spacing.xl, paddingTop: t.spacing.sm, paddingBottom: t.spacing.md, minHeight: 52 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm, paddingHorizontal: t.spacing.xl, paddingTop: top ?? t.spacing.md, paddingBottom: t.spacing.md, minHeight: 52 }}>
       <View style={{ flex: 1 }}>
         {typeof title === 'string' ? (
-          <Text variant="title3" header numberOfLines={1} style={{ fontWeight: '700' }}>
-            {title}
-          </Text>
+          <SheetTitle>{title}</SheetTitle>
         ) : (
           title
         )}
@@ -52,6 +53,15 @@ export function SheetHeader({
       {right}
       {onClose ? <SheetIconButton name="xmark" label={closeLabel} onPress={onClose} /> : null}
     </View>
+  );
+}
+
+/** A sheet's title: the app's display face, so every sheet reads as AthanNow's. */
+export function SheetTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <Text variant="title2" header numberOfLines={1} maxFontSizeMultiplier={1.4} style={{ fontFamily: 'Fraunces-SemiBold', fontWeight: undefined, letterSpacing: -0.2 }}>
+      {children}
+    </Text>
   );
 }
 

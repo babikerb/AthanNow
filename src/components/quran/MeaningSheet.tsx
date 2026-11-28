@@ -14,7 +14,7 @@ import { useTheme } from '../../design/theme';
 import { ayahAfter, ayahBefore, commentaryText, DEFAULT_MEANING_SOURCE, loadMeaning, MEANING_SOURCES, type AyahRef, type Meaning } from '../../quran/meaning';
 import { QURAN_FONT } from '../../recitation/format';
 import { NativeMenu } from '../NativeMenu';
-import { SheetHeader, SheetIconButton } from '../Sheet';
+import { SheetHeader, SheetIconButton, SheetTitle } from '../Sheet';
 
 const SOURCE_KEY = 'athannow.meaning.source.v1';
 
@@ -171,6 +171,7 @@ function SheetBody({
   return (
     <>
       <SheetHeader
+        top={28}
         title={
           <NativeMenu
             height={48}
@@ -184,9 +185,7 @@ function SheetBody({
             }
           >
             <View style={{ flex: 1, justifyContent: 'center' }} accessibilityLabel={`Commentary, ${sourceName}`} accessibilityHint="Choose another commentary">
-              <Text variant="title3" header numberOfLines={1} style={{ fontWeight: '700' }}>
-                Meaning
-              </Text>
+              <SheetTitle>Meaning</SheetTitle>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Text variant="footnote" color="textSecondary" numberOfLines={1}>
                   {sourceName}
