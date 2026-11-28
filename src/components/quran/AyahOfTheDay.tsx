@@ -7,13 +7,14 @@ import { getSurah } from '../../data/surahs';
 import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
+import MORE from '../../data/ayahOfTheDay.json';
 import { pageForAyah } from '../../quran/pageLayout';
 import { NativeMenu } from '../NativeMenu';
 import { IconTarget, RoundIcon, TOUCH_TARGET } from '../../design/IconButton';
 
 // Short ayahs that speak to everyday life, each with its theme: worry, patience, family, money, anger,
 // death, nature and more (131 in all).
-const AYAHS: [number, number, string][] = [
+const CHOSEN: [number, number, string][] = [
   [13, 28, 'worry and stress'],
   [94, 5, 'worry and stress'],
   [94, 6, 'worry and stress'],
@@ -146,6 +147,13 @@ const AYAHS: [number, number, string][] = [
   [59, 21, 'the Quran itself'],
   [10, 57, 'the Quran itself']
 ];
+
+// With them, ayahs from across the Quran picked by scripts/build-ayah-of-the-day.py: short, standing
+// on their own, speaking to people, each matched to a theme by its meaning.
+const AYAHS: [number, number, string][] = (() => {
+  const seen = new Set(CHOSEN.map(([s, a]) => `${s}:${a}`));
+  return [...CHOSEN, ...(MORE as [number, number, string][]).filter(([s, a]) => !seen.has(`${s}:${a}`))];
+})();
 
 /** A fixed shuffle of the list (a seeded Fisher-Yates): the days run through every ayah, in an order
  *  that feels random and moves between themes, before any comes round again. */
