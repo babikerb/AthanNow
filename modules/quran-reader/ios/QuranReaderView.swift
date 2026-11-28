@@ -322,6 +322,8 @@ struct AyahPreview: View {
 struct GlyphShape: Shape {
   let font: String
   let character: UInt32
+  /// Widened by this much: 1 keeps its proportions.
+  var stretch: CGFloat = 1
 
   func path(in rect: CGRect) -> Path {
     let ct = CTFontCreateWithName(font as CFString, 1000, nil)
@@ -330,10 +332,10 @@ struct GlyphShape: Shape {
     guard CTFontGetGlyphsForCharacters(ct, &chars, &glyphs, chars.count), let outline = CTFontCreatePathForGlyph(ct, glyphs[0], nil) else { return Path() }
     let box = outline.boundingBoxOfPath
     guard box.width > 0, box.height > 0 else { return Path() }
-    let scale = min(rect.width / box.width, rect.height / box.height)
+    let scale = min(rect.width / (box.width * stretch), rect.height / box.height)
     // Glyph space runs upward; flip it, scale it, and centre it.
     var t = CGAffineTransform(translationX: rect.midX, y: rect.midY)
-      .scaledBy(x: scale, y: -scale)
+      .scaledBy(x: scale * stretch, y: -scale)
       .translatedBy(x: -box.midX, y: -box.midY)
     return Path(outline.copy(using: &t) ?? outline)
   }
@@ -377,12 +379,10 @@ struct SurahHeader: View {
     ZStack {
       frame.fill(theme.ink.opacity(theme.dark ? 0.05 : 0.04))
       frame.stroke(theme.ink.opacity(theme.dark ? 0.55 : 0.6), lineWidth: max(0.5, h * 0.011))
-      Text(String(UnicodeScalar(UInt32(0xE000 + surah)).map(Character.init) ?? " "))
-        .font(.custom(MushafFont.surahName, size: h * 0.72))
-      .foregroundColor(theme.ink)
-      .lineLimit(1)
-      .minimumScaleFactor(0.5)
-      .frame(width: w * 0.46, height: h * 0.8)
+      // The name, widened to fill the cartouche: drawn from its outline, so it stays sharp.
+      GlyphShape(font: MushafFont.surahName, character: UInt32(0xE000 + surah), stretch: 1.3)
+        .fill(theme.ink)
+        .frame(width: w * 0.42, height: h * 0.5)
       // The medallions: the surah's number in the right one, its place in the order of revelation in
       // the left.
       ForEach(Array([(0.794, surah), (0.206, SurahHeader.revelationOrder[surah - 1])].enumerated()), id: \.offset) { _, m in
