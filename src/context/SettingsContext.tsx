@@ -40,8 +40,6 @@ export interface NotificationSettings {
   reminderMinutesBefore: number;
   /** "Good morning, start your day with Quran" notification around sunrise. */
   quranMorningEnabled: boolean;
-  /** Fridays, an hour before Jumu'ah. */
-  jumuahEnabled: boolean;
   /** When the last third of the night begins. */
   tahajjudEnabled: boolean;
 }
@@ -83,7 +81,6 @@ export const DEFAULT_SETTINGS: Settings = {
     athanVoice: DEFAULT_ATHAN_VOICE,
     reminderMinutesBefore: 10,
     quranMorningEnabled: false,
-    jumuahEnabled: false,
     tahajjudEnabled: false,
   },
   quranLineMode: '15',

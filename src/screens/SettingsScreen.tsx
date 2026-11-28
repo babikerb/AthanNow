@@ -274,11 +274,6 @@ export default function SettingsScreen() {
             onPress={() => setSoundSheetOpen(true)}
           />
           <ListRow
-            title="Jumu’ah reminder"
-            subtitle="Fridays, an hour before"
-            accessory={<Toggle label="Jumu’ah reminder, Fridays, an hour before" value={settings.notifications.jumuahEnabled} onValueChange={(v) => settings.updateNotifications({ jumuahEnabled: v })} />}
-          />
-          <ListRow
             title="Tahajjud reminder"
             subtitle="When the last third of the night begins"
             accessory={<Toggle label="Tahajjud reminder, when the last third of the night begins" value={settings.notifications.tahajjudEnabled} onValueChange={(v) => settings.updateNotifications({ tahajjudEnabled: v })} />}

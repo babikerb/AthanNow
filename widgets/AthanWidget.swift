@@ -88,9 +88,9 @@ func prayerWindow(_ data: WidgetData, now: Date) -> ClosedRange<Date>? {
   return Date(timeIntervalSince1970: prev.time)...Date(timeIntervalSince1970: next.time)
 }
 
-// A prayer's name on the day it falls. The baked names stay as they are (the sky and the filters go by them).
+// A prayer's name as shown: Dhuhr is Dhuhr on a Friday too.
 func displayName(_ name: String, _ date: Date) -> String {
-  name.lowercased() == "dhuhr" && Calendar.current.component(.weekday, from: date) == 6 ? "Jumu’ah" : name
+  name
 }
 
 func displayName(_ p: PrayerTime) -> String {

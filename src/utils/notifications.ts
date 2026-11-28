@@ -17,13 +17,11 @@ export const DAYS_AHEAD = 7;
  *  same reason as `DAYS_AHEAD` above. */
 export const MAX_PENDING = 60;
 
-/** How long before Jumu'ah its reminder comes. */
-const JUMUAH_LEAD_MIN = 60;
 
 /** Whether anything at all should be scheduled. */
 export function anyNotificationEnabled(s: Settings): boolean {
   const n = s.notifications;
-  return Object.values(n.athanEnabled).some(Boolean) || (QURAN_ENABLED && n.quranMorningEnabled) || n.jumuahEnabled || n.tahajjudEnabled;
+  return Object.values(n.athanEnabled).some(Boolean) || (QURAN_ENABLED && n.quranMorningEnabled) || n.tahajjudEnabled;
 }
 
 export function configureNotificationHandler() {
@@ -85,7 +83,7 @@ function formatClock(date: Date, use24Hour: boolean, timeZone?: string): string 
 }
 
 /**
- * Cancels everything and re-schedules the next `DAYS_AHEAD` days of athan, Jumu'ah,
+ * Cancels everything and re-schedules the next `DAYS_AHEAD` days of athan,
  * Tahajjud and morning-Quran notifications based on current settings + location.
  */
 async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): Promise<void> {
@@ -137,13 +135,6 @@ async function rescheduleNotificationsImpl(coords: Coords, settings: Settings): 
       // Copy only: clock times are shown in the user's 12/24-hour preference, in the location's timezone.
       const clock = formatClock(time, settings.use24Hour, coords.timezone);
       const label = prayerLabel(key, time, coords.timezone);
-      if (notifications.jumuahEnabled && label === 'Jumu’ah') {
-        await schedule(
-          { title: 'Jumu’ah in an hour', body: `Jumu’ah is at ${clock}. A good time to get ready.`, sound: 'default', interruptionLevel: 'timeSensitive' },
-          new Date(time.getTime() - JUMUAH_LEAD_MIN * 60_000),
-        );
-      }
-
       if (key !== 'sunrise') {
         if (notifications.athanEnabled[key]) {
           if (mins > 0) {

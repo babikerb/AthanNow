@@ -1,7 +1,6 @@
 import { SFSymbol } from 'sf-symbols-typescript';
 import { CalculationMethod, Coordinates, HighLatitudeRule, Madhab, PrayerTimes } from 'adhan';
 
-import { localDayAnchor } from './time';
 
 /**
  * Per-row icon for the 6 prayer-list entries (the 5 real prayers + the
@@ -118,9 +117,9 @@ export function getPrayerTimes(
   };
 }
 
-/** A prayer's name on the day it falls: Dhuhr is Jumu’ah on a Friday where the times are for. */
-export function prayerLabel(id: string, time: Date, timeZone?: string): string {
-  if (id === 'dhuhr' && localDayAnchor(time, timeZone).getDay() === 5) return 'Jumu’ah';
+/** A prayer's name, as shown: Dhuhr is Dhuhr on a Friday too. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function prayerLabel(id: string, _time?: Date, _timeZone?: string): string {
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 

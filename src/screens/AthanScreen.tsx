@@ -19,7 +19,7 @@ import { useTheme } from '../design/theme';
 import { useNotificationScheduler } from '../hooks/useNotificationScheduler';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { useTabBarHeight } from '../hooks/useTabBarHeight';
-import { getCelestialConfig, getHijriDate, getPrayerTimes, lastThirdStart, prayerLabel } from '../utils/prayerEngine';
+import { getCelestialConfig, getHijriDate, getPrayerTimes, prayerLabel } from '../utils/prayerEngine';
 import { formatClock, formatLongDate, localDayAnchor, msToMidnight } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
 
@@ -99,11 +99,6 @@ export default function AthanScreen() {
   const dayKey = localDayAnchor(now, tz).toDateString();
   const tomorrowData = useMemo(
     () => (location ? getPrayerTimes(location, localDayAnchor(new Date(now.getTime() + DAY_MS), tz), calcMethod, asrMadhab) : null),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [location, dayKey, tz, calcMethod, asrMadhab],
-  );
-  const yesterdayData = useMemo(
-    () => (location ? getPrayerTimes(location, localDayAnchor(new Date(now.getTime() - DAY_MS), tz), calcMethod, asrMadhab) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [location, dayKey, tz, calcMethod, asrMadhab],
   );
@@ -254,11 +249,6 @@ export default function AthanScreen() {
   const heroName = prayerLabel(nextPrayer.toLowerCase(), nextPrayerTime, tz);
   const quiet = !isNow && !t.highContrast && nextPrayerTime.getTime() - now.getTime() <= QUIET_MS;
 
-  // After Isha, and on past midnight until Fajr: when the last third of this night begins.
-  const timeOf = (data: typeof prayerData | null, id: string) => data?.listRows.find((r) => r.id === id)?.time;
-  const nightMaghrib = showTomorrow ? timeOf(prayerData, 'maghrib') : overnight ? timeOf(yesterdayData, 'maghrib') : undefined;
-  const nightFajr = showTomorrow ? timeOf(tomorrowData, 'fajr') : overnight ? timeOf(prayerData, 'fajr') : undefined;
-  const lastThird = nightMaghrib && nightFajr ? formatClock(lastThirdStart(nightMaghrib, nightFajr), use24Hour, tz) : null;
 
   // Unresolved states never pass Mecca off as the user's city.
   const unresolved = !!location && !location.isManual && hasRestored;
@@ -391,16 +381,11 @@ export default function AthanScreen() {
         <View>
           {/* Today's prayers (tomorrow's after Isha). The next one's time is the only warm text; passed ones fade back. */}
           <View style={[{ paddingHorizontal: gutter, paddingTop: t.spacing.md }, panel]}>
-            {(showTomorrow || lastThird) && (
+            {showTomorrow && (
               <View style={[styles.listHead, { paddingBottom: t.spacing.xs }]}>
                 <Text variant="footnote" maxFontSizeMultiplier={maxScale} style={ink2} accessibilityRole="header">
                   {showTomorrow ? 'Tomorrow' : 'Today'}
                 </Text>
-                {lastThird && (
-                  <Text variant="footnote" maxFontSizeMultiplier={maxScale} style={ink2} accessibilityLabel={`The last third of the night begins at ${lastThird}`}>
-                    Last third {lastThird}
-                  </Text>
-                )}
               </View>
             )}
             {rows.map((row, i) => {
@@ -422,7 +407,7 @@ export default function AthanScreen() {
                       {name}
                     </Text>
                     <Text variant="footnote" maxFontSizeMultiplier={maxScale} numberOfLines={1} style={[ink3, { fontFamily: QURAN_FONT, fontSize: 16, lineHeight: 26 }]}>
-                      {name === 'Jumu’ah' ? 'الجمعة' : getCelestialConfig(row.id).arabicName}
+                      {getCelestialConfig(row.id).arabicName}
                     </Text>
                   </View>
                   <Text maxFontSizeMultiplier={maxScale} variant={isNext ? 'bodyEmph' : 'body'} style={isNext ? { color: tone.accent } : strength}>
