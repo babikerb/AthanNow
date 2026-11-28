@@ -1,7 +1,10 @@
-import { BottomSheet, Button, Form, Group, HStack, Host, Picker, Section, Spacer, Text as SwiftText, Toggle, VStack } from '@expo/ui/swift-ui';
+import { BottomSheet, Button, Circle, Form, Group, HStack, Host, Picker, Section, Spacer, Text as SwiftText, Toggle, VStack, ZStack } from '@expo/ui/swift-ui';
 import {
   buttonBorderShape,
   buttonStyle,
+  foregroundStyle,
+  frame,
+  onTapGesture,
   font,
   foregroundColor,
   labelStyle,
@@ -18,7 +21,7 @@ import type { ReaderView } from 'quran-reader';
 import React from 'react';
 
 import { useTheme } from '../../design/theme';
-import type { Display, PageColour } from '../../quran/display';
+import { PAGE_PALETTES, type Display, type PageColour } from '../../quran/display';
 import { RECITERS } from '../../recitation/reciters';
 import { useRecitation, type RepeatMode } from '../../recitation/RecitationProvider';
 
@@ -28,7 +31,7 @@ const LAYOUTS: { id: ReaderView; name: string }[] = [
   { id: 'words', name: 'Word by word' },
 ];
 const PAGE_COLOURS: { id: PageColour; name: string }[] = [
-  { id: 'system', name: 'Match the app' },
+  { id: 'system', name: 'App' },
   { id: 'white', name: 'White' },
   { id: 'cream', name: 'Cream' },
   { id: 'charcoal', name: 'Charcoal' },
@@ -72,16 +75,29 @@ export function ReaderSettingsSheet({ open, onClose, display }: { open: boolean;
                   </SwiftText>
                 ))}
               </Picker>
-              <Picker label="Page colour" systemImage="paintpalette" selection={display.pageColor} onSelectionChange={(v: string) => display.set({ pageColor: v as PageColour })} modifiers={[pickerStyle('menu')]}>
-                {PAGE_COLOURS.map((c) => (
-                  <SwiftText key={c.id} modifiers={[tag(c.id)]}>
-                    {c.name}
-                  </SwiftText>
-                ))}
-              </Picker>
               {display.view === 'words' ? (
                 <Toggle label="Transliteration" systemImage="textformat.abc" isOn={display.translit} onIsOnChange={(v) => display.set({ translit: v })} />
               ) : null}
+            </Section>
+
+            {/* The page's colour, shown as itself: tap a swatch. Only the mushaf's page changes. */}
+            <Section title="Page colour">
+              <HStack spacing={0}>
+                {PAGE_COLOURS.map((c) => {
+                  const fill = c.id === 'system' ? t.c.bg : PAGE_PALETTES[c.id].bg;
+                  const chosen = display.pageColor === c.id;
+                  return (
+                    <VStack key={c.id} spacing={6} modifiers={[frame({ maxWidth: 1000 }), onTapGesture(() => display.set({ pageColor: c.id }))]}>
+                      <ZStack>
+                        <Circle modifiers={[frame({ width: 40, height: 40 }), foregroundStyle(chosen ? t.c.accent : t.c.hairline)]} />
+                        <Circle modifiers={[frame({ width: chosen ? 33 : 37, height: chosen ? 33 : 37 }), foregroundStyle(fill)]} />
+                        <SwiftText modifiers={[font({ size: 13, weight: 'semibold' }), foregroundColor(c.id === 'system' ? t.c.text : PAGE_PALETTES[c.id].text)]}>Aa</SwiftText>
+                      </ZStack>
+                      <SwiftText modifiers={[font({ size: 12, weight: chosen ? 'semibold' : 'regular' }), foregroundColor(chosen ? t.c.text : t.c.textSecondary)]}>{c.name}</SwiftText>
+                    </VStack>
+                  );
+                })}
+              </HStack>
             </Section>
 
             <Section title="Recitation">

@@ -3,6 +3,8 @@ import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { PressableScale } from '../design/PressableScale';
+import { colorTokens } from '../design/tokens.generated';
 import { QURAN_ENABLED } from '../config/features';
 import { useOnboarding } from '../context/OnboardingContext';
 import { Appearance, AsrMadhab, PrayerKey, useSettings } from '../context/SettingsContext';
@@ -359,14 +361,7 @@ export default function SettingsScreen() {
         onChange={(v) => settings.update({ asrMadhab: v })}
       />
 
-      <PickerSheet
-        visible={appearanceSheetOpen}
-        onClose={() => setAppearanceSheetOpen(false)}
-        title="Appearance"
-        options={APPEARANCE_OPTIONS}
-        value={settings.appearance}
-        onChange={(v) => settings.update({ appearance: v })}
-      />
+      <AppearanceSheet visible={appearanceSheetOpen} onClose={() => setAppearanceSheetOpen(false)} value={settings.appearance} onChange={(v) => settings.update({ appearance: v })} />
 
       <PickerSheet
         visible={reminderSheetOpen}
@@ -436,6 +431,56 @@ function PickerSheet<T extends string | number>({
           ))}
         </ListGroup>
       </ScrollView>
+    </Sheet>
+  );
+}
+
+/** A small picture of the app in a palette: its background, a card, lines of text and the accent. */
+function MiniScreen({ palette }: { palette: { bg: string; text: string; textSecondary: string; surface1: string; accent: string } }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: palette.bg, padding: 8, gap: 6 }}>
+      <View style={{ height: 6, width: '55%', borderRadius: 3, backgroundColor: palette.text }} />
+      <View style={{ flex: 1, borderRadius: 8, backgroundColor: palette.surface1, padding: 6, gap: 5 }}>
+        <View style={{ height: 4, width: '80%', borderRadius: 2, backgroundColor: palette.textSecondary }} />
+        <View style={{ height: 4, width: '60%', borderRadius: 2, backgroundColor: palette.textSecondary }} />
+        <View style={{ marginTop: 'auto', height: 10, width: '45%', borderRadius: 5, backgroundColor: palette.accent }} />
+      </View>
+    </View>
+  );
+}
+
+/** The app's appearance, each choice shown as a little picture of the app in it. */
+function AppearanceSheet({ visible, onClose, value, onChange }: { visible: boolean; onClose: () => void; value: Appearance; onChange: (v: Appearance) => void }) {
+  const dt = useDesignTheme();
+  return (
+    <Sheet visible={visible} onClose={onClose} title="Appearance">
+      <View style={{ flexDirection: 'row', gap: dt.spacing.md, paddingHorizontal: dt.spacing.xl, paddingTop: dt.spacing.lg }}>
+        {APPEARANCE_OPTIONS.map((o) => {
+          const chosen = o.value === value;
+          return (
+            <PressableScale
+              key={o.value}
+              haptic="select"
+              onPress={() => onChange(o.value)}
+              accessibilityRole="button"
+              accessibilityLabel={o.label}
+              accessibilityState={{ selected: chosen }}
+              style={{ flex: 1 }}
+            >
+              <View style={{ gap: dt.spacing.sm, alignItems: 'center' }}>
+                <View style={{ width: '100%', aspectRatio: 0.62, borderRadius: 16, borderCurve: 'continuous', overflow: 'hidden', borderWidth: 2, borderColor: chosen ? dt.c.accent : dt.c.hairline, flexDirection: 'row' }}>
+                  {o.value === 'dark' ? null : <MiniScreen palette={colorTokens.light} />}
+                  {o.value === 'light' ? null : <MiniScreen palette={colorTokens.dark} />}
+                </View>
+                <Text variant="subhead" style={{ fontWeight: chosen ? '700' : '500' }} color={chosen ? 'text' : 'textSecondary'}>
+                  {o.label}
+                </Text>
+                <SymbolView name={chosen ? 'checkmark.circle.fill' : 'circle'} size={20} tintColor={chosen ? dt.c.accent : dt.c.glyphQuiet} />
+              </View>
+            </PressableScale>
+          );
+        })}
+      </View>
     </Sheet>
   );
 }
