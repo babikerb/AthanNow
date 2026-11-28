@@ -113,6 +113,12 @@ async function retry(fn: () => unknown, aborted: () => boolean, attempts = 4): P
 }
 
 async function startPlayback(player: AudioPlayer, aborted: () => boolean) {
+  // Heard again (the Bismillah's end silences it before the surah starts).
+  try {
+    player.volume = 1;
+  } catch {
+    // set once it's ready
+  }
   // Re-applied each time: the athan preview sets its own (foreground) mode.
   await setAudioModeAsync(AUDIO_MODE).catch(() => {});
   if (await retry(() => player.play(), aborted)) return;
@@ -310,7 +316,10 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
         // (some timings run 1:1 into it). Statuses come a tenth of a second apart, and Al-Fatihah
         // would play on while the surah loads, so it's paused on a timer at that exact point.
         const a = have.audio;
-        const end = Math.min(a.ayahs[0][1], a.ayahs[1]?.[0] ?? Infinity, a.words[1]?.[0] ?? Infinity) - 30;
+        // Where its last word ends (with a breath after it) where the timing knows; the ayah's end can
+        // run on into the start of the next.
+        const lastWord = a.lastWordEnd?.[0];
+        const end = Math.min(a.ayahs[0][1] - 30, lastWord != null ? lastWord + 100 : Infinity, (a.words[1]?.[0] ?? Infinity) - 60);
         const hand = () => {
           if (handTimer.current) clearTimeout(handTimer.current);
           handTimer.current = null;
@@ -318,6 +327,12 @@ export function RecitationProvider({ children }: { children: React.ReactNode }) 
           // again when it resumes).
           if (then.handed || loaded.current?.then !== then || !playingRef.current) return;
           then.handed = true;
+          // Silenced at once, then paused: nothing of the next ayah slips out in between.
+          try {
+            player.volume = 0;
+          } catch {
+            // no player
+          }
           try {
             player.pause();
           } catch {

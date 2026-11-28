@@ -1,7 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, SectionList, Text as RNText, View } from 'react-native';
-import Svg, { Polygon } from 'react-native-svg';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { getSurah, SURAHS, type Surah } from '../data/surahs';
@@ -40,23 +39,12 @@ type Tab = 'surah' | 'juz' | 'bookmarks';
 const ROW = 64;
 const JUZ = JUZ_START.map((page, i) => ({ juz: i + 1, page, start: firstAyahOnPage(page) }));
 
-/** A number in an eight-pointed star, as Quran apps mark a surah or juz. */
-function StarBadge({ n, active }: { n: number; active: boolean }) {
+/** A surah's or juz's number, plain; the one being read in the accent. */
+function NumberMark({ n, active }: { n: number; active: boolean }) {
   const t = useTheme();
-  const c = 18;
-  const pts = (r: number, turn: number) =>
-    Array.from({ length: 4 }, (_, i) => {
-      const a = (Math.PI / 2) * i + turn;
-      return `${c + r * Math.cos(a)},${c + r * Math.sin(a)}`;
-    }).join(' ');
   return (
-    <View style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={36} height={36} style={{ position: 'absolute' }}>
-        {[0, Math.PI / 4].map((turn) => (
-          <Polygon key={turn} points={pts(16, turn)} fill={active ? t.c.accent : 'none'} stroke={active ? t.c.accent : t.c.textTertiary} strokeWidth={1.2} strokeLinejoin="round" />
-        ))}
-      </Svg>
-      <Text variant="caption" maxFontSizeMultiplier={1.1} style={{ fontWeight: '700', fontVariant: ['tabular-nums'], color: active ? t.c.onAccent : t.c.text }}>
+    <View style={{ width: 36, alignItems: 'center' }}>
+      <Text variant="subhead" maxFontSizeMultiplier={1.2} style={{ fontWeight: '600', fontVariant: ['tabular-nums'], color: active ? t.c.accentText : t.c.textSecondary }}>
         {n}
       </Text>
     </View>
@@ -204,7 +192,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
     return (
       <PressableScale scaleTo={0.99} onPress={() => close(() => onSelect(s.id))} accessibilityRole="button" accessibilityLabel={`${s.id}, ${s.transliteration}, ${s.translation}, ${s.type === 'meccan' ? 'Meccan' : 'Medinan'}, ${s.totalVerses} ayahs, page ${pageForSurah(s.id)}`} accessibilityState={{ selected: current }}>
         <View style={{ height: ROW, flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, paddingHorizontal: t.spacing.lg, backgroundColor: current ? t.c.accentSoft : 'transparent' }}>
-          <StarBadge n={s.id} active={current} />
+          <NumberMark n={s.id} active={current} />
           <View style={{ flex: 1 }}>
             <Text variant="body" style={{ fontWeight: '600' }} numberOfLines={1}>
               {s.transliteration}
@@ -230,7 +218,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
     return (
       <PressableScale scaleTo={0.99} onPress={() => close(() => onSelectPage?.(j.page))} accessibilityRole="button" accessibilityLabel={`Juz ${j.juz}, from ${s?.transliteration} ${j.start?.surah}:${j.start?.ayah}, page ${j.page}`} accessibilityState={{ selected: current }}>
         <View style={{ height: ROW, flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, paddingHorizontal: t.spacing.lg, backgroundColor: current ? t.c.accentSoft : 'transparent' }}>
-          <StarBadge n={j.juz} active={current} />
+          <NumberMark n={j.juz} active={current} />
           <View style={{ flex: 1 }}>
             <Text variant="body" style={{ fontWeight: '600' }}>
               Juz {j.juz}

@@ -11,9 +11,11 @@ export interface SurahAudio {
   intro?: number;
   /** Per ayah, when each word starts (ms), by word number from 1. Empty where the timing has none. */
   words: number[][];
+  /** Per ayah, where its last word ends (ms), where the timing has words. */
+  lastWordEnd?: number[];
 }
 
-const KEY = 'athannow.recitation.surah.v3.';
+const KEY = 'athannow.recitation.surah.v4.';
 const memory = new Map<string, SurahAudio>();
 
 async function fetchWithTimeout(url: string, ms = 15000): Promise<Response> {
@@ -70,7 +72,11 @@ export async function loadSurahAudio(reciter: Reciter, surahId: number): Promise
     }
     return starts;
   });
-  const audio = { url: file.audio_url, ayahs, words };
+  const lastWordEnd = sorted.map((v) => {
+    const segs = (v.segments ?? []).filter((seg) => seg.length >= 3);
+    return segs.length ? Math.round(segs[segs.length - 1][segs[segs.length - 1].length - 1]) : v.timestamp_to;
+  });
+  const audio = { url: file.audio_url, ayahs, words, lastWordEnd };
   memory.set(id, audio);
   AsyncStorage.setItem(KEY + id, JSON.stringify(audio)).catch(() => {});
   return audio;
