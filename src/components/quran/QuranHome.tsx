@@ -13,10 +13,10 @@ import { bookmarkColor, type Bookmark } from "../../hooks/useBookmarks";
 import { useTabBarHeight } from "../../hooks/useTabBarHeight";
 import { firstAyahOnPage, pageForAyah, surahsOnPage } from "../../quran/pageLayout";
 import type { QuranProgress } from "../../quran/useQuranProgress";
-import { QURAN_FONT } from "../../recitation/format";
 import { useRecitation, useRecitationWord } from "../../recitation/RecitationProvider";
 import { AyahOfTheDay } from "./AyahOfTheDay";
 import { GoalRings } from "./GoalRings";
+import { arabicStyle, radius, space } from '../../theme/theme';
 
 const NO_PAGES: number[] = [];
 
@@ -118,7 +118,7 @@ export function QuranHome({
               minHeight: 44,
               flexDirection: "row",
               alignItems: "center",
-              gap: 8,
+              gap: space.sm,
               paddingHorizontal: t.spacing.lg,
               borderRadius: t.radii.control,
               borderCurve: "continuous",
@@ -192,12 +192,7 @@ export function QuranHome({
                 <Text variant="headline">Al-Kahf</Text>
               </View>
               <Text
-                style={{
-                  fontFamily: QURAN_FONT,
-                  fontSize: 24,
-                  lineHeight: 44,
-                  color: t.c.text,
-                }}
+                style={{ ...arabicStyle('ayah'), color: t.c.text }}
               >
                 الكهف
               </Text>
@@ -244,14 +239,14 @@ export function QuranHome({
                       backgroundColor: t.c.surface1,
                       paddingHorizontal: t.spacing.md,
                       paddingVertical: t.spacing.sm,
-                      gap: 4,
+                      gap: space.xs,
                     }}
                   >
                     <View
                       style={{
                         width: 10,
                         height: 10,
-                        borderRadius: 5,
+                        borderRadius: radius.xs,
                         backgroundColor: bookmarkColor(b),
                       }}
                     />
@@ -297,7 +292,7 @@ function ContinueCard({ dark, lastPage, started, onContinue, onOpenPage }: { dar
     <>
       <View style={{ marginTop: t.spacing.md, borderRadius: t.radii.feature, borderCurve: "continuous", backgroundColor: t.c.surface1, padding: t.spacing.sm }}>
         {/* Headed like the other cards on this page: a small caption inside the card. */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: t.spacing.sm, paddingTop: t.spacing.xs, paddingBottom: t.spacing.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: t.spacing.sm, paddingTop: t.spacing.xs, paddingBottom: t.spacing.sm }}>
           {listening ? <SymbolView name="waveform" size={11} tintColor={t.c.accent} /> : null}
           <Text variant="caption" color="textSecondary" header style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
             {listening ? "Listening now" : fresh ? "Start reading" : "Continue where you left off"}
@@ -337,11 +332,11 @@ function ContinueCard({ dark, lastPage, started, onContinue, onOpenPage }: { dar
               {listening ? `Ayah ${ayah}, ${r.reciter.name}` : fresh ? "The Opening, Page 1" : `Ayah ${ayah}, Page ${page}`}
             </Text>
           </View>
-          <Text style={{ fontFamily: QURAN_FONT, fontSize: 22, lineHeight: 40, color: t.c.text }}>{surah.arabicName}</Text>
+          <Text style={{ ...arabicStyle('name'), color: t.c.text }}>{surah.arabicName}</Text>
         </View>
         <View style={{ flexDirection: "row", gap: t.spacing.sm }}>
           <PressableScale haptic="light" onPress={open} accessibilityRole="button" accessibilityLabel={listening ? "Back to the recitation" : fresh ? "Start reading" : "Continue"} style={{ flex: 1 }}>
-            <View style={{ height: 44, borderRadius: 22, backgroundColor: t.c.accent, alignItems: "center", justifyContent: "center" }}>
+            <View style={{ height: 44, borderRadius: radius.pill, backgroundColor: t.c.accent, alignItems: "center", justifyContent: "center" }}>
               <Text variant="body" style={{ color: t.c.onAccent, fontWeight: "600" }}>
                 {listening ? "Back to the recitation" : fresh ? "Start reading" : "Continue"}
               </Text>
@@ -349,7 +344,7 @@ function ContinueCard({ dark, lastPage, started, onContinue, onOpenPage }: { dar
           </PressableScale>
           {listening ? (
             <PressableScale haptic="light" onPress={r.togglePlay} accessibilityRole="button" accessibilityLabel="Pause">
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.c.surface2, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ width: 44, height: 44, borderRadius: radius.pill, backgroundColor: t.c.surface2, alignItems: "center", justifyContent: "center" }}>
                 <SymbolView name="pause.fill" size={17} tintColor={t.c.text} style={{ width: 22, height: 22 }} />
               </View>
             </PressableScale>

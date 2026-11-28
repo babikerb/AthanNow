@@ -7,6 +7,7 @@ import { Bookmark, BOOKMARK_COLOR_NAMES, BOOKMARK_COLORS, BookmarkColor, bookmar
 import { Palette } from '../theme/colors';
 import { juzForPage } from '../utils/mushaf';
 import { Sheet } from './Sheet';
+import { space } from '../theme/theme';
 
 interface BookmarkSheetProps {
   visible: boolean;
@@ -76,15 +77,15 @@ export function BookmarkSheet({ visible, onClose, bookmarks, onSelect, onRemove,
 }
 
 const styles = StyleSheet.create({
-  empty: { paddingTop: 64, paddingHorizontal: 32, gap: 8 },
+  empty: { paddingTop: space.giant, paddingHorizontal: space.xxxl, gap: space.sm },
   emptyTitle: { ...textStyle('headline'), textAlign: 'center' },
   emptyText: { ...textStyle('subhead'), textAlign: 'center' },
-  list: { paddingBottom: 32 },
-  sectionHeader: { ...textStyle('footnote'), paddingHorizontal: 20, paddingTop: 24, paddingBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, minHeight: 56, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  list: { paddingBottom: space.xxxl },
+  sectionHeader: { ...textStyle('footnote'), paddingHorizontal: space.xl, paddingTop: space.xxl, paddingBottom: space.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.xl, minHeight: 56, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth },
   glyph: { width: 20, height: 20 },
   rowText: { flex: 1 },
   title: { ...textStyle('bodyEmph') },
-  sub: { ...textStyle('footnote'), marginTop: 2 },
+  sub: { ...textStyle('footnote'), marginTop: space.xxs },
   remove: { ...textStyle('subhead') },
 });

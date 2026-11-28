@@ -16,6 +16,7 @@ import { PLAYBACK_RATES, useRecitation, useRecitationProgress, useRecitationWord
 import { NativeMenu } from '../NativeMenu';
 import { Scrubber } from '../recitation/Scrubber';
 import { TapTarget } from '../recitation/TapTarget';
+import { radius, space } from '../../theme/theme';
 
 /** The reciters as a native picker, the chosen one ticked. */
 function ReciterItems() {
@@ -61,7 +62,7 @@ export function PagePlayer({ onPlayPage, onBackToRecitation }: { onPlayPage: () 
   return (
     <View
       style={{
-        borderRadius: 28,
+        borderRadius: radius.feature,
         borderCurve: 'continuous',
         backgroundColor: t.c.surface1,
         borderWidth: 1,
@@ -78,7 +79,7 @@ export function PagePlayer({ onPlayPage, onBackToRecitation }: { onPlayPage: () 
         </View>
         <NativeMenu height={48} colorScheme={t.scheme} items={<ReciterItems />}>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`Reciter, ${r.reciter.name}`} accessibilityHint="Choose another reciter">
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
               <Text variant="headline" numberOfLines={1} maxFontSizeMultiplier={1.3} style={{ flexShrink: 1 }}>
                 {r.reciter.name}
               </Text>
@@ -143,7 +144,7 @@ export function PagePlayer({ onPlayPage, onBackToRecitation }: { onPlayPage: () 
       {/* Away from the page being recited: a way back, quietly. */}
       {onBackToRecitation ? (
         <PressableScale haptic="select" onPress={onBackToRecitation} accessibilityRole="button" accessibilityHint="Turns to the page being recited" hitSlop={{ top: 8, bottom: 8 }}>
-          <Text variant="footnote" style={{ textAlign: 'center', color: t.c.accentText, fontWeight: '600', paddingVertical: 4 }}>
+          <Text variant="footnote" style={{ textAlign: 'center', color: t.c.accentText, fontWeight: '600', paddingVertical: space.xs }}>
             Back to the recitation
           </Text>
         </PressableScale>

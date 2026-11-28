@@ -31,6 +31,7 @@ import { ATHAN_VOICES, AthanVoice, athanVoice } from '../config/athanVoices';
 import { playAthanPreview, stopAthanPreview } from '../utils/athanPreview';
 import { downloadAllPages, isOfflineDownloaded } from '../utils/mushafCache';
 import { classifyPermission, type PermissionUIState } from '../utils/permissionState';
+import { space, radius } from '../theme/theme';
 
 const PRIVACY_URL = 'https://athannow.bbabiker.com/privacy';
 
@@ -438,12 +439,12 @@ function PickerSheet<T extends string | number>({
 /** A small picture of the app in a palette: its background, a card, lines of text and the accent. */
 function MiniScreen({ palette }: { palette: { bg: string; text: string; textSecondary: string; surface1: string; accent: string } }) {
   return (
-    <View style={{ flex: 1, backgroundColor: palette.bg, padding: 8, gap: 6 }}>
-      <View style={{ height: 6, width: '55%', borderRadius: 3, backgroundColor: palette.text }} />
-      <View style={{ flex: 1, borderRadius: 8, backgroundColor: palette.surface1, padding: 6, gap: 5 }}>
-        <View style={{ height: 4, width: '80%', borderRadius: 2, backgroundColor: palette.textSecondary }} />
-        <View style={{ height: 4, width: '60%', borderRadius: 2, backgroundColor: palette.textSecondary }} />
-        <View style={{ marginTop: 'auto', height: 10, width: '45%', borderRadius: 5, backgroundColor: palette.accent }} />
+    <View style={{ flex: 1, backgroundColor: palette.bg, padding: space.sm, gap: space.sm }}>
+      <View style={{ height: 6, width: '55%', borderRadius: radius.xs, backgroundColor: palette.text }} />
+      <View style={{ flex: 1, borderRadius: radius.sm, backgroundColor: palette.surface1, padding: space.sm, gap: space.xs }}>
+        <View style={{ height: 4, width: '80%', borderRadius: radius.xs, backgroundColor: palette.textSecondary }} />
+        <View style={{ height: 4, width: '60%', borderRadius: radius.xs, backgroundColor: palette.textSecondary }} />
+        <View style={{ marginTop: 'auto', height: 10, width: '45%', borderRadius: radius.xs, backgroundColor: palette.accent }} />
       </View>
     </View>
   );
@@ -468,7 +469,7 @@ function AppearanceSheet({ visible, onClose, value, onChange }: { visible: boole
               style={{ flex: 1 }}
             >
               <View style={{ gap: dt.spacing.sm, alignItems: 'center' }}>
-                <View style={{ width: '100%', aspectRatio: 0.62, borderRadius: 16, borderCurve: 'continuous', overflow: 'hidden', borderWidth: 2, borderColor: chosen ? dt.c.accent : dt.c.hairline, flexDirection: 'row' }}>
+                <View style={{ width: '100%', aspectRatio: 0.62, borderRadius: radius.lg, borderCurve: 'continuous', overflow: 'hidden', borderWidth: 2, borderColor: chosen ? dt.c.accent : dt.c.hairline, flexDirection: 'row' }}>
                   {o.value === 'dark' ? null : <MiniScreen palette={colorTokens.light} />}
                   {o.value === 'light' ? null : <MiniScreen palette={colorTokens.dark} />}
                 </View>
@@ -605,6 +606,6 @@ function AthanSoundSheet({ visible, onClose }: { visible: boolean; onClose: () =
 }
 
 const styles = StyleSheet.create({
-  soundRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 16, paddingVertical: 8 },
-  voiceMeta: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  soundRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 52, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  voiceMeta: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm },
 });

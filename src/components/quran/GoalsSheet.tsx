@@ -12,6 +12,7 @@ import type { QuranProgress } from '../../quran/useQuranProgress';
 import { NativeMenu } from '../NativeMenu';
 import { GoalEditor } from './GoalEditor';
 import { GoalRings, ringColors } from './GoalRings';
+import { space, radius } from '../../theme/theme';
 
 function GoalRow({ status, color, onOpen, onRemove, last }: { status: GoalStatus; color?: string; onOpen: () => void; onRemove: () => void; last: boolean }) {
   const t = useTheme();
@@ -29,7 +30,7 @@ function GoalRow({ status, color, onOpen, onRemove, last }: { status: GoalStatus
           {status.done ? (
             <SymbolView name="checkmark.circle.fill" size={24} tintColor={color ?? t.c.text} style={{ width: 26, height: 26 }} />
           ) : (
-            <View style={{ width: 22, height: 22, margin: 2, borderRadius: 11, borderWidth: 2, borderColor: color ?? t.c.glyphQuiet }} />
+            <View style={{ width: 22, height: 22, margin: space.xxs, borderRadius: radius.pill, borderWidth: 2, borderColor: color ?? t.c.glyphQuiet }} />
           )}
           <View style={{ flex: 1 }}>
             <Text variant="body" numberOfLines={1} style={{ fontWeight: '600' }}>

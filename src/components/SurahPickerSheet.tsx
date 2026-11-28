@@ -10,12 +10,12 @@ import { SegmentedControl } from '../design/SegmentedControl';
 import { Text } from '../design/Text';
 import { useTheme } from '../design/theme';
 import type { Palette } from '../theme/colors';
-import { HAFS_FONT } from 'quran-reader';
 import { bookmarkColor, type Bookmark } from '../hooks/useBookmarks';
 import { firstAyahOnPage } from '../quran/pageLayout';
 import { JUZ_START } from '../utils/mushaf';
 import { searchAyat, searchMeaning, type AyahHit } from '../utils/quran';
 import { Sheet, SheetSearchField } from './Sheet';
+import { arabicStyle, space } from '../theme/theme';
 
 interface SurahPickerSheetProps {
   /** The contents (surahs, juz, bookmarks), or search across everything. */
@@ -215,7 +215,7 @@ export const SurahPickerSheet = React.memo(function SurahPickerSheet({ mode, vis
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <RNText style={{ fontFamily: HAFS_FONT, fontSize: 21, lineHeight: 30, color: t.c.text }}>{s.arabicName}</RNText>
+            <RNText style={{ ...arabicStyle('name'), color: t.c.text }}>{s.arabicName}</RNText>
             <Text variant="caption" color="textSecondary" style={{ fontVariant: ['tabular-nums'] }}>
               Page {pageForSurah(s.id)}
             </Text>
@@ -288,8 +288,8 @@ export const SurahPickerSheet = React.memo(function SurahPickerSheet({ mode, vis
     const h = item.hit;
     return (
       <PressableScale scaleTo={0.99} onPress={() => close(() => onSelectVerse?.(h.key))} accessibilityRole="button" accessibilityLabel={`${h.surahName} ${h.key}${h.translation ? `, ${h.translation}` : ''}`}>
-        <View style={{ marginHorizontal: t.spacing.lg, marginBottom: t.spacing.sm, padding: t.spacing.md, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: t.c.surface1, gap: 4 }}>
-          <RNText numberOfLines={2} style={{ fontFamily: HAFS_FONT, fontSize: 20, lineHeight: 36, color: t.c.text, textAlign: 'right', writingDirection: 'rtl' }}>
+        <View style={{ marginHorizontal: t.spacing.lg, marginBottom: t.spacing.sm, padding: t.spacing.md, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: t.c.surface1, gap: space.xs }}>
+          <RNText numberOfLines={2} style={{ ...arabicStyle('small'), color: t.c.text, textAlign: 'right', writingDirection: 'rtl' }}>
             {h.text}
           </RNText>
           {h.translation ? (

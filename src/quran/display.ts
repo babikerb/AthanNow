@@ -3,6 +3,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ReaderView } from 'quran-reader';
 import { useCallback, useEffect, useState } from 'react';
+import { palette } from '../theme/theme';
 
 const KEY = 'athannow.quran.display.v1';
 
@@ -29,12 +30,7 @@ export interface PagePalette {
 }
 
 /** Each page colour with text and accents chosen to read well on it. */
-export const PAGE_PALETTES: Record<Exclude<PageColour, 'system'>, PagePalette> = {
-  white: { bg: '#FFFFFF', text: '#1B1C20', accent: '#1F3A5F', recited: '#2F6286', dark: false },
-  cream: { bg: '#F4EDDC', text: '#2B251C', accent: '#8A6420', recited: '#3B6584', dark: false },
-  charcoal: { bg: '#121316', text: '#F3EEE2', accent: '#E2B456', recited: '#7FA7C7', dark: true },
-  midnight: { bg: '#000000', text: '#ECE6D8', accent: '#E2B456', recited: '#86AECD', dark: true },
-};
+export const PAGE_PALETTES: Record<Exclude<PageColour, 'system'>, PagePalette> = palette.page;
 
 const DEFAULTS: DisplaySettings = { view: 'mushaf', textScale: 1.6, translit: false, keepAwake: true, pageColor: 'system' };
 

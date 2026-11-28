@@ -17,6 +17,7 @@ import { LocationSheet } from './LocationSheet';
 import SkyScene, { ScenePeriod } from './SkyScene';
 import { SCENES, SKY_TONES } from './sky/palettes';
 import { HILLS_UNITS } from './sky/SkyIllustration';
+import { palette, radius, space } from '../theme/theme';
 
 // The sky moves through the day as you go: dawn, midday, dusk. That is the progress indicator.
 const STEP_SKY: ScenePeriod[] = ['fajr', 'dhuhr', 'maghrib'];
@@ -104,7 +105,7 @@ export function Onboarding() {
   const contentBottom = height - footerH - hillsH + 12;
   const zoneH = Math.min(160, Math.max(48, contentBottom - topBar - CONTENT_H * fs));
   const zone = { top: topBar, bottom: topBar + zoneH };
-  const cardBg = darkTone ? 'rgba(255,255,255,0.42)' : 'rgba(14,11,22,0.36)';
+  const cardBg = darkTone ? palette.sky.cardOnDark : palette.sky.cardOnLight;
 
   // ---- Step content ----
   const located = hasRestored && status === 'ready' && (location.isManual || permission === 'granted');
@@ -213,7 +214,7 @@ export function Onboarding() {
         ) : (
           <View style={styles.back} />
         )}
-        <Text variant="footnote" maxFontSizeMultiplier={MAX_SCALE} style={{ color: tone.secondary, marginRight: 8 }}>
+        <Text variant="footnote" maxFontSizeMultiplier={MAX_SCALE} style={{ color: tone.secondary, marginRight: space.sm }}>
           {step + 1} of 3
         </Text>
       </View>
@@ -254,8 +255,8 @@ const styles = StyleSheet.create({
   topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   content: { position: 'absolute', left: 0, right: 0, overflow: 'hidden' },
-  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', gap: 8 },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', gap: space.sm },
   secondary: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderCurve: 'continuous', padding: 16 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, borderCurve: 'continuous', padding: space.lg },
   cardText: { flex: 1 },
 });

@@ -1,10 +1,11 @@
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { palette } from '../../theme/theme';
 
 /** Ring colours, outermost first: gold, then dusk blue, then quieter steps. */
 export function ringColors(dark: boolean): string[] {
-  return dark ? ['#E2B456', '#7FA7C7', '#C9965A', '#A7AEBA'] : ['#8A6420', '#3B6584', '#A88A4E', '#7D8E9E'];
+  return [...(dark ? palette.rings.dark : palette.rings.light)];
 }
 
 /**
@@ -16,7 +17,7 @@ export function GoalRings({ progress, size, dark, stroke }: { progress: number[]
   const rings = progress.slice(0, 4);
   const w = stroke ?? Math.max(8, size * 0.1);
   const gap = w * 0.35;
-  const track = dark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(29, 27, 38, 0.07)';
+  const track = dark ? palette.rings.trackDark : palette.rings.trackLight;
   return (
     <View style={{ width: size, height: size }} accessible accessibilityRole="progressbar" accessibilityLabel={`${rings.filter((p) => p >= 1).length} of ${rings.length} goals done today`}>
       <Svg width={size} height={size}>

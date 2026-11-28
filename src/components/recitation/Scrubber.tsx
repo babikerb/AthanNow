@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { PanResponder, View } from 'react-native';
 
 import { useTheme } from '../../design/theme';
+import { radius } from '../../theme/theme';
 
 const clamp = (v: number) => Math.min(1, Math.max(0, v));
 
@@ -46,7 +47,7 @@ export function Scrubber({ progress, onSeek }: { progress: number; onSeek: (frac
       style={{ height: 28, justifyContent: 'center' }}
       {...pan.panHandlers}
     >
-      <View style={{ height: 4, borderRadius: 2, backgroundColor: t.c.surface3, overflow: 'hidden' }}>
+      <View style={{ height: 4, borderRadius: radius.xs, backgroundColor: t.c.surface3, overflow: 'hidden' }}>
         <View style={{ width: `${shown * 100}%`, height: '100%', backgroundColor: t.c.accent }} />
       </View>
       <View

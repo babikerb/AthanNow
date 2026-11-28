@@ -2,7 +2,7 @@ import { BottomSheet, Button as MenuButton, Group, Host, RNHostView, Section as 
 import { presentationBackground, presentationBackgroundInteraction, presentationDetents, presentationDragIndicator } from '@expo/ui/swift-ui/modifiers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SymbolView } from 'expo-symbols';
-import { ayahText, HAFS_FONT } from 'quran-reader';
+import { ayahText } from 'quran-reader';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, Share, Text as RNText, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,9 +12,9 @@ import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { ayahAfter, ayahBefore, commentaryText, DEFAULT_MEANING_SOURCE, loadMeaning, MEANING_SOURCES, type AyahRef, type Meaning } from '../../quran/meaning';
-import { QURAN_FONT } from '../../recitation/format';
 import { NativeMenu } from '../NativeMenu';
 import { SheetHeader, SheetIconButton, SheetTitle } from '../Sheet';
+import { arabicStyle, radius, space } from '../../theme/theme';
 
 const SOURCE_KEY = 'athannow.meaning.source.v1';
 
@@ -186,7 +186,7 @@ function SheetBody({
           >
             <View style={{ flex: 1, justifyContent: 'center' }} accessibilityLabel={`Commentary, ${sourceName}`} accessibilityHint="Choose another commentary">
               <SheetTitle>Meaning</SheetTitle>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
                 <Text variant="footnote" color="textSecondary" numberOfLines={1}>
                   {sourceName}
                 </Text>
@@ -220,7 +220,7 @@ function SheetBody({
                 backgroundColor: isHeld ? t.c.accentSoft : t.c.surface1,
               }}
             >
-              <RNText style={{ fontFamily: HAFS_FONT, fontSize: 26, lineHeight: 50, color: t.c.text, textAlign: 'right', writingDirection: 'rtl' }}>{arabic}</RNText>
+              <RNText style={{ ...arabicStyle('ayahLarge'), color: t.c.text, textAlign: 'right', writingDirection: 'rtl' }}>{arabic}</RNText>
               <Text variant="subhead" style={{ marginTop: t.spacing.xs }}>
                 <Text variant="subhead" color="textSecondary" style={{ fontWeight: '600' }}>
                   {a.ayah}.{' '}
@@ -239,7 +239,7 @@ function SheetBody({
                 The commentary couldn’t load. Check your connection.
               </Text>
               <PressableScale haptic="select" onPress={onRetry} accessibilityRole="button" accessibilityLabel="Try again">
-                <View style={{ height: 40, paddingHorizontal: t.spacing.lg, borderRadius: 20, borderWidth: 1, borderColor: t.c.hairline, justifyContent: 'center' }}>
+                <View style={{ height: 40, paddingHorizontal: t.spacing.lg, borderRadius: radius.card, borderWidth: 1, borderColor: t.c.hairline, justifyContent: 'center' }}>
                   <Text variant="subhead" style={{ fontWeight: '600' }}>
                     Try again
                   </Text>
@@ -260,7 +260,7 @@ function SheetBody({
               >
                 {b.runs.map((r, j) =>
                   r.arabic ? (
-                    <RNText key={j} style={{ fontFamily: QURAN_FONT, fontSize: 21, color: t.c.text }}>
+                    <RNText key={j} style={{ fontFamily: arabicStyle().fontFamily, fontSize: arabicStyle('name').fontSize, color: t.c.text }}>
                       {r.text}
                     </RNText>
                   ) : (
@@ -290,7 +290,7 @@ function NavButton({ label, icon, trailing, disabled, onPress }: { label: string
   const color = disabled ? t.c.glyphQuiet : t.c.text;
   return (
     <PressableScale haptic="select" onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={`${label} passage`} style={{ flex: 1 }}>
-      <View style={{ height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: trailing ? 'flex-end' : 'flex-start', gap: 6 }}>
+      <View style={{ height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: trailing ? 'flex-end' : 'flex-start', gap: space.sm }}>
         {!trailing ? <SymbolView name={icon} size={13} tintColor={color} /> : null}
         <Text variant="subhead" style={{ fontWeight: '600', color }}>
           {label}

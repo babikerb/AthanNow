@@ -1,16 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
+import { palette } from '../theme/theme';
 
 const STORAGE_KEY = 'athannow.bookmarks.v1';
 
 /** Bookmark colours, tuned to read as ribbon ink on the paper palette. */
-export const BOOKMARK_COLORS = {
-  red: '#B4533F',
-  amber: '#C08A2E',
-  green: '#4F8562',
-  blue: '#3E6B98',
-  violet: '#7458A0',
-} as const;
+export const BOOKMARK_COLORS = palette.bookmark;
 export type BookmarkColor = keyof typeof BOOKMARK_COLORS;
 export const BOOKMARK_COLOR_NAMES: Record<BookmarkColor, string> = {
   red: 'Red',

@@ -19,6 +19,7 @@ import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { setImmersive } from '../navigation/immersive';
 import { readingPalette } from '../theme/colors';
 import { fetchMushafPage, juzForPage, pageForVerse } from '../utils/mushaf';
+import { space, radius } from '../theme/theme';
 
 const LAST_PAGE_KEY = 'athannow.quran.lastpage.v1';
 const LAST_COLOR_KEY = 'athannow.quran.lastcolor.v1';
@@ -297,12 +298,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 20,
+    gap: space.md,
+    paddingHorizontal: space.xl,
   },
   headSurah: { ...textStyle('footnote'), flexShrink: 1 },
   headJuz: { ...textStyle('footnote') },
-  foot: { position: 'absolute', left: 0, right: 0, zIndex: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8 },
+  foot: { position: 'absolute', left: 0, right: 0, zIndex: 10, flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.sm },
   footSide: { flex: 1, flexDirection: 'row' },
   footRight: { justifyContent: 'flex-end' },
   footButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
@@ -315,12 +316,12 @@ const styles = StyleSheet.create({
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    marginHorizontal: 12,
+    gap: space.lg,
+    paddingHorizontal: space.xl,
+    borderRadius: radius.lg,
+    marginHorizontal: space.md,
   },
-  swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: 'transparent' },
+  swatch: { width: 28, height: 28, borderRadius: radius.pill, borderWidth: 2, borderColor: 'transparent' },
   trayRemove: { marginLeft: 'auto' },
   trayLabel: { ...textStyle('subhead') },
 });

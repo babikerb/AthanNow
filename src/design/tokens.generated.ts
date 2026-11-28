@@ -128,8 +128,8 @@ export const colorTokens = {
   }
 } as const;
 
-export const spacingTokens = {"xs":4,"sm":8,"md":12,"lg":16,"xl":20,"xxl":24,"xxxl":32} as const;
-export const radiiTokens = {"control":12,"card":20,"feature":24,"sheet":32,"pill":999} as const;
+export const spacingTokens = {"xxs":2,"xs":4,"sm":8,"md":12,"lg":16,"xl":20,"xxl":24,"xxxl":32,"huge":48,"giant":64} as const;
+export const radiiTokens = {"xs":4,"sm":8,"control":12,"lg":16,"card":20,"feature":24,"sheet":32,"pill":999} as const;
 export const typeTokens = {
   "families": {
     "display": "Fraunces-SemiBold",
@@ -220,6 +220,30 @@ export const typeTokens = {
       "weight": "600",
       "tracking": -2
     }
+  },
+  "arabic": {
+    "$comment": "Arabic is always set in the mushaf's KFGQPC Hafs (registered by the Quran reader). Sizes with the line height its marks need.",
+    "family": "KFGQPCHAFSUthmanicScript-Regula",
+    "caption": {
+      "size": 16,
+      "line": 26
+    },
+    "small": {
+      "size": 20,
+      "line": 36
+    },
+    "name": {
+      "size": 22,
+      "line": 40
+    },
+    "ayah": {
+      "size": 24,
+      "line": 46
+    },
+    "ayahLarge": {
+      "size": 26,
+      "line": 50
+    }
   }
 } as const;
 export const motionTokens = {
@@ -245,6 +269,73 @@ export const motionTokens = {
   "press": {
     "control": 0.97,
     "row": 0.985
+  }
+} as const;
+/** Fixed colours outside the light/dark theme: bookmarks, goal rings, Quran page colours, reader chrome. */
+export const paletteTokens = {
+  "$comment": "Fixed colours that are not part of the light/dark theme: bookmark colours, goal rings, the Quran page colours, and the reader's chrome and bands.",
+  "bookmark": {
+    "red": "#B4533F",
+    "amber": "#C08A2E",
+    "green": "#4F8562",
+    "blue": "#3E6B98",
+    "violet": "#7458A0"
+  },
+  "rings": {
+    "dark": [
+      "#E2B456",
+      "#7FA7C7",
+      "#C9965A",
+      "#A7AEBA"
+    ],
+    "light": [
+      "#8A6420",
+      "#3B6584",
+      "#A88A4E",
+      "#7D8E9E"
+    ],
+    "trackDark": "#FFFFFF14",
+    "trackLight": "#2B251C12"
+  },
+  "page": {
+    "white": {
+      "bg": "#FFFFFF",
+      "text": "#1B1C20",
+      "accent": "#1F3A5F",
+      "recited": "#2F6286",
+      "dark": false
+    },
+    "cream": {
+      "bg": "#F4EDDC",
+      "text": "#2B251C",
+      "accent": "#8A6420",
+      "recited": "#3B6584",
+      "dark": false
+    },
+    "charcoal": {
+      "bg": "#121316",
+      "text": "#F3EEE2",
+      "accent": "#E2B456",
+      "recited": "#7FA7C7",
+      "dark": true
+    },
+    "midnight": {
+      "bg": "#000000",
+      "text": "#ECE6D8",
+      "accent": "#E2B456",
+      "recited": "#86AECD",
+      "dark": true
+    }
+  },
+  "reader": {
+    "chromeDark": "#1A1B1FF0",
+    "chromeLight": "#FAF5E9F0",
+    "focusBand": "#9473DB",
+    "pressBand": "#8E8E93"
+  },
+  "sky": {
+    "cardOnDark": "#FFFFFF6B",
+    "cardOnLight": "#0E0B165C"
   }
 } as const;
 

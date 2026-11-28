@@ -7,6 +7,7 @@ import { Divider } from './Divider';
 import { PressableScale } from './PressableScale';
 import { Text } from './Text';
 import { useTheme } from './theme';
+import { space } from '../theme/theme';
 
 /** Section label above an inset-grouped list, with optional trailing action text. */
 export function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
@@ -82,7 +83,7 @@ export function ListRow({ title, subtitle, icon, value, accessory, onPress, dest
       style={{
         minHeight: 44,
         paddingHorizontal: t.spacing.lg,
-        paddingVertical: 11,
+        paddingVertical: space.md,
         flexDirection: 'row',
         alignItems: 'center',
         gap: t.spacing.md,

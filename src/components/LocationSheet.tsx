@@ -8,6 +8,7 @@ import { Text } from '../design/Text';
 import { useTheme } from '../design/theme';
 import { AppLocation, PlaceSuggestion, searchPlaces } from '../hooks/useLocation';
 import { Sheet, SheetSearchField } from './Sheet';
+import { space, radius } from '../theme/theme';
 
 type Search = { state: 'idle' } | { state: 'searching' } | { state: 'done'; places: PlaceSuggestion[] } | { state: 'offline' };
 
@@ -236,12 +237,12 @@ function Row({
 }
 
 const styles = StyleSheet.create({
-  body: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 32 },
-  group: { borderRadius: 20, overflow: 'hidden' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 16, paddingVertical: 8 },
+  body: { paddingHorizontal: space.lg, paddingTop: space.sm, paddingBottom: space.xxxl },
+  group: { borderRadius: radius.card, overflow: 'hidden' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, minHeight: 56, paddingHorizontal: space.lg, paddingVertical: space.sm },
   rowText: { flex: 1 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 24, paddingBottom: 8 },
-  state: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 24, gap: 8 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: space.lg, paddingTop: space.xxl, paddingBottom: space.sm },
+  state: { alignItems: 'center', paddingTop: space.huge, paddingHorizontal: space.xxl, gap: space.sm },
   center: { textAlign: 'center' },
   textButton: { minHeight: 44, justifyContent: 'center' },
 });

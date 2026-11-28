@@ -7,6 +7,7 @@ import { PressableScale } from '../../design/PressableScale';
 import { Text } from '../../design/Text';
 import { useTheme } from '../../design/theme';
 import { firstAyahOnPage } from '../../quran/pageLayout';
+import { space, radius } from '../../theme/theme';
 
 const TILE = 30;
 const STRIP = 34;
@@ -24,11 +25,11 @@ const Tile = memo(function Tile({ page, current, onPress }: { page: number; curr
           style={{
             width: 16,
             height: 22,
-            borderRadius: 4,
+            borderRadius: radius.xs,
             borderCurve: 'continuous',
             backgroundColor: current ? t.c.accent : t.c.surface2,
-            paddingHorizontal: 4,
-            paddingVertical: 4,
+            paddingHorizontal: space.xs,
+            paddingVertical: space.xs,
             justifyContent: 'space-between',
           }}
         >
@@ -36,7 +37,7 @@ const Tile = memo(function Tile({ page, current, onPress }: { page: number; curr
             <View key={i} style={{ height: 1.5, borderRadius: 1, backgroundColor: current ? t.c.onAccent : t.c.glyphQuiet, opacity: current ? 0.7 : 0.6 }} />
           ))}
         </View>
-        {OPENS_SURAH.has(page) ? <View style={{ position: 'absolute', top: 1, width: 4, height: 4, borderRadius: 2, backgroundColor: t.c.info }} /> : null}
+        {OPENS_SURAH.has(page) ? <View style={{ position: 'absolute', top: 1, width: 4, height: 4, borderRadius: radius.pill, backgroundColor: t.c.info }} /> : null}
       </View>
     </PressableScale>
   );
@@ -83,7 +84,7 @@ export function PageScroller({ page, onPage }: { page: number; onPage: (page: nu
 
   const pad = Math.max(0, (width - TILE) / 2);
   return (
-    <View style={{ flex: 1, justifyContent: 'center', paddingTop: 3 }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+    <View style={{ flex: 1, justifyContent: 'center', paddingTop: space.xs }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       <View style={{ height: STRIP }}>
       {width > 0 ? (
         <FlatList

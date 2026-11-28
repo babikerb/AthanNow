@@ -80,6 +80,7 @@ import {
 } from "../recitation/RecitationProvider";
 import { darkPalette, lightPalette } from "../theme/colors";
 import { juzForPage } from "../utils/mushaf";
+import { palette, radius, space } from '../theme/theme';
 
 const LAST_PAGE_KEY = "athannow.quran.lastpage.v1";
 const LAST_COLOR_KEY = "athannow.quran.lastcolor.v1";
@@ -460,7 +461,7 @@ function Reader({ display }: { display: Display }) {
   const gutter = Math.max(t.spacing.md, sideInset);
   const bottomInset = Math.max(insets.bottom - 6, 6) + FOOT + PAGE_GAP;
   const capsule = {
-    backgroundColor: dark ? "rgba(26, 27, 31, 0.94)" : "rgba(255, 253, 248, 0.94)",
+    backgroundColor: dark ? palette.reader.chromeDark : palette.reader.chromeLight,
     borderWidth: 1,
     borderColor: t.c.hairline,
   };
@@ -675,7 +676,7 @@ function Reader({ display }: { display: Display }) {
                       accessibilityLabel="Quran home"
                       style={[
                         capsule,
-                        { width: 44, height: 44, borderRadius: 22 },
+                        { width: 44, height: 44, borderRadius: radius.pill },
                       ]}
                     >
                       <View
@@ -700,20 +701,20 @@ function Reader({ display }: { display: Display }) {
                     accessibilityRole="button"
                     accessibilityLabel={`${pageTitle}, Juz ${juz}, page ${page}`}
                     accessibilityHint="Opens the contents: surahs, juz and search"
-                    style={[capsule, { flex: 1, height: 44, borderRadius: 22 }]}
+                    style={[capsule, { flex: 1, height: 44, borderRadius: radius.pill }]}
                   >
                     <View
                       style={{
                         flex: 1,
                         flexDirection: "row",
                         alignItems: "center",
-                        paddingLeft: 7,
+                        paddingLeft: space.sm,
                         paddingRight: t.spacing.lg,
                         gap: t.spacing.sm,
                       }}
                     >
                       {/* The contents: a plain sign that this opens the surahs and search. */}
-                      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: t.c.accentSoft, alignItems: "center", justifyContent: "center" }}>
+                      <View style={{ width: 30, height: 30, borderRadius: radius.pill, backgroundColor: t.c.accentSoft, alignItems: "center", justifyContent: "center" }}>
                         <SymbolView name="list.bullet" size={13} weight="semibold" tintColor={t.c.accentText} style={{ width: 16, height: 16 }} />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -752,7 +753,7 @@ function Reader({ display }: { display: Display }) {
                           {
                             width: 44,
                             height: 44,
-                            borderRadius: 22,
+                            borderRadius: radius.pill,
                             alignItems: "center",
                             justifyContent: "center",
                           },
@@ -792,11 +793,11 @@ function Reader({ display }: { display: Display }) {
                     />
                     {/* Every page as a strip, and search. */}
                     <View style={{ flexDirection: "row", alignItems: "center", gap: t.spacing.sm }}>
-                      <View style={[capsule, { flex: 1, height: 56, borderRadius: 28, overflow: "hidden" }]}>
+                      <View style={[capsule, { flex: 1, height: 56, borderRadius: radius.pill, overflow: "hidden" }]}>
                         <PageScroller page={page} onPage={leapTo} />
                       </View>
                       <PressableScale haptic="select" onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search">
-                        <View style={[capsule, { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" }]}>
+                        <View style={[capsule, { width: 56, height: 56, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" }]}>
                           <SymbolView name="magnifyingglass" size={19} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
                         </View>
                       </PressableScale>
@@ -818,13 +819,13 @@ function Reader({ display }: { display: Display }) {
                     }}
                   >
                     {/* A small double frame, like the printed page's. */}
-                    <View style={{ padding: 2, borderRadius: 13, borderWidth: StyleSheet.hairlineWidth, borderColor: pagePalette.text + "66" }}>
+                    <View style={{ padding: space.xxs, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: pagePalette.text + "66" }}>
                       <View
                         style={{
                           minWidth: 46,
                           height: 20,
                           paddingHorizontal: t.spacing.sm,
-                          borderRadius: 10,
+                          borderRadius: radius.control,
                           borderWidth: 1,
                           borderColor: pagePalette.text + "66",
                           alignItems: "center",

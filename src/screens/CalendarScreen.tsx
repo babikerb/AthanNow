@@ -15,6 +15,7 @@ import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { importantDateFor } from '../utils/islamicDates';
 import { getPrayerTimes } from '../utils/prayerEngine';
 import { formatClock, formatClockShort, formatDayHeading, localDayAnchor, ordinal } from '../utils/time';
+import { radius, space, textStyle } from '../theme/theme';
 
 const COLUMNS: { id: string; label: string }[] = [
   { id: 'fajr', label: 'Fajr' },
@@ -272,17 +273,17 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flexShrink: { flexShrink: 1 },
-  titleBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 8 },
-  monthBar: { flexDirection: 'row', alignItems: 'center', paddingBottom: 8 },
+  titleBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: space.sm },
+  monthBar: { flexDirection: 'row', alignItems: 'center', paddingBottom: space.sm },
   chevron: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   monthTitle: { flex: 1, alignItems: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
-  headerRow: { paddingVertical: 8 },
+  headerRow: { paddingVertical: space.sm },
   dateCol: { width: DATE_COL },
-  dateLine: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
+  dateLine: { flexDirection: 'row', alignItems: 'baseline', gap: space.xs },
   timeCol: { flex: 1, textAlign: 'center' },
   tabular: { fontVariant: ['tabular-nums'] },
-  nextTime: { fontSize: 13 },
-  occasionDot: { width: 6, height: 6, borderRadius: 3, alignSelf: 'center' },
-  occasionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  nextTime: { fontSize: textStyle('footnote').fontSize },
+  occasionDot: { width: 6, height: 6, borderRadius: radius.pill, alignSelf: 'center' },
+  occasionRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
 });

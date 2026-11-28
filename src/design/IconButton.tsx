@@ -5,6 +5,7 @@ import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { PressableScale } from './PressableScale';
 import { useTheme } from './theme';
+import { radius } from '../theme/theme';
 
 /**
  * The round icon every small action uses (close, share, add), drawn without a press handler so it
@@ -14,7 +15,7 @@ export function RoundIcon({ name, label, disabled, tint }: { name: SFSymbol; lab
   const t = useTheme();
   const accent = tint === 'accent' && !disabled;
   return (
-    <View accessibilityLabel={label} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: accent ? t.c.accent : t.c.surface2, alignItems: 'center', justifyContent: 'center' }}>
+    <View accessibilityLabel={label} style={{ width: 36, height: 36, borderRadius: radius.pill, backgroundColor: accent ? t.c.accent : t.c.surface2, alignItems: 'center', justifyContent: 'center' }}>
       <SymbolView name={name} size={14} weight="semibold" tintColor={accent ? t.c.onAccent : disabled ? t.c.glyphQuiet : t.c.text} style={{ width: 18, height: 18 }} />
     </View>
   );

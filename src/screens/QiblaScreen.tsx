@@ -14,6 +14,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useQibla } from '../hooks/useQibla';
 import { useFocusedStatusBar } from '../hooks/useStatusBar';
 import { formatDistance } from '../utils/units';
+import { space } from '../theme/theme';
 
 // The Qibla instrument is always night, in either app appearance (BRAND.md), so it reads the dark tokens directly.
 const c = colorTokens.dark;
@@ -397,7 +398,7 @@ export default function QiblaScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: c.bg },
-  body: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: 32 },
+  body: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', gap: space.xxxl },
 
   dialWrap: { width: DIAL + 24, height: DIAL + 24, alignItems: 'center', justifyContent: 'center' },
   // Concentric with the dial border (the rose is a child of `dial`, so no offset).
@@ -438,9 +439,9 @@ const styles = StyleSheet.create({
   readoutDeg: { ...textStyle('hero'), color: c.skyText, width: 190, textAlign: 'center' },
   readoutCard: { ...textStyle('subhead'), color: c.textSecondary },
 
-  infoBlock: { alignItems: 'center', minHeight: 60, gap: 4, paddingHorizontal: 24 },
-  errorState: { alignItems: 'center', justifyContent: 'center', gap: 16 },
-  errorActions: { flexDirection: 'row', gap: 12 },
+  infoBlock: { alignItems: 'center', minHeight: 60, gap: space.xs, paddingHorizontal: space.xxl },
+  errorState: { alignItems: 'center', justifyContent: 'center', gap: space.lg },
+  errorActions: { flexDirection: 'row', gap: space.md },
   cityText: { ...textStyle('title3'), color: c.skyText },
   distanceText: { ...textStyle('footnote'), color: c.textSecondary },
   infoText: { ...textStyle('subhead'), color: c.textSecondary, textAlign: 'center' },

@@ -1,7 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Linking, PanResponder, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { QURAN_FONT } from '../theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LocationSheet } from '../components/LocationSheet';
@@ -22,6 +21,7 @@ import { useTabBarHeight } from '../hooks/useTabBarHeight';
 import { getCelestialConfig, getHijriDate, getPrayerTimes, prayerLabel } from '../utils/prayerEngine';
 import { formatClock, formatLongDate, localDayAnchor, msToMidnight } from '../utils/time';
 import { refreshWidgetData } from '../utils/widgetData';
+import { arabicStyle, colors, radius, space } from '../theme/theme';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const DEBUG_PERIODS: ScenePeriod[] = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha', 'night'];
@@ -289,7 +289,7 @@ export default function AthanScreen() {
             }
           : null;
   const notice: Notice | null = movedTo
-    ? { text: `Times are now for ${movedTo}.`, actions: [{ label: 'OK', onPress: () => setMovedTo(null) }] }
+    ? { text: `Times are now for ${movedTo}.`, actions: [{ label: 'Got it', onPress: () => setMovedTo(null) }] }
     : stateNotice;
 
   const ink = { color: tone.text };
@@ -352,7 +352,7 @@ export default function AthanScreen() {
               accessibilityLabel="Cycle sky scenes (development only)"
               style={[styles.debug, { right: gutter }]}
             >
-              <Text variant="caption" style={{ color: '#F2EDF6' }}>
+              <Text variant="caption" style={{ color: colors.dark.skyText }}>
                 {debugPeriod ? `Sky: ${debugPeriod}` : devShift ? `Clock ${formatClock(now, use24Hour, tz)}` : 'Sky: live'}
               </Text>
             </Pressable>
@@ -406,7 +406,7 @@ export default function AthanScreen() {
                     <Text maxFontSizeMultiplier={maxScale} variant={isNext ? 'bodyEmph' : 'body'} style={strength}>
                       {name}
                     </Text>
-                    <Text variant="footnote" maxFontSizeMultiplier={maxScale} numberOfLines={1} style={[ink3, { fontFamily: QURAN_FONT, fontSize: 16, lineHeight: 26 }]}>
+                    <Text variant="footnote" maxFontSizeMultiplier={maxScale} numberOfLines={1} style={[ink3, arabicStyle('caption')]}>
                       {getCelestialConfig(row.id).arabicName}
                     </Text>
                   </View>
@@ -474,7 +474,7 @@ function DevClock({ shift, onShift, gutter }: { shift: number; onShift: (minutes
         <View pointerEvents="none" style={[styles.devThumb, { left: `${(shift / (12 * 60) + 1) * 50}%` }]} />
       </View>
       <Pressable onPress={() => onShift(0)} hitSlop={8}>
-        <Text variant="caption" style={{ color: '#F2EDF6' }}>
+        <Text variant="caption" style={{ color: colors.dark.skyText }}>
           Now
         </Text>
       </Pressable>
@@ -485,20 +485,20 @@ function DevClock({ shift, onShift, gutter }: { shift: number; onShift: (minutes
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  chrome: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 32, flexShrink: 1 },
+  chrome: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: space.md },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 32, flexShrink: 1 },
   pillText: { flexShrink: 1 },
   dates: { alignItems: 'flex-end', flexShrink: 0, maxWidth: '50%' },
   quiet: { opacity: 0.72 },
-  listHead: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 12 },
-  devClock: { position: 'absolute', bottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 8, borderRadius: 8, backgroundColor: 'rgba(23,18,31,0.6)' },
+  listHead: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: space.md },
+  devClock: { position: 'absolute', bottom: 4, flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.sm, borderRadius: radius.sm, backgroundColor: colors.dark.scrim },
   devTrack: { width: 170, height: 28, justifyContent: 'center' },
-  devThumb: { position: 'absolute', width: 4, height: 18, marginLeft: -2, borderRadius: 2, backgroundColor: '#E2B456' },
+  devThumb: { position: 'absolute', width: 4, height: 18, marginLeft: -2, borderRadius: radius.pill, backgroundColor: colors.dark.accent },
   rule: { height: 2, borderRadius: 1, overflow: 'hidden' },
   ruleFill: { height: '100%' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  rowLabel: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexShrink: 1 },
-  noticeActions: { flexDirection: 'row', gap: 20, marginTop: 4 },
+  rowLabel: { flexDirection: 'row', alignItems: 'baseline', gap: space.sm, flexShrink: 1 },
+  noticeActions: { flexDirection: 'row', gap: space.xl, marginTop: space.xs },
   noticeAction: { minHeight: 44, justifyContent: 'center' },
-  debug: { position: 'absolute', bottom: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, backgroundColor: 'rgba(23,18,31,0.6)' },
+  debug: { position: 'absolute', bottom: 4, paddingHorizontal: space.sm, paddingVertical: space.xs, borderRadius: radius.sm, backgroundColor: colors.dark.scrim },
 });

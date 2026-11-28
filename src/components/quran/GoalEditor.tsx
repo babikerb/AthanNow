@@ -13,6 +13,7 @@ import { useTheme } from '../../design/theme';
 import { Sheet, SheetIconButton } from '../Sheet';
 import { dayKey, fromKey, GOAL_SUGGESTIONS, goalTitle, surahPages, type GoalSchedule, type GoalTarget, type NewGoal } from '../../quran/goals';
 import { TapTarget } from '../recitation/TapTarget';
+import { space, radius } from '../../theme/theme';
 
 type What = GoalTarget['kind'];
 type When = GoalSchedule['kind'];
@@ -117,7 +118,7 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
                 accessibilityLabel={s.label}
                 hitSlop={{ top: 4, bottom: 4 }}
               >
-                <View style={{ height: 36, paddingHorizontal: t.spacing.md, borderRadius: 18, borderWidth: 1, borderColor: t.c.hairline, justifyContent: 'center' }}>
+                <View style={{ height: 36, paddingHorizontal: t.spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: t.c.hairline, justifyContent: 'center' }}>
                   <Text variant="subhead">{s.label}</Text>
                 </View>
               </PressableScale>
@@ -143,7 +144,7 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
             />
             {what === 'pages' || what === 'juz' ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <TapTarget haptic="select" disabled={count <= 1} onPress={() => setCount((c) => Math.max(1, c - 1))} accessibilityRole="button" accessibilityLabel="Fewer" style={{ borderRadius: 22, backgroundColor: t.c.surface2 }}>
+                <TapTarget haptic="select" disabled={count <= 1} onPress={() => setCount((c) => Math.max(1, c - 1))} accessibilityRole="button" accessibilityLabel="Fewer" style={{ borderRadius: radius.pill, backgroundColor: t.c.surface2 }}>
                   <SymbolView name="minus" size={16} tintColor={count <= 1 ? t.c.glyphQuiet : t.c.text} />
                 </TapTarget>
                 <View accessible accessibilityRole="adjustable" accessibilityLabel={`${count} ${what === 'juz' ? 'juz' : count === 1 ? 'page' : 'pages'}`} style={{ alignItems: 'center' }}>
@@ -154,7 +155,7 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
                     {what === 'juz' ? 'juz' : count === 1 ? 'page' : 'pages'}
                   </Text>
                 </View>
-                <TapTarget haptic="select" disabled={count >= max} onPress={() => setCount((c) => Math.min(max, c + 1))} accessibilityRole="button" accessibilityLabel="More" style={{ borderRadius: 22, backgroundColor: t.c.surface2 }}>
+                <TapTarget haptic="select" disabled={count >= max} onPress={() => setCount((c) => Math.min(max, c + 1))} accessibilityRole="button" accessibilityLabel="More" style={{ borderRadius: radius.pill, backgroundColor: t.c.surface2 }}>
                   <SymbolView name="plus" size={16} tintColor={count >= max ? t.c.glyphQuiet : t.c.text} />
                 </TapTarget>
               </View>
@@ -209,7 +210,7 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
                       accessibilityRole="button"
                       accessibilityLabel={DAY_NAMES[d]}
                       accessibilityState={{ selected: on }}
-                      style={{ borderRadius: 20, backgroundColor: on ? t.c.accent : t.c.surface2 }}
+                      style={{ borderRadius: radius.card, backgroundColor: on ? t.c.accent : t.c.surface2 }}
                     >
                       <Text variant="subhead" style={{ fontWeight: '600', color: on ? t.c.onAccent : t.c.text }}>
                         {letter}
@@ -233,7 +234,7 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
             <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
               Your goal
             </Text>
-            <Text variant="title3" style={{ textAlign: 'center', marginTop: 2 }}>
+            <Text variant="title3" style={{ textAlign: 'center', marginTop: space.xxs }}>
               {goalTitle(goal)}
             </Text>
           </View>

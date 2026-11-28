@@ -7,6 +7,7 @@ import { Text } from '../design/Text';
 import { useTheme } from '../design/theme';
 import { textStyle } from '../design/tokens';
 import type { Palette } from '../theme/colors';
+import { radius } from '../theme/theme';
 
 /**
  * Every sheet in the app looks the same: a grabber, the title at the left (with an optional line
@@ -70,7 +71,7 @@ export function SheetGrabber() {
   const t = useTheme();
   return (
     <View style={{ alignItems: 'center', paddingTop: t.spacing.sm }}>
-      <View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: t.c.glyphQuiet, opacity: 0.5 }} />
+      <View style={{ width: 36, height: 5, borderRadius: radius.xs, backgroundColor: t.c.glyphQuiet, opacity: 0.5 }} />
     </View>
   );
 }

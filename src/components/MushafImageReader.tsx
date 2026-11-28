@@ -7,6 +7,7 @@ import { TOTAL_PAGES } from '../data/surahPages';
 import { textStyle } from '../design/tokens';
 import { Palette } from '../theme/colors';
 import { pageUrl, prefetchAround } from '../utils/mushafCache';
+import { space, radius } from '../theme/theme';
 
 interface MushafImageReaderProps {
   /** 1-based page to open on. */
@@ -127,8 +128,8 @@ export function MushafImageReader({ initialPage, topInset, bottomInset, colors, 
 }
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: space.md },
   msg: { ...textStyle('subhead') },
-  retry: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 8 },
+  retry: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.control, paddingHorizontal: space.lg, paddingVertical: space.sm },
   retryText: { ...textStyle('subhead') },
 });
