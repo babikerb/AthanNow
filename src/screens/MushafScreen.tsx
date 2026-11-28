@@ -135,6 +135,7 @@ function Reader({ display }: { display: Display }) {
   const [hasRead, setHasRead] = useState(false);
   const [lastColor, setLastColor] = useState<BookmarkColor>("red");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const progress = useQuranProgress();
@@ -508,23 +509,33 @@ function Reader({ display }: { display: Display }) {
       : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
   const pageTitle = runningHead;
 
+  // The contents (from the top) and search (from the foot): the same sheet, two ways in. Its
+  // callbacks stay the same between renders, so it doesn't redraw while a recitation plays.
+  const closeContents = useCallback(() => setPickerOpen(false), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  const onSelectSurah = useCallback((id: number) => leapTo(pageForSurah(id)), [leapTo]);
+  const onSelectVerse = useCallback(
+    (key: string) => {
+      const [s, a] = key.split(":").map(Number);
+      leapTo(pageForAyah(s, a));
+    },
+    [leapTo],
+  );
+  const onSelectBookmark = useCallback((b: Bookmark) => leapTo(b.page ?? pageForAyah(b.surahId, b.ayah)), [leapTo]);
+  const pickerProps = {
+    currentSurahId: surah.id,
+    onSelect: onSelectSurah,
+    onSelectVerse,
+    onSelectPage: leapTo,
+    currentPage: page,
+    bookmarks,
+    onSelectBookmark,
+  };
+
   const sheets = (
     <>
-      <SurahPickerSheet
-        visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        currentSurahId={surah.id}
-        onSelect={(id) => leapTo(pageForSurah(id))}
-        onSelectVerse={(key) => {
-          const [s, a] = key.split(":").map(Number);
-          leapTo(pageForAyah(s, a));
-        }}
-        onSelectPage={leapTo}
-        currentPage={page}
-        bookmarks={bookmarks}
-        onSelectBookmark={(b: Bookmark) => leapTo(b.page ?? pageForAyah(b.surahId, b.ayah))}
-        palette={dark ? darkPalette : lightPalette}
-      />
+      <SurahPickerSheet mode="contents" visible={pickerOpen} onClose={closeContents} {...pickerProps} />
+      <SurahPickerSheet mode="search" visible={searchOpen} onClose={closeSearch} {...pickerProps} />
       <BookmarkSheet
         visible={bookmarksOpen}
         onClose={() => setBookmarksOpen(false)}
@@ -787,7 +798,7 @@ function Reader({ display }: { display: Display }) {
                       <View style={[capsule, { flex: 1, height: 56, borderRadius: 28, overflow: "hidden" }]}>
                         <PageScroller page={page} onPage={leapTo} />
                       </View>
-                      <PressableScale haptic="select" onPress={() => setPickerOpen(true)} accessibilityRole="button" accessibilityLabel="Search">
+                      <PressableScale haptic="select" onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search">
                         <View style={[capsule, { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" }]}>
                           <SymbolView name="magnifyingglass" size={19} tintColor={t.c.text} style={{ width: 24, height: 24 }} />
                         </View>

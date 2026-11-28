@@ -12,7 +12,7 @@ export interface Reciter {
 
 export const RECITERS: Reciter[] = [
   { id: 'mishary', qdc: 7, name: 'Mishary Alafasy', arabic: 'مشاري العفاسي', origin: 'Kuwait', style: 'Murattal' },
-  { id: 'mahermuaiqly', qul: 159, name: 'Maher Al-Muaiqly', arabic: 'ماهر المعيقلي', origin: 'Saudi Arabia', style: 'Murattal' },
+  { id: 'mahermuaiqly', qul: 65, name: 'Maher Al-Muaiqly', arabic: 'ماهر المعيقلي', origin: 'Saudi Arabia', style: 'Murattal' },
   { id: 'sudais', qdc: 3, name: 'Abdur-Rahman As-Sudais', arabic: 'عبد الرحمن السديس', origin: 'Saudi Arabia', style: 'Murattal' },
   { id: 'saoodshuraym', qdc: 10, name: 'Saud Ash-Shuraim', arabic: 'سعود الشريم', origin: 'Saudi Arabia', style: 'Murattal' },
   { id: 'dossary', qdc: 97, name: 'Yasser Ad-Dossary', arabic: 'ياسر الدوسري', origin: 'Saudi Arabia', style: 'Murattal' },

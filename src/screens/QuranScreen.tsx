@@ -249,6 +249,7 @@ export default function QuranScreen() {
       )}
 
       <SurahPickerSheet
+        mode="contents"
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
         currentSurahId={surahId}

@@ -20,7 +20,7 @@ export interface SurahAudio {
   lastWordEnd?: number[];
 }
 
-const KEY = 'athannow.recitation.surah.v5.';
+const KEY = 'athannow.recitation.surah.v6.';
 const memory = new Map<string, SurahAudio>();
 // A recording whose ayah 1 starts this far in opens with its own Bismillah.
 const OWN_BISMILLAH_MS = 1500;
@@ -140,15 +140,16 @@ export function ayahIndexAt(audio: SurahAudio, ms: number): number {
   return lo;
 }
 
-/** The word (from 1) being recited at `ms` in ayah `index`, or 0 without word timing. Follows the
- *  reciter back to a word they repeat. */
+/** The word (from 1) being recited at `ms` in ayah `index`, or 0 without word timing. It never
+ *  steps back: where the reciter goes back to repeat words, it holds on the furthest word reached
+ *  until they pass it. */
 export function wordAt(audio: SurahAudio, index: number, ms: number): number {
   const seq = audio.seq?.[index];
   if (seq?.length) {
     let word = seq[0][0];
     for (const [w, start] of seq) {
-      if (start <= ms) word = w;
-      else break;
+      if (start > ms) break;
+      if (w > word) word = w;
     }
     return word;
   }

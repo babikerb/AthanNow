@@ -18,6 +18,8 @@ import { searchAyat, searchMeaning, type AyahHit } from '../utils/quran';
 import { Sheet, SheetSearchField } from './Sheet';
 
 interface SurahPickerSheetProps {
+  /** The contents (surahs, juz, bookmarks), or search across everything. */
+  mode: 'contents' | 'search';
   visible: boolean;
   onClose: () => void;
   currentSurahId: number;
@@ -94,7 +96,7 @@ function matchSurahs(query: string): Surah[] {
  * ("juz 30"), or words, in English ("mercy", "patience") or Arabic. Results come as quick jumps,
  * then surahs, then ayahs.
  */
-export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, onSelectVerse, onSelectPage, currentPage, bookmarks, onSelectBookmark }: SurahPickerSheetProps) {
+export const SurahPickerSheet = React.memo(function SurahPickerSheet({ mode, visible, onClose, currentSurahId, onSelect, onSelectVerse, onSelectPage, currentPage, bookmarks, onSelectBookmark }: SurahPickerSheetProps) {
   const t = useTheme();
   const [query, setQuery] = useState('');
   const q = query.trim();
@@ -109,9 +111,17 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
   }, [visible]);
   const currentJuz = currentPage ? JUZ.filter((j) => j.page <= currentPage).length : 0;
 
+  // The sheet closes first, then the reader goes there: whatever happens on the way, the sheet is
+  // never left open.
   const close = (then: () => void) => {
-    then();
     onClose();
+    setTimeout(() => {
+      try {
+        then();
+      } catch {
+        // stays where it was
+      }
+    }, 0);
   };
 
   // Quick jumps: a reference, a page, a juz.
@@ -296,9 +306,40 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Contents">
-      <SheetSearchField placeholder="Search surahs, ayahs, pages or words" value={query} onChangeText={setQuery} returnKeyType="search" accessibilityLabel="Search the Quran" />
-      {!q ? (
+    <Sheet visible={visible} onClose={onClose} title={mode === 'search' ? 'Search' : 'Contents'}>
+      {mode === 'search' ? (
+        <SheetSearchField
+          placeholder="Surahs, ayahs, pages, juz or words"
+          value={query}
+          onChangeText={setQuery}
+          returnKeyType="search"
+          autoFocus
+          accessibilityLabel="Search the Quran"
+        />
+      ) : null}
+      {mode === 'search' && !q ? (
+        // Search with nothing typed yet: what it can find.
+        <View style={{ paddingHorizontal: t.spacing.xl, paddingTop: t.spacing.lg, gap: t.spacing.md }}>
+          {[
+            ['text.book.closed', 'A surah', 'Al-Kahf, kahf, yasin, or its number'],
+            ['number', 'An ayah', '2:255, or baqarah 255'],
+            ['book.pages', 'A page or juz', 'page 50, juz 30'],
+            ['magnifyingglass', 'Words', 'mercy, patience, or Arabic'],
+          ].map(([icon, title, hint]) => (
+            <View key={title} style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
+              <SymbolView name={icon as SFSymbol} size={17} tintColor={t.c.textSecondary} style={{ width: 24, height: 24 }} />
+              <View style={{ flex: 1 }}>
+                <Text variant="body" style={{ fontWeight: '600' }}>
+                  {title}
+                </Text>
+                <Text variant="footnote" color="textSecondary">
+                  {hint}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : mode === 'contents' ? (
         // With nothing typed: the contents, by surah, by juz, or the bookmarks.
         <>
           <View style={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.sm }}>
@@ -357,7 +398,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
           )}
         </>
       ) : null}
-      {!q ? null : nothing ? (
+      {mode === 'contents' || !q ? null : nothing ? (
         <View style={{ alignItems: 'center', gap: t.spacing.sm, paddingTop: t.spacing.xxl, paddingHorizontal: t.spacing.xl }}>
           <SymbolView name={failed ? 'wifi.slash' : 'magnifyingglass'} size={26} tintColor={t.c.glyphQuiet} />
           <Text variant="headline" style={{ textAlign: 'center' }}>
@@ -395,4 +436,4 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
       )}
     </Sheet>
   );
-}
+});
