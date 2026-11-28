@@ -4,7 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { AirPlayButton } from 'quran-reader';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { getSurah } from '../../data/surahs';
 import { PressableScale } from '../../design/PressableScale';
@@ -65,7 +65,7 @@ export function PagePlayer({ onPlayPage, onBackToRecitation }: { onPlayPage: () 
         borderRadius: radius.feature,
         borderCurve: 'continuous',
         backgroundColor: t.c.surface1,
-        borderWidth: 1,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: t.c.hairline,
         paddingHorizontal: t.spacing.md,
         paddingTop: t.spacing.sm,

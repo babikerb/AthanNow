@@ -240,7 +240,7 @@ function SheetBody({
                 The commentary couldn’t load. Check your connection.
               </Text>
               <PressableScale haptic="select" onPress={onRetry} accessibilityRole="button" accessibilityLabel="Try again">
-                <View style={{ height: 40, paddingHorizontal: t.spacing.lg, borderRadius: radius.card, borderWidth: 1, borderColor: t.c.hairline, justifyContent: 'center' }}>
+                <View style={{ height: 44, paddingHorizontal: t.spacing.lg, borderRadius: radius.pill, backgroundColor: t.c.surface2, justifyContent: 'center' }}>
                   <Text variant="subhead" style={{ fontWeight: '600' }}>
                     Try again
                   </Text>

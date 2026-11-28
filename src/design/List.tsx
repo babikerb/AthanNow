@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { Divider } from './Divider';

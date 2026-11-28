@@ -462,7 +462,7 @@ function Reader({ display }: { display: Display }) {
   const bottomInset = Math.max(insets.bottom - 6, 6) + FOOT + PAGE_GAP;
   const capsule = {
     backgroundColor: dark ? palette.reader.chromeDark : palette.reader.chromeLight,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: t.c.hairline,
   };
 
