@@ -21,7 +21,7 @@ import uharfbuzz as hb
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RES = os.path.join(ROOT, 'modules', 'quran-reader', 'ios', 'QuranReaderResources')
 FONT = os.path.join(RES, 'UthmanicHafs.ttf')
-CACHE = os.path.join(os.environ.get('TEMP', '/tmp'), 'mushaf-pages-qdc-v2-en')
+CACHE = os.path.join(os.environ.get('TEMP', '/tmp'), 'mushaf-pages-qdc-m19-en')
 os.makedirs(CACHE, exist_ok=True)
 
 
@@ -31,10 +31,11 @@ def fetch_page(p):
         return json.load(open(path, encoding='utf-8'))
     verses, page = [], 1
     while True:
-        # quran.com's own endpoint, for the 1421 Madani edition (mushaf 1, QCF V2): its pages and
-        # line numbers. The public v4 endpoint groups pages and lines by the 1405 edition (v1),
-        # which breaks pages in other places.
-        url = f'https://api.qurancdn.com/api/qdc/verses/by_page/{p}?words=true&mushaf=1&word_fields=text_qpc_hafs,code_v2,v2_page,line_number&word_translation_language=en&per_page=all&page={page}'
+        # quran.com's own endpoint, for the 1441 Madani printing (mushaf 19): the same ayahs on each
+        # page as the 1421 edition (so its QCF V2 page fonts and glyphs serve), with the newer
+        # printing's line breaks (a surah never squeezed in at a page's foot, for one). The public v4
+        # endpoint groups pages and lines by the 1405 edition (v1), which breaks pages elsewhere.
+        url = f'https://api.qurancdn.com/api/qdc/verses/by_page/{p}?words=true&mushaf=19&word_fields=text_qpc_hafs,code_v2,v2_page,line_number&word_translation_language=en&per_page=all&page={page}'
         for attempt in range(5):
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'mushaf-builder'})
