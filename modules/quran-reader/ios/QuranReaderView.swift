@@ -433,14 +433,16 @@ struct PageView: View {
     case .header(let surah):
       SurahHeader(surah: surah, size: size, theme: ctx.theme, width: width, maxHeight: lineHeight)
     case .bismillah(let s):
-      BismillahLine(surah: s, size: size, ctx: ctx, width: width, maxHeight: lineHeight * 1.05)
+      BismillahLine(surah: s, size: size, ctx: ctx, width: width, maxHeight: lineHeight * 0.82)
     case .words(let words, let em):
       if let q = qcf, index >= 0, index < q.lines.count {
         // The printed page: each line's glyphs nearly fill it; the rest is shared between words.
-        // Short lines (the opening pages, a surah's last line) sit in the middle, as printed.
+        // Every line runs the full width, as printed, but on the two opening pages, whose short
+        // lines sit in the middle. (The 1441 printing's lines group the words differently from the
+        // 1421 edition the glyphs were cut for, so some fall short of the width and are spread.)
         let qs = qcfSize
         let natural = q.lines[index] * qs / 100
-        JustifiedLine(gap: qs * 0.06, justify: natural > width * 0.8) {
+        JustifiedLine(gap: qs * 0.06, justify: page.number > 2) {
           ForEach(words, id: \.order) { word in
             WordView(word: word, page: page.number, size: qs, ctx: ctx, font: q.name, useGlyph: true)
           }
