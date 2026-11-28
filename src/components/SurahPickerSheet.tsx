@@ -1,15 +1,19 @@
 import { SymbolView } from 'expo-symbols';
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, SectionList, Text as RNText, View } from 'react-native';
+import { ActivityIndicator, FlatList, SectionList, Text as RNText, View } from 'react-native';
+import Svg, { Polygon } from 'react-native-svg';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { getSurah, SURAHS, type Surah } from '../data/surahs';
 import { pageForSurah, TOTAL_PAGES } from '../data/surahPages';
 import { PressableScale } from '../design/PressableScale';
+import { SegmentedControl } from '../design/SegmentedControl';
 import { Text } from '../design/Text';
 import { useTheme } from '../design/theme';
 import type { Palette } from '../theme/colors';
 import { QURAN_FONT } from '../theme/colors';
+import { bookmarkColor, type Bookmark } from '../hooks/useBookmarks';
+import { firstAyahOnPage } from '../quran/pageLayout';
 import { JUZ_START } from '../utils/mushaf';
 import { searchAyat, searchMeaning, type AyahHit } from '../utils/quran';
 import { Sheet, SheetSearchField } from './Sheet';
@@ -23,8 +27,40 @@ interface SurahPickerSheetProps {
   onSelectVerse?: (verseKey: string) => void;
   /** Jump to a 1-based mushaf page number. */
   onSelectPage?: (page: number) => void;
+  /** The page being read: its surah and juz are marked, and the lists open on them. */
+  currentPage?: number;
+  /** The reader's bookmarks, for their tab. */
+  bookmarks?: Bookmark[];
+  onSelectBookmark?: (b: Bookmark) => void;
   /** @deprecated The sheet follows the app's colours. */
   palette?: Palette;
+}
+
+type Tab = 'surah' | 'juz' | 'bookmarks';
+const ROW = 64;
+const JUZ = JUZ_START.map((page, i) => ({ juz: i + 1, page, start: firstAyahOnPage(page) }));
+
+/** A number in an eight-pointed star, as Quran apps mark a surah or juz. */
+function StarBadge({ n, active }: { n: number; active: boolean }) {
+  const t = useTheme();
+  const c = 18;
+  const pts = (r: number, turn: number) =>
+    Array.from({ length: 4 }, (_, i) => {
+      const a = (Math.PI / 2) * i + turn;
+      return `${c + r * Math.cos(a)},${c + r * Math.sin(a)}`;
+    }).join(' ');
+  return (
+    <View style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={36} height={36} style={{ position: 'absolute' }}>
+        {[0, Math.PI / 4].map((turn) => (
+          <Polygon key={turn} points={pts(16, turn)} fill={active ? t.c.accent : 'none'} stroke={active ? t.c.accent : t.c.textTertiary} strokeWidth={1.2} strokeLinejoin="round" />
+        ))}
+      </Svg>
+      <Text variant="caption" maxFontSizeMultiplier={1.1} style={{ fontWeight: '700', fontVariant: ['tabular-nums'], color: active ? t.c.onAccent : t.c.text }}>
+        {n}
+      </Text>
+    </View>
+  );
 }
 
 type Jump = { key: string; icon: SFSymbol; title: string; subtitle: string; go: () => void };
@@ -70,15 +106,17 @@ function matchSurahs(query: string): Surah[] {
  * ("juz 30"), or words, in English ("mercy", "patience") or Arabic. Results come as quick jumps,
  * then surahs, then ayahs.
  */
-export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, onSelectVerse, onSelectPage }: SurahPickerSheetProps) {
+export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, onSelectVerse, onSelectPage, currentPage, bookmarks, onSelectBookmark }: SurahPickerSheetProps) {
   const t = useTheme();
   const [query, setQuery] = useState('');
   const q = query.trim();
   const isArabic = /[؀-ۿ]/.test(q);
 
+  const [tab, setTab] = useState<Tab>('surah');
   useEffect(() => {
     if (!visible) setQuery('');
   }, [visible]);
+  const currentJuz = currentPage ? JUZ.filter((j) => j.page <= currentPage).length : 0;
 
   const close = (then: () => void) => {
     then();
@@ -153,12 +191,79 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
   const sections = useMemo(() => {
     const out: { title: string; data: Row[] }[] = [];
     if (jumps.length) out.push({ title: 'Go to', data: jumps.map((jump) => ({ kind: 'jump' as const, jump })) });
-    if (surahs.length) out.push({ title: q ? 'Surahs' : 'All surahs', data: surahs.map((surah) => ({ kind: 'surah' as const, surah })) });
+    if (q && surahs.length) out.push({ title: 'Surahs', data: surahs.map((surah) => ({ kind: 'surah' as const, surah })) });
     if (wantsAyahs && hits.length) out.push({ title: hits.length >= 60 ? 'Ayahs, the first 60' : `Ayahs, ${hits.length}`, data: hits.map((hit) => ({ kind: 'ayah' as const, hit })) });
     return out;
   }, [jumps, surahs, hits, wantsAyahs, q]);
 
   const nothing = !!q && !sections.length && !searching;
+
+  // A surah: its number in a star, its name and kind and length, its Arabic name and page.
+  const surahRow = (s: Surah) => {
+    const current = s.id === currentSurahId;
+    return (
+      <PressableScale scaleTo={0.99} onPress={() => close(() => onSelect(s.id))} accessibilityRole="button" accessibilityLabel={`${s.id}, ${s.transliteration}, ${s.translation}, ${s.type === 'meccan' ? 'Meccan' : 'Medinan'}, ${s.totalVerses} ayahs, page ${pageForSurah(s.id)}`} accessibilityState={{ selected: current }}>
+        <View style={{ height: ROW, flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, paddingHorizontal: t.spacing.lg, backgroundColor: current ? t.c.accentSoft : 'transparent' }}>
+          <StarBadge n={s.id} active={current} />
+          <View style={{ flex: 1 }}>
+            <Text variant="body" style={{ fontWeight: '600' }} numberOfLines={1}>
+              {s.transliteration}
+            </Text>
+            <Text variant="footnote" color="textSecondary" numberOfLines={1}>
+              {s.type === 'meccan' ? 'Meccan' : 'Medinan'}, {s.totalVerses} ayahs
+            </Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <RNText style={{ fontFamily: QURAN_FONT, fontSize: 21, lineHeight: 30, color: t.c.text }}>{s.arabicName}</RNText>
+            <Text variant="caption" color="textSecondary" style={{ fontVariant: ['tabular-nums'] }}>
+              Page {pageForSurah(s.id)}
+            </Text>
+          </View>
+        </View>
+      </PressableScale>
+    );
+  };
+
+  const juzRow = (j: (typeof JUZ)[number]) => {
+    const current = j.juz === currentJuz;
+    const s = j.start ? getSurah(j.start.surah) : undefined;
+    return (
+      <PressableScale scaleTo={0.99} onPress={() => close(() => onSelectPage?.(j.page))} accessibilityRole="button" accessibilityLabel={`Juz ${j.juz}, from ${s?.transliteration} ${j.start?.surah}:${j.start?.ayah}, page ${j.page}`} accessibilityState={{ selected: current }}>
+        <View style={{ height: ROW, flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, paddingHorizontal: t.spacing.lg, backgroundColor: current ? t.c.accentSoft : 'transparent' }}>
+          <StarBadge n={j.juz} active={current} />
+          <View style={{ flex: 1 }}>
+            <Text variant="body" style={{ fontWeight: '600' }}>
+              Juz {j.juz}
+            </Text>
+            <Text variant="footnote" color="textSecondary" numberOfLines={1}>
+              {s ? `From ${s.transliteration} ${j.start!.surah}:${j.start!.ayah}` : ''}
+            </Text>
+          </View>
+          <Text variant="footnote" color="textSecondary" style={{ fontVariant: ['tabular-nums'] }}>
+            Page {j.page}
+          </Text>
+        </View>
+      </PressableScale>
+    );
+  };
+
+  const bookmarkRow = (b: Bookmark) => (
+    <PressableScale scaleTo={0.99} onPress={() => close(() => onSelectBookmark?.(b))} accessibilityRole="button" accessibilityLabel={`${b.surahName}, page ${b.page ?? ''}`}>
+      <View style={{ height: ROW, flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, paddingHorizontal: t.spacing.lg }}>
+        <View style={{ width: 36, alignItems: 'center' }}>
+          <SymbolView name="bookmark.fill" size={18} tintColor={bookmarkColor(b)} style={{ width: 22, height: 22 }} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="body" style={{ fontWeight: '600' }} numberOfLines={1}>
+            {b.surahName}
+          </Text>
+          <Text variant="footnote" color="textSecondary">
+            {b.page ? `Page ${b.page}` : `Ayah ${b.ayah}`}
+          </Text>
+        </View>
+      </View>
+    </PressableScale>
+  );
 
   const row = (item: Row) => {
     if (item.kind === 'jump') {
@@ -178,30 +283,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
         </PressableScale>
       );
     }
-    if (item.kind === 'surah') {
-      const s = item.surah;
-      const current = s.id === currentSurahId;
-      return (
-        <PressableScale scaleTo={0.99} onPress={() => close(() => onSelect(s.id))} accessibilityRole="button" accessibilityLabel={`${s.id}, ${s.transliteration}, ${s.translation}`} accessibilityState={{ selected: current }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, paddingHorizontal: t.spacing.xl, paddingVertical: t.spacing.sm + 2 }}>
-            <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: current ? t.c.accent : t.c.surface2 }}>
-              <Text variant="footnote" style={{ fontWeight: '700', fontVariant: ['tabular-nums'], color: current ? t.c.onAccent : t.c.textSecondary }}>
-                {s.id}
-              </Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text variant="body" style={{ fontWeight: '600' }} numberOfLines={1}>
-                {s.transliteration}
-              </Text>
-              <Text variant="footnote" color="textSecondary" numberOfLines={1}>
-                {s.translation}, {s.totalVerses} ayahs, page {pageForSurah(s.id)}
-              </Text>
-            </View>
-            <RNText style={{ fontFamily: QURAN_FONT, fontSize: 20, color: t.c.text }}>{s.arabicName}</RNText>
-          </View>
-        </PressableScale>
-      );
-    }
+    if (item.kind === 'surah') return surahRow(item.surah);
     const h = item.hit;
     return (
       <PressableScale scaleTo={0.99} onPress={() => close(() => onSelectVerse?.(h.key))} accessibilityRole="button" accessibilityLabel={`${h.surahName} ${h.key}${h.translation ? `, ${h.translation}` : ''}`}>
@@ -223,25 +305,66 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Go to">
-      <SheetSearchField placeholder="Surah, 2:255, page 50, juz 30, or a word" value={query} onChangeText={setQuery} returnKeyType="search" accessibilityLabel="Search the Quran" />
+    <Sheet visible={visible} onClose={onClose} title="Contents">
+      <SheetSearchField placeholder="Search surahs, ayahs, pages or words" value={query} onChangeText={setQuery} returnKeyType="search" accessibilityLabel="Search the Quran" />
       {!q ? (
-        // With nothing typed: each juz a tap away, above the surahs.
-        <View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: t.spacing.sm, paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.md }}>
-            {JUZ_START.map((p, i) => (
-              <PressableScale key={i} haptic="select" onPress={() => close(() => onSelectPage?.(p))} accessibilityRole="button" accessibilityLabel={`Juz ${i + 1}, page ${p}`} hitSlop={{ top: 4, bottom: 4 }}>
-                <View style={{ height: 36, paddingHorizontal: t.spacing.md, borderRadius: 18, justifyContent: 'center', backgroundColor: t.c.surface2 }}>
-                  <Text variant="subhead" style={{ fontWeight: '600' }}>
-                    Juz {i + 1}
-                  </Text>
-                </View>
-              </PressableScale>
-            ))}
-          </ScrollView>
-        </View>
+        // With nothing typed: the contents, by surah, by juz, or the bookmarks.
+        <>
+          <View style={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.sm }}>
+            <SegmentedControl<Tab>
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: 'surah', label: 'Surah' },
+                { value: 'juz', label: 'Juz' },
+                ...(bookmarks ? [{ value: 'bookmarks' as Tab, label: 'Bookmarks' }] : []),
+              ]}
+            />
+          </View>
+          {tab === 'surah' ? (
+            <FlatList
+              key="surah"
+              data={SURAHS}
+              keyExtractor={(x) => String(x.id)}
+              renderItem={({ item }) => surahRow(item)}
+              getItemLayout={(_, i) => ({ length: ROW, offset: ROW * i, index: i })}
+              initialScrollIndex={Math.max(0, Math.min(SURAHS.length - 1, currentSurahId - 3))}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
+              initialNumToRender={14}
+              windowSize={7}
+            />
+          ) : tab === 'juz' ? (
+            <FlatList
+              key="juz"
+              data={JUZ}
+              keyExtractor={(x) => String(x.juz)}
+              renderItem={({ item }) => juzRow(item)}
+              getItemLayout={(_, i) => ({ length: ROW, offset: ROW * i, index: i })}
+              initialScrollIndex={Math.max(0, currentJuz - 3)}
+              contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
+            />
+          ) : bookmarks && bookmarks.length ? (
+            <FlatList
+              key="bookmarks"
+              data={bookmarks}
+              keyExtractor={(b) => `${b.page ?? 0}:${b.surahId}:${b.ayah}:${b.createdAt}`}
+              renderItem={({ item }) => bookmarkRow(item)}
+              contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
+            />
+          ) : (
+            <View style={{ alignItems: 'center', gap: t.spacing.sm, paddingTop: t.spacing.xxl, paddingHorizontal: t.spacing.xl }}>
+              <SymbolView name="bookmark" size={26} tintColor={t.c.glyphQuiet} />
+              <Text variant="headline">No bookmarks yet</Text>
+              <Text variant="subhead" color="textSecondary" style={{ textAlign: 'center' }}>
+                Bookmark a page from the reader's menu, or hold an ayah.
+              </Text>
+            </View>
+          )}
+        </>
       ) : null}
-      {nothing ? (
+      {!q ? null : nothing ? (
         <View style={{ alignItems: 'center', gap: t.spacing.sm, paddingTop: t.spacing.xxl, paddingHorizontal: t.spacing.xl }}>
           <SymbolView name={failed ? 'wifi.slash' : 'magnifyingglass'} size={26} tintColor={t.c.glyphQuiet} />
           <Text variant="headline" style={{ textAlign: 'center' }}>

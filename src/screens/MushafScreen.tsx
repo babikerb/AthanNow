@@ -496,6 +496,9 @@ function Reader({ display }: { display: Display }) {
           leapTo(pageForAyah(s, a));
         }}
         onSelectPage={leapTo}
+        currentPage={page}
+        bookmarks={bookmarks}
+        onSelectBookmark={(b: Bookmark) => leapTo(b.page ?? pageForAyah(b.surahId, b.ayah))}
         palette={dark ? darkPalette : lightPalette}
       />
       <BookmarkSheet
