@@ -345,6 +345,10 @@ function Reader({ display }: { display: Display }) {
     if (pageRef.current === before) jumpTo(playingPage);
   }, [playingPage]); // eslint-disable-line react-hooks/exhaustive-deps
   const offRecitation = !!playingPage && playingPage !== page;
+  // Turning to landscape during a recitation goes to the page being recited, as zooming in does.
+  useEffect(() => {
+    if (landscape && reading && r.isPlaying && playingPage && playingPage !== pageRef.current) jumpTo(playingPage);
+  }, [landscape]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!r.surahId) setFrom(null);
   }, [r.surahId]);
