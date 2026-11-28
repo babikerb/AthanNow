@@ -294,9 +294,9 @@ struct AyahPreview: View {
     // Kept to a size the system never has to squeeze: iOS shrinks a preview that's too large by
     // clipping it, not by laying it out again. Longer ayahs get a smaller size and are cut short.
     let arabic = MushafStore.shared.ayahText[word.ayahKey] ?? word.text
-    let size: CGFloat = arabic.count > 300 ? 20 : arabic.count > 180 ? 22 : arabic.count > 100 ? 25 : 28
+    let size: CGFloat = arabic.count > 300 ? Theme.Arabic.small.size : arabic.count > 180 ? Theme.Arabic.name.size : arabic.count > 100 ? Theme.Arabic.ayah.size : Theme.Arabic.ayahLarge.size
     let width = min(UIScreen.main.bounds.width - 48, 340)
-    VStack(spacing: 10) {
+    VStack(spacing: Theme.Space.md) {
       Text(arabic)
         .font(.custom(MushafFont.name, size: size))
         .foregroundColor(ctx.theme.ink)
@@ -319,8 +319,8 @@ struct AyahPreview: View {
         .font(.footnote)
         .foregroundColor(ctx.theme.quiet)
     }
-    .padding(.horizontal, 20)
-    .padding(.vertical, 18)
+    .padding(.horizontal, Theme.Space.xl)
+    .padding(.vertical, Theme.Space.xl)
     .frame(width: width)
     .fixedSize(horizontal: false, vertical: true)
     .background(ctx.theme.background)
@@ -635,7 +635,7 @@ struct TranslationPage: View {
         case .bismillah(let s):
           BismillahLine(surah: s, size: size * 0.8, ctx: ctx, width: width, maxHeight: (qcf != nil && qcfSize > 0 ? qcfSize : size) * 1.1)
         case .ayah(let key, let words):
-          VStack(spacing: 10) {
+          VStack(spacing: Theme.Space.md) {
             if let q = qcf, qcfSize > 0 {
               FlowingLines(gap: qcfSize * 0.12, lineHeight: qcfSize * 1.75) {
                 ForEach(words, id: \.order) { word in
@@ -955,7 +955,7 @@ struct QuranReaderView: ExpoSwiftUI.View {
                   Spacer(minLength: 12)
                   Text("Juz \(QuranReaderView.juz(p.number))")
                 }
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: Theme.Size.footnote, weight: .medium))
                 .foregroundColor(theme.ink.opacity(0.5))
                 .environment(\.layoutDirection, .leftToRight)
                 PageView(page: p, size: pageSize, width: area.width, lineHeight: lineHeight, ctx: ctx, qcf: fonts.metrics(p.number))
@@ -963,15 +963,15 @@ struct QuranReaderView: ExpoSwiftUI.View {
                 HStack {
                   Spacer()
                   Text("\(p.number)")
-                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    .font(.system(size: Theme.Size.footnote, weight: .semibold).monospacedDigit())
                     .foregroundColor(theme.ink.opacity(0.85))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, Theme.Space.md)
+                    .padding(.vertical, Theme.Space.xs)
                     .overlay(Capsule().stroke(theme.ink.opacity(0.35), lineWidth: 1))
                 }
                 .environment(\.layoutDirection, .leftToRight)
               }
-              .padding(.top, 16)
+              .padding(.top, Theme.Space.lg)
               .padding(.bottom, CGFloat(props.bottomInset))
               .frame(width: area.width)
               .frame(maxWidth: .infinity)

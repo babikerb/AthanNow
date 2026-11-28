@@ -193,7 +193,7 @@ extension View {
         ForEach(Array(lines.enumerated()), id: \.offset) { _, r in
           let band = r.insetBy(dx: -r.height * 0.14, dy: r.height * 0.1)
           RoundedRectangle(cornerRadius: band.height * 0.32, style: .continuous)
-            .fill(Color(red: 0.58, green: 0.45, blue: 0.86).opacity(dark ? 0.28 : 0.16))
+            .fill(Theme.Reader.focusBand.opacity(dark ? 0.28 : 0.16))
             .frame(width: band.width, height: band.height)
             .position(x: band.midX, y: band.midY)
         }
@@ -203,7 +203,7 @@ extension View {
     // The ayah being held: a grey band, shown at once.
     .backgroundPreferenceValue(PressRectsKey.self) { anchors in
       GeometryReader { g in
-        LineBands(rects: anchors.map { g[$0] }, color: Color.gray.opacity(dark ? 0.28 : 0.2))
+        LineBands(rects: anchors.map { g[$0] }, color: Theme.Reader.pressBand.opacity(dark ? 0.28 : 0.2))
       }
       .allowsHitTesting(false)
     }

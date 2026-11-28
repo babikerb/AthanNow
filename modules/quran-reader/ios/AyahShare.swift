@@ -63,7 +63,7 @@ struct ShareCard: View {
     let meaning = MushafStore.shared.translation(surah, ayah)
     VStack(spacing: 0) {
       Text(AyahShare.reference(surah: surah, ayah: ayah, title: title))
-        .font(.system(size: 15, weight: .semibold))
+        .font(.system(size: Theme.Size.subhead, weight: .semibold))
         .foregroundColor(theme.ink.opacity(0.8))
 
       Text(arabic)
@@ -73,7 +73,7 @@ struct ShareCard: View {
         .lineSpacing(10)
         .environment(\.layoutDirection, .rightToLeft)
         .fixedSize(horizontal: false, vertical: true)
-        .padding(.top, 22)
+        .padding(.top, Theme.Space.xxl)
 
       if !meaning.isEmpty {
         Text(meaning)
@@ -82,33 +82,33 @@ struct ShareCard: View {
           .multilineTextAlignment(.center)
           .lineSpacing(3)
           .fixedSize(horizontal: false, vertical: true)
-          .padding(.top, 18)
+          .padding(.top, Theme.Space.xl)
       }
 
-      Rectangle().fill(theme.ink.opacity(0.12)).frame(height: 1).padding(.top, 26)
+      Rectangle().fill(theme.ink.opacity(0.12)).frame(height: 1).padding(.top, Theme.Space.xxl)
 
-      HStack(spacing: 10) {
+      HStack(spacing: Theme.Space.md) {
         if let icon = AyahShare.icon {
           Image(uiImage: icon)
             .resizable()
             .frame(width: 34, height: 34)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
         }
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: Theme.Space.xxs) {
           Text("AthanNow")
-            .font(.system(size: 13, weight: .bold))
+            .font(.system(size: Theme.Size.footnote, weight: .bold))
             .foregroundColor(theme.ink)
           Text("Get it free on the App Store")
-            .font(.system(size: 11))
+            .font(.system(size: Theme.Size.caption2))
             .foregroundColor(theme.ink.opacity(0.6))
         }
         Spacer(minLength: 0)
       }
-      .padding(.top, 14)
+      .padding(.top, Theme.Space.lg)
     }
-    .padding(.horizontal, 28)
-    .padding(.top, 28)
-    .padding(.bottom, 20)
+    .padding(.horizontal, Theme.Space.xxxl)
+    .padding(.top, Theme.Space.xxxl)
+    .padding(.bottom, Theme.Space.xl)
     .frame(width: 360)
     .background(theme.background)
   }
