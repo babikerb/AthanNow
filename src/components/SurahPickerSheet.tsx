@@ -16,6 +16,7 @@ import { JUZ_START } from '../utils/mushaf';
 import { searchAyat, searchMeaning, type AyahHit } from '../utils/quran';
 import { Sheet, SheetSearchField } from './Sheet';
 import { arabicStyle, space } from '../theme/theme';
+import { Caption } from '../design/Card';
 
 interface SurahPickerSheetProps {
   /** The contents (surahs, juz, bookmarks), or search across everything. */
@@ -415,9 +416,9 @@ export const SurahPickerSheet = React.memo(function SurahPickerSheet({ mode, vis
           renderItem={({ item }) => row(item)}
           renderSectionHeader={({ section }) => (
             <View style={{ backgroundColor: t.c.bg, paddingHorizontal: t.spacing.xl, paddingTop: t.spacing.sm, paddingBottom: t.spacing.xs }}>
-              <Text variant="caption" color="textSecondary" header style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+              <Caption header>
                 {section.title}
-              </Text>
+              </Caption>
             </View>
           )}
           ListFooterComponent={

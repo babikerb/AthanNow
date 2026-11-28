@@ -14,6 +14,7 @@ import { Sheet, SheetIconButton } from '../Sheet';
 import { dayKey, fromKey, GOAL_SUGGESTIONS, goalTitle, surahPages, type GoalSchedule, type GoalTarget, type NewGoal } from '../../quran/goals';
 import { TapTarget } from '../recitation/TapTarget';
 import { space, radius } from '../../theme/theme';
+import { Caption } from '../../design/Card';
 
 type What = GoalTarget['kind'];
 type When = GoalSchedule['kind'];
@@ -231,9 +232,9 @@ export function GoalEditor({ visible, onClose, onAdd }: { visible: boolean; onCl
           </View>
 
           <View style={[card, { marginTop: t.spacing.xxl, alignItems: 'center' }]}>
-            <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+            <Caption>
               Your goal
-            </Text>
+            </Caption>
             <Text variant="title3" style={{ textAlign: 'center', marginTop: space.xxs }}>
               {goalTitle(goal)}
             </Text>

@@ -12,6 +12,7 @@ import { pageForAyah } from '../../quran/pageLayout';
 import { NativeMenu } from '../NativeMenu';
 import { IconTarget, RoundIcon, TOUCH_TARGET } from '../../design/IconButton';
 import { arabicStyle } from '../../theme/theme';
+import { Caption, Card } from '../../design/Card';
 
 // Short ayahs that speak to everyday life, each with its theme: worry, patience, family, money, anger,
 // death, nature and more (131 in all).
@@ -193,10 +194,10 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
   };
 
   return (
-    <View style={{ marginTop: t.spacing.md, borderRadius: t.radii.feature, borderCurve: 'continuous', backgroundColor: t.c.surface1, paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md, paddingBottom: t.spacing.sm }}>
-      <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+    <Card feature padded={false} style={{ marginTop: t.spacing.md, paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md, paddingBottom: t.spacing.sm }}>
+      <Caption>
         Ayah of the day, on {theme}
-      </Text>
+      </Caption>
       <PressableScale scaleTo={0.99} onPress={() => onOpenPage(pageForAyah(surahId, ayah))} accessibilityRole="button" accessibilityLabel={`${title} ${surahId}:${ayah}: ${translation}`} accessibilityHint="Opens it in the mushaf">
         <RNText numberOfLines={4} style={{ ...arabicStyle('ayah'), color: t.c.text, textAlign: 'right', writingDirection: 'rtl', marginTop: t.spacing.sm }}>
           {arabic}
@@ -226,6 +227,6 @@ export function AyahOfTheDay({ dark, onOpenPage }: { dark: boolean; onOpenPage: 
           </IconTarget>
         </NativeMenu>
       </View>
-    </View>
+    </Card>
   );
 }

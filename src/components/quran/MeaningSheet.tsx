@@ -15,6 +15,7 @@ import { ayahAfter, ayahBefore, commentaryText, DEFAULT_MEANING_SOURCE, loadMean
 import { NativeMenu } from '../NativeMenu';
 import { SheetHeader, SheetIconButton, SheetTitle } from '../Sheet';
 import { arabicStyle, radius, space } from '../../theme/theme';
+import { Caption } from '../../design/Card';
 
 const SOURCE_KEY = 'athannow.meaning.source.v1';
 
@@ -201,9 +202,9 @@ function SheetBody({
 
       <ScrollView ref={scrollRef} contentContainerStyle={{ paddingHorizontal: t.spacing.xl, paddingBottom: insets.bottom + t.spacing.xxxl }}>
         {surah ? (
-          <Text variant="caption" color="textSecondary" style={{ textTransform: 'uppercase', letterSpacing: 0.8, marginTop: t.spacing.xs }}>
+          <Caption style={{ marginTop: t.spacing.xs }}>
             {surah.transliteration}, {ayahs.length > 1 ? `explains ayahs ${first.ayah} to ${last.ayah}` : `ayah ${first.ayah}`}
-          </Text>
+          </Caption>
         ) : null}
 
         {ayahs.map((a) => {

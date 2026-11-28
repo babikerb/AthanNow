@@ -17,6 +17,7 @@ import { useRecitation, useRecitationWord } from "../../recitation/RecitationPro
 import { AyahOfTheDay } from "./AyahOfTheDay";
 import { GoalRings } from "./GoalRings";
 import { arabicStyle, radius, space } from '../../theme/theme';
+import { Caption, Card } from '../../design/Card';
 
 const NO_PAGES: number[] = [];
 
@@ -182,13 +183,9 @@ export function QuranHome({
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text
-                  variant="caption"
-                  color="textSecondary"
-                  style={{ textTransform: "uppercase", letterSpacing: 0.8 }}
-                >
+                <Caption>
                   It’s Friday
-                </Text>
+                </Caption>
                 <Text variant="headline">Al-Kahf</Text>
               </View>
               <Text
@@ -290,13 +287,13 @@ function ContinueCard({ dark, lastPage, started, onContinue, onOpenPage }: { dar
 
   return (
     <>
-      <View style={{ marginTop: t.spacing.md, borderRadius: t.radii.feature, borderCurve: "continuous", backgroundColor: t.c.surface1, padding: t.spacing.sm }}>
+      <Card feature padded={false} style={{ marginTop: t.spacing.md, padding: t.spacing.sm }}>
         {/* Headed like the other cards on this page: a small caption inside the card. */}
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: t.spacing.sm, paddingTop: t.spacing.xs, paddingBottom: t.spacing.sm }}>
           {listening ? <SymbolView name="waveform" size={11} tintColor={t.c.accent} /> : null}
-          <Text variant="caption" color="textSecondary" header style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+          <Caption header>
             {listening ? "Listening now" : fresh ? "Start reading" : "Continue where you left off"}
-          </Text>
+          </Caption>
         </View>
         <PressableScale scaleTo={0.99} onPress={open} accessibilityRole="button" accessibilityLabel={listening ? `Back to the recitation, ${surah.transliteration}, ayah ${ayah}` : fresh ? "Start reading from Al-Fatihah" : `Continue reading ${surah.transliteration}, page ${page}`}>
           <View pointerEvents="none" style={{ height: 112, borderRadius: t.radii.card, borderCurve: "continuous", overflow: "hidden", backgroundColor: t.c.bg }}>
@@ -350,7 +347,7 @@ function ContinueCard({ dark, lastPage, started, onContinue, onOpenPage }: { dar
             </PressableScale>
           ) : null}
         </View>
-      </View>
+      </Card>
     </>
   );
 }
@@ -374,20 +371,16 @@ function HadithCard() {
 
   const h = HADITH[index];
   return (
-    <View
+    <Card
+      feature
+      padded={false}
       accessible
       accessibilityLabel={`The Prophet said: ${h.text} ${h.source}`}
-      style={{
-        borderRadius: t.radii.feature,
-        borderCurve: "continuous",
-        backgroundColor: t.c.surface1,
-        paddingHorizontal: t.spacing.lg,
-        paddingVertical: t.spacing.md,
-      }}
+      style={{ paddingHorizontal: t.spacing.lg, paddingVertical: t.spacing.md }}
     >
-      <Text variant="caption" color="textSecondary" style={{ textTransform: "uppercase", letterSpacing: 0.8 }}>
+      <Caption>
         The Prophet ﷺ said
-      </Text>
+      </Caption>
       {/* Every hadith is laid out in the same place, the longest setting the card's height, so the
           card never changes size as they turn; only the current one shows, centred between the
           heading and its source, which keeps to the card's foot. */}
@@ -412,6 +405,6 @@ function HadithCard() {
           {h.source}
         </Text>
       </Animated.View>
-    </View>
+    </Card>
   );
 }
