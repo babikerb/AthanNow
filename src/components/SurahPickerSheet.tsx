@@ -1,5 +1,5 @@
 import { SymbolView } from 'expo-symbols';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, SectionList, Text as RNText, View } from 'react-native';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
@@ -10,7 +10,7 @@ import { SegmentedControl } from '../design/SegmentedControl';
 import { Text } from '../design/Text';
 import { useTheme } from '../design/theme';
 import type { Palette } from '../theme/colors';
-import { QURAN_FONT } from '../theme/colors';
+import { HAFS_FONT } from 'quran-reader';
 import { bookmarkColor, type Bookmark } from '../hooks/useBookmarks';
 import { firstAyahOnPage } from '../quran/pageLayout';
 import { JUZ_START } from '../utils/mushaf';
@@ -101,6 +101,9 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
   const isArabic = /[؀-ۿ]/.test(q);
 
   const [tab, setTab] = useState<Tab>('surah');
+  // The surah or juz being read, scrolled to a third of the way down once the list is laid out.
+  const surahList = useRef<FlatList<Surah>>(null);
+  const juzList = useRef<FlatList<(typeof JUZ)[number]>>(null);
   useEffect(() => {
     if (!visible) setQuery('');
   }, [visible]);
@@ -202,7 +205,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
             </Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <RNText style={{ fontFamily: QURAN_FONT, fontSize: 21, lineHeight: 30, color: t.c.text }}>{s.arabicName}</RNText>
+            <RNText style={{ fontFamily: HAFS_FONT, fontSize: 21, lineHeight: 30, color: t.c.text }}>{s.arabicName}</RNText>
             <Text variant="caption" color="textSecondary" style={{ fontVariant: ['tabular-nums'] }}>
               Page {pageForSurah(s.id)}
             </Text>
@@ -276,7 +279,7 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
     return (
       <PressableScale scaleTo={0.99} onPress={() => close(() => onSelectVerse?.(h.key))} accessibilityRole="button" accessibilityLabel={`${h.surahName} ${h.key}${h.translation ? `, ${h.translation}` : ''}`}>
         <View style={{ marginHorizontal: t.spacing.lg, marginBottom: t.spacing.sm, padding: t.spacing.md, borderRadius: t.radii.card, borderCurve: 'continuous', backgroundColor: t.c.surface1, gap: 4 }}>
-          <RNText numberOfLines={2} style={{ fontFamily: QURAN_FONT, fontSize: 20, lineHeight: 36, color: t.c.text, textAlign: 'right', writingDirection: 'rtl' }}>
+          <RNText numberOfLines={2} style={{ fontFamily: HAFS_FONT, fontSize: 20, lineHeight: 36, color: t.c.text, textAlign: 'right', writingDirection: 'rtl' }}>
             {h.text}
           </RNText>
           {h.translation ? (
@@ -316,7 +319,8 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
               keyExtractor={(x) => String(x.id)}
               renderItem={({ item }) => surahRow(item)}
               getItemLayout={(_, i) => ({ length: ROW, offset: ROW * i, index: i })}
-              initialScrollIndex={Math.max(0, Math.min(SURAHS.length - 1, currentSurahId - 3))}
+              ref={surahList}
+              onLayout={() => surahList.current?.scrollToIndex({ index: Math.max(0, currentSurahId - 1), viewPosition: 0.3, animated: false })}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
@@ -330,7 +334,8 @@ export function SurahPickerSheet({ visible, onClose, currentSurahId, onSelect, o
               keyExtractor={(x) => String(x.juz)}
               renderItem={({ item }) => juzRow(item)}
               getItemLayout={(_, i) => ({ length: ROW, offset: ROW * i, index: i })}
-              initialScrollIndex={Math.max(0, currentJuz - 3)}
+              ref={juzList}
+              onLayout={() => currentJuz && juzList.current?.scrollToIndex({ index: currentJuz - 1, viewPosition: 0.3, animated: false })}
               contentContainerStyle={{ paddingBottom: t.spacing.xxxl * 2 }}
             />
           ) : bookmarks && bookmarks.length ? (

@@ -229,11 +229,12 @@ struct WordView: View {
       .fixedSize()
       .background {
         if isCurrent {
-          // A soft pill of the recited colour behind the word: rounded all round, no outline.
-          Capsule(style: .continuous)
+          // A soft lozenge of the recited colour behind the word, the height of the writing rather
+          // than the glyph's whole box (whose marks above and below made a short word a disc).
+          RoundedRectangle(cornerRadius: size * 0.42, style: .continuous)
             .fill(ctx.theme.highlight.opacity(ctx.theme.dark ? 0.26 : 0.16))
-            .padding(.horizontal, -size * 0.2)
-            .padding(.vertical, size * 0.16)
+            .frame(height: size * 1.15)
+            .padding(.horizontal, -size * 0.18)
             .matchedGeometryEffect(id: "highlight", in: ctx.ns)
         }
       }
@@ -386,13 +387,14 @@ struct SurahHeader: View {
       // The medallions: the surah's number in the right one, its place in the order of revelation in
       // the left.
       ForEach(Array([(0.794, surah), (0.206, SurahHeader.revelationOrder[surah - 1])].enumerated()), id: \.offset) { _, m in
+        // Plain digits: the mushaf font draws its Arabic digits inside an ayah marker's ornament.
         Text(SurahHeader.arabic(m.1))
-          .font(.custom(MushafFont.name, size: h * 0.68))
-          .foregroundColor(theme.ink.opacity(0.9))
+          .font(.system(size: h * 0.3, weight: .medium))
+          .foregroundColor(theme.ink.opacity(0.92))
           .lineLimit(1)
           .minimumScaleFactor(0.5)
-          .frame(width: h * 0.52)
-          .position(x: w * m.0, y: h * 0.56)
+          .frame(width: h * 0.5, height: h * 0.5)
+          .position(x: w * m.0, y: h * 0.5)
       }
     }
     .frame(width: w, height: h)

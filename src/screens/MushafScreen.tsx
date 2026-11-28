@@ -137,7 +137,8 @@ function Reader({ display }: { display: Display }) {
   const [reading, setReading] = useState(false);
   const readingRef = useRef(false);
   readingRef.current = reading;
-  const { width } = useWindowDimensions();
+  const { width, height: screenHeight } = useWindowDimensions();
+  const landscape = width > screenHeight;
   // 0 with the reader on screen, 1 with it off to the right.
   const push = useRef(new Animated.Value(1)).current;
   // Tapping the page focuses it: the tab bar's already away, so the top bar widens and the player
@@ -597,7 +598,7 @@ function Reader({ display }: { display: Display }) {
                 ) : null}
 
                 {/* Flowing text fades out under the bars instead of running behind them. */}
-                {display.view !== "mushaf" || zoomed ? (
+                {display.view !== "mushaf" || zoomed || landscape ? (
                   <>
                     <EdgeFade edge="top" color={t.c.bg} height={hidden ? topInset + 18 : insets.top + TOP_BAR + 36} solid={hidden ? topInset - 6 : insets.top + TOP_BAR - 4} />
                     <EdgeFade edge="bottom" color={t.c.bg} height={hidden ? bottomInset + 18 : insets.bottom + 170} solid={hidden ? bottomInset - 6 : insets.bottom + 128} />
